@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { builderDataSchema } from "@/features/builder/schema";
 import { BuilderData } from "@/features/builder/types";
 import { normalizeBuilderData } from "@/features/builder/utils";
+import { isAdminRequestAuthenticated } from "@/lib/server/admin-auth";
 import {
   getPublicPageBySlug,
   removePublicPageBySlug,
@@ -57,6 +58,10 @@ export async function PUT(
   request: Request,
   context: { params: Promise<RouteParams> },
 ) {
+  if (!(await isAdminRequestAuthenticated(request))) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
   const slug = await getSlugFromParams(context.params);
   if (!slug) {
     return NextResponse.json({ error: "Invalid slug." }, { status: 400 });
@@ -108,9 +113,13 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<RouteParams> },
 ) {
+  if (!(await isAdminRequestAuthenticated(request))) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
   const slug = await getSlugFromParams(context.params);
   if (!slug) {
     return NextResponse.json({ error: "Invalid slug." }, { status: 400 });

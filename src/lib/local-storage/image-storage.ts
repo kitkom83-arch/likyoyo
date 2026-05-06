@@ -105,14 +105,20 @@ export const collectIndexedDbImageRefsFromBuilderData = (data: BuilderData): str
   for (const social of data.socials) {
     push(social.iconImageUrl);
     push(social.iconUrl);
+    push(social.preOpenModal?.bannerImageUrl);
   }
 
   for (const link of data.links) {
     push(link.settings.thumbnailUrl);
+    push(link.settings.imageUrl);
+    push(link.settings.iconImageUrl);
+    push(link.settings.backgroundImageUrl);
+    push(link.preOpenModal?.bannerImageUrl);
     push(link.discount?.cardThumbnail);
     push(link.discount?.modalHeroImage);
     push(link.embedPost?.cardIcon);
     push(link.embedPost?.cardThumbnail);
+    link.promoGallery?.items.forEach((item) => push(item.imageUrl));
   }
 
   return Array.from(refs);
@@ -192,6 +198,14 @@ export const hydrateBuilderDataWithIndexedDbImages = (
     ...social,
     iconImageUrl: resolveValueFromMap(social.iconImageUrl, resolved) ?? social.iconImageUrl,
     iconUrl: resolveValueFromMap(social.iconUrl, resolved) ?? social.iconUrl,
+    preOpenModal: social.preOpenModal
+      ? {
+          ...social.preOpenModal,
+          bannerImageUrl:
+            resolveValueFromMap(social.preOpenModal.bannerImageUrl, resolved) ??
+            social.preOpenModal.bannerImageUrl,
+        }
+      : social.preOpenModal,
   })),
   links: data.links.map((link) => ({
     ...link,
@@ -199,7 +213,21 @@ export const hydrateBuilderDataWithIndexedDbImages = (
       ...link.settings,
       thumbnailUrl:
         resolveValueFromMap(link.settings.thumbnailUrl, resolved) ?? link.settings.thumbnailUrl,
+      imageUrl: resolveValueFromMap(link.settings.imageUrl, resolved) ?? link.settings.imageUrl,
+      iconImageUrl:
+        resolveValueFromMap(link.settings.iconImageUrl, resolved) ?? link.settings.iconImageUrl,
+      backgroundImageUrl:
+        resolveValueFromMap(link.settings.backgroundImageUrl, resolved) ??
+        link.settings.backgroundImageUrl,
     },
+    preOpenModal: link.preOpenModal
+      ? {
+          ...link.preOpenModal,
+          bannerImageUrl:
+            resolveValueFromMap(link.preOpenModal.bannerImageUrl, resolved) ??
+            link.preOpenModal.bannerImageUrl,
+        }
+      : link.preOpenModal,
     discount: link.discount
       ? {
           ...link.discount,
@@ -217,6 +245,15 @@ export const hydrateBuilderDataWithIndexedDbImages = (
             resolveValueFromMap(link.embedPost.cardThumbnail, resolved) ?? link.embedPost.cardThumbnail,
         }
       : link.embedPost,
+    promoGallery: link.promoGallery
+      ? {
+          ...link.promoGallery,
+          items: link.promoGallery.items.map((item) => ({
+            ...item,
+            imageUrl: resolveValueFromMap(item.imageUrl, resolved) ?? item.imageUrl,
+          })),
+        }
+      : link.promoGallery,
   })),
 });
 
@@ -249,6 +286,14 @@ export const resolveBuilderDataImagesForPersistence = async (
       iconImageUrl:
         (await resolveImageValueForPersistence(social.iconImageUrl)) ?? social.iconImageUrl,
       iconUrl: await resolveImageValueForPersistence(social.iconUrl),
+      preOpenModal: social.preOpenModal
+        ? {
+            ...social.preOpenModal,
+            bannerImageUrl:
+              (await resolveImageValueForPersistence(social.preOpenModal.bannerImageUrl)) ??
+              social.preOpenModal.bannerImageUrl,
+          }
+        : social.preOpenModal,
     })),
   ),
   links: await Promise.all(
@@ -258,7 +303,23 @@ export const resolveBuilderDataImagesForPersistence = async (
         ...link.settings,
         thumbnailUrl:
           (await resolveImageValueForPersistence(link.settings.thumbnailUrl)) ?? undefined,
+        imageUrl:
+          (await resolveImageValueForPersistence(link.settings.imageUrl)) ?? link.settings.imageUrl,
+        iconImageUrl:
+          (await resolveImageValueForPersistence(link.settings.iconImageUrl)) ??
+          link.settings.iconImageUrl,
+        backgroundImageUrl:
+          (await resolveImageValueForPersistence(link.settings.backgroundImageUrl)) ??
+          link.settings.backgroundImageUrl,
       },
+      preOpenModal: link.preOpenModal
+        ? {
+            ...link.preOpenModal,
+            bannerImageUrl:
+              (await resolveImageValueForPersistence(link.preOpenModal.bannerImageUrl)) ??
+              link.preOpenModal.bannerImageUrl,
+          }
+        : link.preOpenModal,
       discount: link.discount
         ? {
             ...link.discount,
@@ -287,6 +348,18 @@ export const resolveBuilderDataImagesForPersistence = async (
               )) ?? link.embedPost.cardThumbnail,
           }
         : link.embedPost,
+      promoGallery: link.promoGallery
+        ? {
+            ...link.promoGallery,
+            items: await Promise.all(
+              link.promoGallery.items.map(async (item) => ({
+                ...item,
+                imageUrl:
+                  (await resolveImageValueForPersistence(item.imageUrl)) ?? item.imageUrl,
+              })),
+            ),
+          }
+        : link.promoGallery,
     })),
   ),
 });

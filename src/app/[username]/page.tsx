@@ -92,5 +92,22 @@ export async function generateMetadata({ params }: PublicPageProps): Promise<Met
 
 export default async function PublicProfilePage({ params }: PublicPageProps) {
   const { username } = await params;
-  return <PublicProfilePageClient username={username ?? ""} />;
+  const slug = normalizeSlug(username ?? "");
+  let profile: BuilderData | null = null;
+
+  if (slug) {
+    try {
+      profile = await getPublicPageBySlug(slug);
+    } catch {
+      profile = null;
+    }
+  }
+
+  return (
+    <PublicProfilePageClient
+      username={username ?? ""}
+      initialProfile={profile}
+      initialProfileResolved
+    />
+  );
 }

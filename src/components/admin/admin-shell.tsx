@@ -108,6 +108,7 @@ export const AdminShell = () => {
   const saveOperationTimerRef = useRef<number | null>(null);
   const workspaceLoadTokenRef = useRef(0);
   const isSwitchingWorkspaceRef = useRef(false);
+  const pendingAutosaveRef = useRef(false);
 
   const builderData = useMemo<BuilderData>(
     () => ({ header, theme, text, buttonStyle, socials, links }),
@@ -144,6 +145,7 @@ export const AdminShell = () => {
       setActiveEditorSlug(normalized);
       const snapshot = JSON.stringify(baselineData ?? selectBuilderDataSnapshot());
       lastSavedSnapshotRef.current = snapshot;
+      pendingAutosaveRef.current = false;
       setSaveStatus("saved");
       setCollisionDialog(null);
       setWorkspaceHydrationKey((value) => value + 1);
@@ -198,6 +200,8 @@ export const AdminShell = () => {
       applyWorkspaceIdentity(normalized, fallbackHydrated);
       setLastSavedAt(null);
       if (options.markUnsaved) {
+        lastSavedSnapshotRef.current = "";
+        pendingAutosaveRef.current = true;
         setSaveStatus("unsaved");
       }
       completeSwitch();
@@ -248,6 +252,7 @@ export const AdminShell = () => {
             setCurrentEditorSlug(targetSlug);
             setActiveEditorSlug(targetSlug);
             lastSavedSnapshotRef.current = snapshot;
+            pendingAutosaveRef.current = false;
             setLastSavedAt(new Date());
             setSaveStatus("saved");
             window.dispatchEvent(new Event("storage"));
@@ -255,6 +260,7 @@ export const AdminShell = () => {
             void refreshSavedPages();
           } catch (error) {
             console.error("[admin-shell] save failed", error);
+            pendingAutosaveRef.current = true;
             setSaveStatus("unsaved");
           } finally {
             saveOperationTimerRef.current = null;
@@ -372,7 +378,7 @@ export const AdminShell = () => {
       };
     }
 
-    if (snapshot === lastSavedSnapshotRef.current) {
+    if (snapshot === lastSavedSnapshotRef.current && !pendingAutosaveRef.current) {
       return;
     }
 

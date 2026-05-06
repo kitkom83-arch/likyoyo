@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     }
 
     const response = NextResponse.json({ ok: true });
-    response.cookies.set(createAdminSessionCookie());
+    response.cookies.set(await createAdminSessionCookie(request));
     return response;
   } catch {
     return NextResponse.json({ error: "Login failed." }, { status: 500 });

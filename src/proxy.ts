@@ -8,10 +8,10 @@ import {
 
 const ADMIN_LOGIN_PATH = "/admin/login";
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const cookieValue = request.cookies.get(ADMIN_SESSION_COOKIE_NAME)?.value;
-  const isAuthenticated = isAdminSessionCookieValid(cookieValue);
+  const isAuthenticated = await isAdminSessionCookieValid(cookieValue);
 
   if (pathname === ADMIN_LOGIN_PATH) {
     if (isAuthenticated) {

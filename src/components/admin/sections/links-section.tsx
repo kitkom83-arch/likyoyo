@@ -2369,7 +2369,7 @@ export const LinksSection = () => {
                   {(editStyle === "image_banner" || editStyle === "media_card") ? (
                     <div className="rounded-lg border border-border/70 p-3 space-y-3">
                       <div className="space-y-1">
-                        <Label>Image brightness ({editImageBrightness ?? 100}%)</Label>
+                        <Label>{t("links_image_brightness", { value: editImageBrightness ?? 100 })}</Label>
                         <input
                           type="range"
                           min={0}
@@ -2380,7 +2380,7 @@ export const LinksSection = () => {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label>Image contrast ({editImageContrast ?? 100}%)</Label>
+                        <Label>{t("links_image_contrast", { value: editImageContrast ?? 100 })}</Label>
                         <input
                           type="range"
                           min={0}
@@ -2391,7 +2391,7 @@ export const LinksSection = () => {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label>Image saturation ({editImageSaturation ?? 100}%)</Label>
+                        <Label>{t("links_image_saturation", { value: editImageSaturation ?? 100 })}</Label>
                         <input
                           type="range"
                           min={0}
@@ -2402,7 +2402,7 @@ export const LinksSection = () => {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label>Overlay opacity (+{editOverlayOpacity ?? 0}%)</Label>
+                        <Label>{t("links_overlay_opacity", { value: editOverlayOpacity ?? 0 })}</Label>
                         <input
                           type="range"
                           min={0}
@@ -2412,7 +2412,7 @@ export const LinksSection = () => {
                           {...editForm.register("overlayOpacity", { valueAsNumber: true })}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Applies to display only. Original image URL is unchanged.
+                          {t("links_image_tuning_help")}
                         </p>
                       </div>
                     </div>

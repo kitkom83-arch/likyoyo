@@ -9,6 +9,8 @@ export const en = {
   save_status_last_saved: "Last saved",
   save_status_not_saved_yet: "Not saved yet",
   save_status_save_now: "Save now",
+  save_status_save_error: "Save failed. Check your connection, then press Save now.",
+  save_status_load_error: "Could not refresh saved pages. Your editor remains available.",
   storage_warning_quota:
     "Local storage is full. Changes stay in this session but may not persist until you reduce saved data.",
 
@@ -193,6 +195,11 @@ export const en = {
   links_style_image_fit: "Image Fit",
   links_style_image_fit_cover: "Cover",
   links_style_image_fit_contain: "Contain",
+  links_image_brightness: "Image brightness ({value}%)",
+  links_image_contrast: "Image contrast ({value}%)",
+  links_image_saturation: "Image saturation ({value}%)",
+  links_overlay_opacity: "Overlay opacity (+{value}%)",
+  links_image_tuning_help: "Applies to display only. Original image URL is unchanged.",
   links_style_text_panel_content: "Text Panel Content",
   links_style_open_in_new_tab: "Open in new tab",
   links_style_preserve_line_breaks: "Preserve line breaks",

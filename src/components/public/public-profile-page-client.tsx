@@ -17,6 +17,8 @@ import { toProfileSlug } from "@/lib/local-storage/profile-storage";
 
 type PublicProfilePageClientProps = {
   username: string;
+  initialProfile?: BuilderData | null;
+  initialProfileResolved?: boolean;
 };
 
 const EMPTY_SUMMARY: ClickSummary = {
@@ -45,14 +47,28 @@ const normalizeHeaderForSlug = (slug: string, profile: BuilderData): BuilderData
 
 export const PublicProfilePageClient = ({
   username,
+  initialProfile = null,
+  initialProfileResolved = false,
 }: PublicProfilePageClientProps) => {
   const { language, setLanguage, t } = useI18n();
   const slug = useMemo(() => toProfileSlug(username), [username]);
-  const [mounted, setMounted] = useState(false);
-  const [profile, setProfile] = useState<BuilderData | null>(null);
+  const [mounted, setMounted] = useState(Boolean(initialProfile) || initialProfileResolved);
+  const [profile, setProfile] = useState<BuilderData | null>(() =>
+    initialProfile ? normalizeHeaderForSlug(toProfileSlug(username), initialProfile) : null,
+  );
   const [clickSummary, setClickSummary] = useState<ClickSummary>(EMPTY_SUMMARY);
 
   useEffect(() => {
+    if (initialProfileResolved) {
+      const frameId = window.requestAnimationFrame(() => {
+        if (initialProfile) {
+          recordProfileView(slug);
+        }
+        setClickSummary(getClickSummary(slug));
+      });
+      return () => window.cancelAnimationFrame(frameId);
+    }
+
     let canceled = false;
     const frameId = window.requestAnimationFrame(() => {
       const loadProfile = async () => {
@@ -92,7 +108,7 @@ export const PublicProfilePageClient = ({
       canceled = true;
       window.cancelAnimationFrame(frameId);
     };
-  }, [slug]);
+  }, [initialProfile, initialProfileResolved, slug]);
 
   const handlePublicLinkClick = (
     linkId: string,

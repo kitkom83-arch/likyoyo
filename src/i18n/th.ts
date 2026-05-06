@@ -11,6 +11,8 @@ export const th: Record<keyof typeof en, string> = {
   save_status_last_saved: "บันทึกล่าสุด",
   save_status_not_saved_yet: "ยังไม่เคยบันทึก",
   save_status_save_now: "บันทึก",
+  save_status_save_error: "บันทึกไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วกดบันทึกอีกครั้ง",
+  save_status_load_error: "โหลดรายการหน้าที่บันทึกไม่ได้ แต่ยังใช้งานตัวแก้ไขต่อได้",
   storage_warning_quota:
     "พื้นที่จัดเก็บในเบราว์เซอร์เต็ม การแก้ไขยังใช้งานได้ในรอบนี้ แต่อาจบันทึกถาวรไม่ได้จนกว่าจะลดข้อมูลลง",
 
@@ -194,6 +196,11 @@ export const th: Record<keyof typeof en, string> = {
   links_style_image_fit: "การย่อภาพ",
   links_style_image_fit_cover: "Cover",
   links_style_image_fit_contain: "Contain",
+  links_image_brightness: "ความสว่างรูปภาพ ({value}%)",
+  links_image_contrast: "คอนทราสต์รูปภาพ ({value}%)",
+  links_image_saturation: "ความสดสีรูปภาพ ({value}%)",
+  links_overlay_opacity: "ความทึบของเลเยอร์ทับ (+{value}%)",
+  links_image_tuning_help: "มีผลเฉพาะการแสดงผล ไม่เปลี่ยน URL รูปต้นฉบับ",
   links_style_text_panel_content: "เนื้อหา Text Panel",
   links_style_open_in_new_tab: "เปิดลิงก์ในแท็บใหม่",
   links_style_preserve_line_breaks: "คงการขึ้นบรรทัดตามที่กรอก",

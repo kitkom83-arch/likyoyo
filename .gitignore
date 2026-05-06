@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local Next.js verification logs
+next-start-verify*.log
+next-start-verify*.err.log
