@@ -26,6 +26,7 @@ import { ReactNode, useEffect, useMemo, useState } from "react";
 import { FieldErrors, useForm, useWatch } from "react-hook-form";
 
 import { SectionCard } from "@/components/admin/section-card";
+import { CustomImageUpload } from "@/components/admin/shared/custom-image-upload";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -286,6 +287,7 @@ export const LinksSection = () => {
   const [addPickerOpen, setAddPickerOpen] = useState(false);
   const [addPickerStep, setAddPickerStep] = useState<"types" | "form_templates">("types");
   const [editSubmitError, setEditSubmitError] = useState<string | null>(null);
+  const [imageUploadWarning, setImageUploadWarning] = useState<string | null>(null);
 
   const editingLink = useMemo(
     () => links.find((link) => link.id === editId) ?? null,
@@ -475,6 +477,14 @@ export const LinksSection = () => {
   const editOverlayOpacity = useWatch({ control: editForm.control, name: "overlayOpacity" });
   const editOpenInNewTab = useWatch({ control: editForm.control, name: "openInNewTab" });
   const editPreserveLineBreaks = useWatch({ control: editForm.control, name: "preserveLineBreaks" });
+  const editPreOpenBannerImageUrl = useWatch({ control: editForm.control, name: "preOpenBannerImageUrl" });
+  const editModalHeroImage = useWatch({ control: editForm.control, name: "modalHeroImage" });
+  const editCardThumbnail = useWatch({ control: editForm.control, name: "cardThumbnail" });
+  const editEmbedCardIcon = useWatch({ control: editForm.control, name: "embedCardIcon" });
+  const editEmbedCardThumbnail = useWatch({ control: editForm.control, name: "embedCardThumbnail" });
+  const editImageUrl = useWatch({ control: editForm.control, name: "imageUrl" });
+  const editIconImageUrl = useWatch({ control: editForm.control, name: "iconImageUrl" });
+  const editBackgroundImageUrl = useWatch({ control: editForm.control, name: "backgroundImageUrl" });
   const editFormFields = useWatch({ control: editForm.control, name: "formFields" }) ?? [];
   const editPromoItems = useWatch({ control: editForm.control, name: "promoItems" }) ?? [];
   const editExternalFormEnabled = useWatch({ control: editForm.control, name: "externalFormEnabled" });
@@ -485,6 +495,7 @@ export const LinksSection = () => {
   });
   const prioritize = useWatch({ control: settingsForm.control, name: "prioritize" });
   const locked = useWatch({ control: settingsForm.control, name: "locked" });
+  const settingsThumbnailUrl = useWatch({ control: settingsForm.control, name: "thumbnailUrl" });
   const editUrlError = editForm.formState.errors.url?.message;
   const editTitleError = editForm.formState.errors.title?.message;
   const editCardTitleError = editForm.formState.errors.cardTitle?.message;
@@ -741,6 +752,7 @@ export const LinksSection = () => {
       formFields: form.fields,
     });
     setEditSubmitError(null);
+    setImageUploadWarning(null);
     setEditTab("link");
     setEditId(id);
   };
@@ -758,6 +770,7 @@ export const LinksSection = () => {
       locked: link.settings.locked,
       lockMessage: link.settings.lockMessage ?? "",
     });
+    setImageUploadWarning(null);
     setSettingsId(id);
   };
 
@@ -1485,6 +1498,18 @@ export const LinksSection = () => {
                             <div className="space-y-2">
                               <Label>{t("pre_open_modal_banner_image")}</Label>
                               <Input {...editForm.register("preOpenBannerImageUrl")} />
+                              <CustomImageUpload
+                                value={editPreOpenBannerImageUrl}
+                                preset="thumbnail_banner"
+                                onValueChange={(nextValue) =>
+                                  editForm.setValue("preOpenBannerImageUrl", nextValue, {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  })
+                                }
+                                onError={setImageUploadWarning}
+                                uploadLabel={t("pre_open_modal_banner_upload")}
+                              />
                             </div>
                             <div className="space-y-2">
                               <Label>{t("pre_open_modal_title")}</Label>
@@ -1577,6 +1602,18 @@ export const LinksSection = () => {
                         {editModalHeroImageError ? (
                           <p className="text-xs text-destructive">{editModalHeroImageError}</p>
                         ) : null}
+                        <CustomImageUpload
+                          value={editModalHeroImage}
+                          preset="thumbnail_banner"
+                          onValueChange={(nextValue) =>
+                            editForm.setValue("modalHeroImage", nextValue, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                          onError={setImageUploadWarning}
+                          uploadLabel={t("discount_modal_hero_upload")}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label>{t("discount_modal_description")}</Label>
@@ -1847,6 +1884,12 @@ export const LinksSection = () => {
                               value={item.imageUrl ?? ""}
                               onChange={(event) => updatePromoItem(itemIndex, { imageUrl: event.target.value })}
                               placeholder={t("promo_gallery_item_image_url_placeholder")}
+                            />
+                            <CustomImageUpload
+                              value={item.imageUrl ?? ""}
+                              preset="thumbnail_banner"
+                              onValueChange={(nextValue) => updatePromoItem(itemIndex, { imageUrl: nextValue })}
+                              onError={setImageUploadWarning}
                             />
                             <textarea
                               className="min-h-[84px] w-full rounded-md border bg-background px-3 py-2 text-sm"
@@ -2314,6 +2357,17 @@ export const LinksSection = () => {
                       {editIconImageUrlError ? (
                         <p className="text-xs text-destructive">{editIconImageUrlError}</p>
                       ) : null}
+                      <CustomImageUpload
+                        value={editIconImageUrl}
+                        preset="icon"
+                        onValueChange={(nextValue) =>
+                          editForm.setValue("iconImageUrl", nextValue, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
+                        onError={setImageUploadWarning}
+                      />
                     </div>
                   ) : null}
                   {editStyle === "image_banner" ? (
@@ -2329,6 +2383,17 @@ export const LinksSection = () => {
                         {editBackgroundImageUrlError ? (
                           <p className="text-xs text-destructive">{editBackgroundImageUrlError}</p>
                         ) : null}
+                        <CustomImageUpload
+                          value={editBackgroundImageUrl}
+                          preset="thumbnail_banner"
+                          onValueChange={(nextValue) =>
+                            editForm.setValue("backgroundImageUrl", nextValue, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                          onError={setImageUploadWarning}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label>{t("links_style_image_aspect")}</Label>
@@ -2364,6 +2429,17 @@ export const LinksSection = () => {
                       {editImageUrlError ? (
                         <p className="text-xs text-destructive">{editImageUrlError}</p>
                       ) : null}
+                      <CustomImageUpload
+                        value={editImageUrl}
+                        preset="thumbnail_banner"
+                        onValueChange={(nextValue) =>
+                          editForm.setValue("imageUrl", nextValue, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
+                        onError={setImageUploadWarning}
+                      />
                     </div>
                   ) : null}
                   {(editStyle === "image_banner" || editStyle === "media_card") ? (
@@ -2512,6 +2588,18 @@ export const LinksSection = () => {
                         {editCardThumbnailError ? (
                           <p className="text-xs text-destructive">{editCardThumbnailError}</p>
                         ) : null}
+                        <CustomImageUpload
+                          value={editCardThumbnail}
+                          preset="thumbnail_banner"
+                          onValueChange={(nextValue) =>
+                            editForm.setValue("cardThumbnail", nextValue, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                          onError={setImageUploadWarning}
+                          uploadLabel={t("discount_card_thumbnail_upload")}
+                        />
                       </div>
                     </>
                   ) : editContentType === "embed_post" ? (
@@ -2541,6 +2629,17 @@ export const LinksSection = () => {
                         {editEmbedCardIconError ? (
                           <p className="text-xs text-destructive">{editEmbedCardIconError}</p>
                         ) : null}
+                        <CustomImageUpload
+                          value={editEmbedCardIcon}
+                          preset="icon"
+                          onValueChange={(nextValue) =>
+                            editForm.setValue("embedCardIcon", nextValue, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                          onError={setImageUploadWarning}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label>{t("embed_post_fields_card_thumbnail")}</Label>
@@ -2555,6 +2654,17 @@ export const LinksSection = () => {
                         {editEmbedCardThumbError ? (
                           <p className="text-xs text-destructive">{editEmbedCardThumbError}</p>
                         ) : null}
+                        <CustomImageUpload
+                          value={editEmbedCardThumbnail}
+                          preset="thumbnail_banner"
+                          onValueChange={(nextValue) =>
+                            editForm.setValue("embedCardThumbnail", nextValue, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                          onError={setImageUploadWarning}
+                        />
                       </div>
                     </>
                   ) : null}
@@ -2567,6 +2677,9 @@ export const LinksSection = () => {
               ) : null}
               {editSubmitError ? (
                 <p className="text-sm text-destructive">{editSubmitError}</p>
+              ) : null}
+              {imageUploadWarning ? (
+                <p className="text-sm text-destructive">{imageUploadWarning}</p>
               ) : null}
               <SheetFooter className="sticky bottom-0 border-t border-border/60 bg-background px-0 py-3">
                 <Button type="submit">{t("links_save")}</Button>
@@ -2601,6 +2714,18 @@ export const LinksSection = () => {
                 {settingsThumbnailError ? (
                   <p className="text-xs text-destructive">{settingsThumbnailError}</p>
                 ) : null}
+                <CustomImageUpload
+                  value={settingsThumbnailUrl}
+                  preset="thumbnail_banner"
+                  onValueChange={(nextValue) =>
+                    settingsForm.setValue("thumbnailUrl", nextValue, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                  onError={setImageUploadWarning}
+                  uploadLabel={t("links_upload_thumbnail")}
+                />
               </div>
               <label className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
                 {t("links_prioritize")}
@@ -2630,6 +2755,9 @@ export const LinksSection = () => {
                 <Label>{t("links_lock_message")}</Label>
                 <Input {...settingsForm.register("lockMessage")} />
               </div>
+              {imageUploadWarning ? (
+                <p className="text-sm text-destructive">{imageUploadWarning}</p>
+              ) : null}
               <DrawerFooter className="sticky bottom-0 border-t border-border/60 bg-background px-0 py-3">
                 <Button type="submit">{t("links_save_settings")}</Button>
               </DrawerFooter>

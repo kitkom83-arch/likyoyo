@@ -13,6 +13,13 @@ type ValidatedEnv = {
   adminPassword: string;
 };
 
+type ValidatedImageUploadEnv = Pick<
+  ValidatedEnv,
+  "nextPublicSupabaseUrl" | "supabaseServiceRoleKey"
+> & {
+  linkbioImagesBucket: string;
+};
+
 let cachedValidatedEnv: ValidatedEnv | null = null;
 
 const isPlaceholderValue = (value: string): boolean => {
@@ -95,7 +102,6 @@ export const validateCriticalServerEnv = (): ValidatedEnv => {
     "Supabase service role key",
   );
   addEmptyOrPlaceholderError(errors, "ADMIN_PASSWORD", adminPassword, "admin password");
-
   throwValidationError(errors);
 
   cachedValidatedEnv = {
@@ -105,5 +111,25 @@ export const validateCriticalServerEnv = (): ValidatedEnv => {
     adminPassword,
   };
   return cachedValidatedEnv;
+};
+
+export const validateImageUploadServerEnv = (): ValidatedImageUploadEnv => {
+  const env = validateCriticalServerEnv();
+  const linkbioImagesBucket = (process.env.LINKBIO_IMAGES_BUCKET ?? "").trim();
+  const errors: string[] = [];
+
+  addEmptyOrPlaceholderError(
+    errors,
+    "LINKBIO_IMAGES_BUCKET",
+    linkbioImagesBucket,
+    "builder/admin image uploads bucket",
+  );
+  throwValidationError(errors);
+
+  return {
+    nextPublicSupabaseUrl: env.nextPublicSupabaseUrl,
+    supabaseServiceRoleKey: env.supabaseServiceRoleKey,
+    linkbioImagesBucket,
+  };
 };
 

@@ -12,6 +12,11 @@ type ImageRecord = {
   updatedAt: number;
 };
 
+type AdminImageUploadResponse = {
+  url?: unknown;
+  error?: unknown;
+};
+
 const openImageDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
     if (typeof window === "undefined" || !window.indexedDB) {
@@ -70,6 +75,77 @@ export const storeImageDataUrlInIndexedDb = async (dataUrl: string): Promise<str
   return `${IMAGE_REF_PREFIX}${id}`;
 };
 
+const getImageFileNameFromDataUrl = (dataUrl: string): string => {
+  const mimeMatch = /^data:(image\/[a-zA-Z0-9.+-]+);base64,/.exec(dataUrl);
+  const mimeType = mimeMatch?.[1] ?? "image/webp";
+  const extension =
+    mimeType === "image/jpeg"
+      ? "jpg"
+      : mimeType === "image/png"
+        ? "png"
+        : mimeType === "image/gif"
+          ? "gif"
+          : mimeType === "image/svg+xml"
+            ? "svg"
+            : mimeType === "image/avif"
+              ? "avif"
+              : "webp";
+  return `builder-image.${extension}`;
+};
+
+const dataUrlToFile = async (dataUrl: string, fileName?: string): Promise<File> => {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  if (!blob.type.startsWith("image/")) {
+    throw new Error("Only image uploads are allowed.");
+  }
+  return new File([blob], fileName || getImageFileNameFromDataUrl(dataUrl), {
+    type: blob.type,
+  });
+};
+
+export const uploadImageFileForBuilder = async (
+  file: File,
+  context = "builder",
+): Promise<string> => {
+  const formData = new FormData();
+  formData.set("file", file);
+  formData.set("context", context);
+
+  const response = await fetch("/api/admin/images", {
+    method: "POST",
+    body: formData,
+  });
+  let payload: AdminImageUploadResponse | null = null;
+  try {
+    payload = (await response.json()) as AdminImageUploadResponse;
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof payload?.error === "string" && payload.error.trim()
+        ? payload.error
+        : "Image upload failed. Please try again.";
+    throw new Error(message);
+  }
+
+  if (typeof payload?.url !== "string" || !payload.url.trim()) {
+    throw new Error("Image upload failed. No public URL was returned.");
+  }
+  return payload.url.trim();
+};
+
+export const uploadImageDataUrlForBuilder = async (
+  dataUrl: string,
+  fileName?: string,
+  context = "builder",
+): Promise<string> => {
+  const file = await dataUrlToFile(dataUrl, fileName);
+  return uploadImageFileForBuilder(file, context);
+};
+
 export const getImageDataUrlByRef = async (
   value: string | null | undefined,
 ): Promise<string | null> => {
@@ -100,6 +176,7 @@ export const collectIndexedDbImageRefsFromBuilderData = (data: BuilderData): str
 
   push(data.header.avatarUrl);
   push(data.header.heroImageUrl);
+  push(data.header.shareImageUrl);
   push(data.theme.wallpaperUrl);
 
   for (const social of data.socials) {
@@ -172,10 +249,21 @@ const resolveImageValueForPersistence = async (
   }
 
   if (value.startsWith(IMAGE_REF_PREFIX)) {
-    return (await getImageDataUrlByRef(value)) ?? fallback;
+    const dataUrl = await getImageDataUrlByRef(value);
+    if (!dataUrl) {
+      throw new Error("Uploaded image is no longer available in this browser. Please upload it again.");
+    }
+    return uploadImageDataUrlForBuilder(dataUrl);
   }
   if (value.startsWith("blob:")) {
-    return (await blobUrlToDataUrl(value)) ?? fallback;
+    const dataUrl = await blobUrlToDataUrl(value);
+    if (!dataUrl) {
+      throw new Error("Uploaded image could not be read. Please upload it again.");
+    }
+    return uploadImageDataUrlForBuilder(dataUrl);
+  }
+  if (value.startsWith("data:image/")) {
+    return uploadImageDataUrlForBuilder(value);
   }
   return value;
 };
@@ -187,6 +275,8 @@ export const hydrateBuilderDataWithIndexedDbImages = (
   ...data,
   header: {
     ...data.header,
+    shareImageUrl:
+      resolveValueFromMap(data.header.shareImageUrl, resolved) ?? data.header.shareImageUrl,
     avatarUrl: resolveValueFromMap(data.header.avatarUrl, resolved) ?? data.header.avatarUrl,
     heroImageUrl: resolveValueFromMap(data.header.heroImageUrl, resolved) ?? data.header.heroImageUrl,
   },
@@ -263,6 +353,9 @@ export const resolveBuilderDataImagesForPersistence = async (
   ...data,
   header: {
     ...data.header,
+    shareImageUrl:
+      (await resolveImageValueForPersistence(data.header.shareImageUrl)) ??
+      data.header.shareImageUrl,
     avatarUrl:
       (await resolveImageValueForPersistence(data.header.avatarUrl, "/placeholders/avatar-default.svg")) ??
       data.header.avatarUrl,

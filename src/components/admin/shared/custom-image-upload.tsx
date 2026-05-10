@@ -12,6 +12,7 @@ import {
   getImageDataUrlByRef,
   isIndexedDbImageRef,
   storeImageDataUrlInIndexedDb,
+  uploadImageDataUrlForBuilder,
 } from "@/lib/local-storage/image-storage";
 import { cn } from "@/lib/utils";
 
@@ -115,15 +116,21 @@ export const CustomImageUpload = ({
 
   const handleUpload = async (file: File) => {
     setIsProcessing(true);
+    const previousValue = normalizedValue ?? "";
     try {
       const processed = await processImageForLocalPersistence(file, preset);
       const persistedRef = await storeImageDataUrlInIndexedDb(processed.dataUrl);
       onValueChange(persistedRef);
       setSelectedFileName(file.name);
+      const publicUrl = await uploadImageDataUrlForBuilder(processed.dataUrl, file.name, preset);
+      onValueChange(publicUrl);
       onError?.(null);
-    } catch {
+    } catch (error) {
+      onValueChange(previousValue);
       onError?.(
-        "Image is too large for local browser persistence. Please use a smaller image.",
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : "Image upload failed. Please try again.",
       );
     } finally {
       setIsProcessing(false);
@@ -184,7 +191,7 @@ export const CustomImageUpload = ({
             onClick={openFilePicker}
             disabled={isProcessing}
           >
-            {normalizedValue ? changeLabel : uploadLabel}
+            {isProcessing ? "Uploading..." : normalizedValue ? changeLabel : uploadLabel}
           </Button>
           <Button
             type="button"

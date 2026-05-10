@@ -32,6 +32,9 @@ const optionalUrlOrLocalPathSchema = (message: string) =>
     .optional()
     .refine((value) => !value || isUrlOrLocalPathValue(value), message);
 
+const optionalEditableImageSourceSchema = (message: string) =>
+  optionalImageSourceSchema(message);
+
 const persistedStringSchema = z.string().trim().catch("");
 
 const persistedUrlStringSchema = z.string().trim().catch("");
@@ -152,8 +155,8 @@ export const socialSchema = z.object({
     .trim()
     .optional()
     .refine(
-      (value) => !value || z.string().url().safeParse(value).success,
-      "Social icon image URL must be a valid URL.",
+      (value) => !value || isImageSourceValue(value),
+      "Social icon image URL must be a valid URL, local placeholder path, or uploaded image.",
     ),
   iconUrl: optionalImageSourceSchema(
     "Social icon must be a valid URL, local placeholder path, or uploaded image.",
@@ -169,13 +172,13 @@ export const linkSchema = z
     description: z.string().trim().optional(),
     enabled: z.boolean(),
     cardTitle: z.string().trim().optional(),
-    cardThumbnail: optionalUrlOrLocalPathSchema(
-      "Thumbnail must be a valid URL or local placeholder path.",
+    cardThumbnail: optionalEditableImageSourceSchema(
+      "Thumbnail must be a valid URL, local placeholder path, or uploaded image.",
     ),
     layout: z.enum(["classic", "featured"]).optional(),
     modalTitle: z.string().trim().optional(),
-    modalHeroImage: optionalUrlOrLocalPathSchema(
-      "Hero image must be a valid URL or local placeholder path.",
+    modalHeroImage: optionalEditableImageSourceSchema(
+      "Hero image must be a valid URL, local placeholder path, or uploaded image.",
     ),
     modalDescription: z.string().trim().optional(),
     discountCode: z.string().trim().optional(),
@@ -185,11 +188,11 @@ export const linkSchema = z
     dismissible: z.boolean().optional(),
     embedProvider: z.enum(["x", "facebook", "tiktok", "youtube", "generic"]).optional(),
     embedCardTitle: z.string().trim().optional(),
-    embedCardIcon: optionalUrlOrLocalPathSchema(
-      "Card icon must be a valid URL or local placeholder path.",
+    embedCardIcon: optionalEditableImageSourceSchema(
+      "Card icon must be a valid URL, local placeholder path, or uploaded image.",
     ),
-    embedCardThumbnail: optionalUrlOrLocalPathSchema(
-      "Card thumbnail must be a valid URL or local placeholder path.",
+    embedCardThumbnail: optionalEditableImageSourceSchema(
+      "Card thumbnail must be a valid URL, local placeholder path, or uploaded image.",
     ),
     embedLayout: z.enum(["classic", "featured"]).optional(),
     embedModalTitle: z.string().trim().optional(),
@@ -245,8 +248,8 @@ export const linkSchema = z
       .array(
         z.object({
           id: z.string().trim().optional(),
-          imageUrl: optionalUrlOrLocalPathSchema(
-            "Promo image URL must be a valid URL or local placeholder path.",
+          imageUrl: optionalEditableImageSourceSchema(
+            "Promo image URL must be a valid URL, local placeholder path, or uploaded image.",
           ),
           title: z.string().trim().optional(),
           description: z.string().trim().optional(),
@@ -281,8 +284,8 @@ export const linkSchema = z
     externalFormEnabled: z.boolean().optional(),
     externalFormShowOpenInBrowserButton: z.boolean().optional(),
     preOpenEnabled: z.boolean().optional(),
-    preOpenBannerImageUrl: optionalUrlOrLocalPathSchema(
-      "Banner image must be a valid URL or local placeholder path.",
+    preOpenBannerImageUrl: optionalEditableImageSourceSchema(
+      "Banner image must be a valid URL, local placeholder path, or uploaded image.",
     ),
     preOpenTitle: z.string().trim().optional(),
     preOpenDescription: z.string().trim().optional(),
@@ -302,14 +305,14 @@ export const linkSchema = z
     bannerRatio: z.enum(["3:1", "2:1"]).optional(),
     imageAspect: z.enum(["3:1", "2:1"]).optional(),
     imageFit: z.enum(["cover", "contain"]).optional(),
-    imageUrl: optionalUrlOrLocalPathSchema(
-      "Image URL must be a valid URL or local placeholder path.",
+    imageUrl: optionalEditableImageSourceSchema(
+      "Image URL must be a valid URL, local placeholder path, or uploaded image.",
     ),
-    iconImageUrl: optionalUrlOrLocalPathSchema(
-      "Icon image URL must be a valid URL or local placeholder path.",
+    iconImageUrl: optionalEditableImageSourceSchema(
+      "Icon image URL must be a valid URL, local placeholder path, or uploaded image.",
     ),
-    backgroundImageUrl: optionalUrlOrLocalPathSchema(
-      "Background image URL must be a valid URL or local placeholder path.",
+    backgroundImageUrl: optionalEditableImageSourceSchema(
+      "Background image URL must be a valid URL, local placeholder path, or uploaded image.",
     ),
     imageBrightness: z.number().min(0).max(200).optional(),
     imageContrast: z.number().min(0).max(200).optional(),
@@ -593,8 +596,8 @@ export const linkSchema = z
   });
 
 export const linkSettingsSchema = z.object({
-  thumbnailUrl: optionalUrlOrLocalPathSchema(
-    "Thumbnail must be a valid URL or local placeholder path.",
+  thumbnailUrl: optionalEditableImageSourceSchema(
+    "Thumbnail must be a valid URL, local placeholder path, or uploaded image.",
   ),
   prioritize: z.boolean(),
   startAt: z.string().optional(),
@@ -607,12 +610,12 @@ export const linkSettingsSchema = z.object({
   textAlign: z.enum(["left", "center", "right"]).optional(),
   bannerRatio: z.enum(["3:1", "2:1"]).optional(),
   imageFit: z.enum(["cover", "contain"]).optional(),
-  imageUrl: optionalUrlOrLocalPathSchema("Image URL must be a valid URL or local placeholder path."),
-  iconImageUrl: optionalUrlOrLocalPathSchema(
-    "Icon image URL must be a valid URL or local placeholder path.",
+  imageUrl: optionalEditableImageSourceSchema("Image URL must be a valid URL, local placeholder path, or uploaded image."),
+  iconImageUrl: optionalEditableImageSourceSchema(
+    "Icon image URL must be a valid URL, local placeholder path, or uploaded image.",
   ),
-  backgroundImageUrl: optionalUrlOrLocalPathSchema(
-    "Background image URL must be a valid URL or local placeholder path.",
+  backgroundImageUrl: optionalEditableImageSourceSchema(
+    "Background image URL must be a valid URL, local placeholder path, or uploaded image.",
   ),
   imageBrightness: z.number().min(0).max(200).optional(),
   imageContrast: z.number().min(0).max(200).optional(),
