@@ -23,6 +23,7 @@ type SavedProfilesManagerCardProps = {
   isSwitchingWorkspace?: boolean;
   onSwitchWorkspace?: (slug: string, options?: { fallbackData?: BuilderData; markUnsaved?: boolean }) => Promise<"remote" | "fallback">;
   savedProfiles?: PublicPageListItem[];
+  savedPagesError?: string | null;
   onRefreshSavedPages?: () => Promise<PublicPageListItem[] | null>;
 };
 
@@ -31,6 +32,11 @@ type NewPageCollisionState = {
   pageName: string;
   existingProfile: BuilderData;
 };
+
+const PROTECTED_PUBLIC_SLUGS = new Set(["110"]);
+
+const isProtectedPublicSlug = (slug: string): boolean =>
+  PROTECTED_PUBLIC_SLUGS.has(toProfileSlug(slug));
 
 const createUniqueSlug = (baseSlug: string, existingSlugs: Set<string>) => {
   const initial = toProfileSlug(baseSlug);
@@ -60,6 +66,7 @@ export const SavedProfilesManagerCard = ({
   isSwitchingWorkspace = false,
   onSwitchWorkspace,
   savedProfiles: externalSavedProfiles,
+  savedPagesError: externalSavedPagesError,
   onRefreshSavedPages,
 }: SavedProfilesManagerCardProps) => {
   const { t } = useI18n();
@@ -75,11 +82,13 @@ export const SavedProfilesManagerCard = ({
   const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
   const [createPageName, setCreatePageName] = useState("");
   const [createPageSlug, setCreatePageSlug] = useState("");
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newPageCollision, setNewPageCollision] = useState<NewPageCollisionState | null>(null);
   const [pendingActionSlug, setPendingActionSlug] = useState<string | null>(null);
   const activeSlug = useMemo(() => toProfileSlug(currentSlug), [currentSlug]);
   const savedProfiles = externalSavedProfiles ?? savedProfilesState;
+  const visibleRefreshError = externalSavedPagesError ?? refreshError;
   const statusTimerRef = useRef<number | null>(null);
 
   const showToast = useCallback((type: "success" | "error", text: string) => {
@@ -110,14 +119,19 @@ export const SavedProfilesManagerCard = ({
 
   const refreshSavedPages = useCallback(async () => {
     if (onRefreshSavedPages) {
-      return onRefreshSavedPages();
+      const pages = await onRefreshSavedPages();
+      setRefreshError(pages ? null : t("saved_manager_toast_load_error"));
+      return pages;
     }
     try {
       const pages = await listPublicPages();
       setSavedProfilesState(pages);
+      setRefreshError(null);
       return pages;
     } catch {
-      showToast("error", t("saved_manager_toast_load_error"));
+      const message = t("saved_manager_toast_load_error");
+      setRefreshError(message);
+      showToast("error", message);
       return null;
     }
   }, [onRefreshSavedPages, showToast, t]);
@@ -198,7 +212,9 @@ export const SavedProfilesManagerCard = ({
     void (async () => {
       try {
         await switchWorkspace(normalizedSlug, { fallbackData: pageWorkspace, markUnsaved: true });
-        showToast("success", t("saved_manager_toast_created", { slug: normalizedSlug }));
+        showToast("success", t("saved_manager_toast_draft_created", { slug: normalizedSlug }));
+      } catch {
+        showToast("error", t("saved_manager_toast_create_error"));
       } finally {
         setPendingActionSlug(null);
       }
@@ -284,6 +300,12 @@ export const SavedProfilesManagerCard = ({
     }
 
     const targetSlug = deleteSlug;
+    if (isProtectedPublicSlug(targetSlug)) {
+      showToast("error", t("saved_manager_protected_slug"));
+      setDeleteSlug(null);
+      setDeleteConfirmInput("");
+      return;
+    }
     setPendingActionSlug(targetSlug);
 
     try {
@@ -342,6 +364,11 @@ export const SavedProfilesManagerCard = ({
           <p className="text-xs leading-5 text-muted-foreground">
             {t("saved_manager_help_2")}
           </p>
+          {visibleRefreshError ? (
+            <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">
+              {visibleRefreshError}
+            </div>
+          ) : null}
           {!isMounted || savedProfiles.length === 0 ? (
             <div className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
               {t("saved_manager_empty")}
@@ -351,6 +378,7 @@ export const SavedProfilesManagerCard = ({
               {savedProfiles.map((item) => {
                 const isBusy = pendingActionSlug === item.slug;
                 const isActive = item.slug === activeSlug;
+                const isProtected = isProtectedPublicSlug(item.slug);
                 return (
                   <div key={item.slug} className="rounded-lg border border-border/70 bg-background/70 p-3.5">
                     <div className="flex items-center justify-between gap-2">
@@ -413,13 +441,17 @@ export const SavedProfilesManagerCard = ({
                       variant="destructive"
                       size="sm"
                       className="mt-2 w-full"
-                      disabled={isSwitchingWorkspace}
+                      disabled={isSwitchingWorkspace || isProtected}
                       onClick={() => {
+                        if (isProtected) {
+                          showToast("error", t("saved_manager_protected_slug"));
+                          return;
+                        }
                         setDeleteSlug(item.slug);
                         setDeleteConfirmInput("");
                       }}
                     >
-                      {t("saved_manager_delete")}
+                      {isProtected ? t("saved_manager_protected_slug_label") : t("saved_manager_delete")}
                     </Button>
                   </div>
                 );

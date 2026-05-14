@@ -22,7 +22,16 @@ export async function GET(request: Request) {
 
   try {
     const pages = await listPublicPages();
-    return NextResponse.json({ pages }, { headers: protectedResponseHeaders });
+    return NextResponse.json(
+      {
+        pages: pages.map((page) => ({
+          slug: page.slug,
+          data: page.data,
+          updatedAt: page.updated_at ?? null,
+        })),
+      },
+      { headers: protectedResponseHeaders },
+    );
   } catch (error) {
     console.error("[public-pages] LIST failed", error);
     return NextResponse.json(

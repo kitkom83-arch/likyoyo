@@ -39,6 +39,7 @@ import {
 
 const RESET_BACKUP_KEY_PREFIX = "linkbio-reset-backup-v2";
 const STRONG_CONFIRM_TEXT = "CLEAR ALL";
+const PROTECTED_PUBLIC_SLUGS = new Set(["110"]);
 
 type ResetBackupEnvelope = {
   createdAt: string;
@@ -66,6 +67,9 @@ const createUniqueSlug = (baseSlug: string, existingSlugs: Set<string>) => {
   }
   return `${initial}-${index}`;
 };
+
+const isProtectedPublicSlug = (slug: string): boolean =>
+  PROTECTED_PUBLIC_SLUGS.has(toProfileSlug(slug));
 
 const createPageWorkspaceData = (slug: string, pageName: string): BuilderData => ({
   ...mockBuilderData,
@@ -107,6 +111,10 @@ export const DataToolsCard = ({ currentSlug }: DataToolsCardProps) => {
   );
 
   const activeSlug = useMemo(() => toProfileSlug(currentSlug), [currentSlug]);
+  const isProtectedActiveSlug = useMemo(
+    () => isProtectedPublicSlug(activeSlug),
+    [activeSlug],
+  );
   const backupKey = useMemo(
     () => `${RESET_BACKUP_KEY_PREFIX}-${activeSlug}`,
     [activeSlug],
@@ -279,6 +287,13 @@ export const DataToolsCard = ({ currentSlug }: DataToolsCardProps) => {
     if (typeof window === "undefined") {
       return;
     }
+    if (isProtectedActiveSlug) {
+      showToast("error", t("data_tools_protected_slug"));
+      setConfirmAction(null);
+      setClearCurrentConfirmText("");
+      setConfirmPinInput("");
+      return;
+    }
 
     try {
       await createBackupSnapshot();
@@ -345,6 +360,9 @@ export const DataToolsCard = ({ currentSlug }: DataToolsCardProps) => {
       replaceBuilderData(backupSnapshot.data);
       if (backupSnapshot.savedProfile) {
         await upsertPublicPageBySlug(activeSlug, backupSnapshot.savedProfile);
+      } else if (isProtectedActiveSlug) {
+        showToast("error", t("data_tools_protected_slug"));
+        return;
       } else {
         await deletePublicPageBySlug(activeSlug);
       }
@@ -445,12 +463,15 @@ export const DataToolsCard = ({ currentSlug }: DataToolsCardProps) => {
             variant="outline"
             className="w-full justify-start border-amber-300/80 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200"
             onClick={() => setConfirmAction("clearCurrentRoute")}
+            disabled={isProtectedActiveSlug}
           >
             <Trash2 className="size-4" />
             {t("data_tools_clear_current")}
           </Button>
           <p className="px-1 text-xs text-muted-foreground">
-            {t("data_tools_clear_current_help")}
+            {isProtectedActiveSlug
+              ? t("data_tools_protected_slug_help")
+              : t("data_tools_clear_current_help")}
           </p>
           <Button
             variant="destructive"
@@ -562,7 +583,11 @@ export const DataToolsCard = ({ currentSlug }: DataToolsCardProps) => {
                   onClick={() => {
                     void handleConfirmClearCurrentRoute();
                   }}
-                  disabled={clearCurrentConfirmText !== clearCurrentExpectedText || !isPinValid}
+                  disabled={
+                    isProtectedActiveSlug ||
+                    clearCurrentConfirmText !== clearCurrentExpectedText ||
+                    !isPinValid
+                  }
                 >
                   {t("data_tools_confirm_current")}
                 </Button>

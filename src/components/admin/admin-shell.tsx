@@ -94,6 +94,11 @@ export const AdminShell = () => {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [profileRefreshKey, setProfileRefreshKey] = useState(0);
   const [savedProfiles, setSavedProfiles] = useState<PublicPageListItem[]>([]);
+  const [savedPagesError, setSavedPagesError] = useState<string | null>(null);
+  const [adminNotice, setAdminNotice] = useState<{
+    type: "error" | "info";
+    text: string;
+  } | null>(null);
   const [collisionDialog, setCollisionDialog] = useState<CollisionDialogState | null>(null);
   const [currentEditorSlug, setCurrentEditorSlug] = useState(toProfileSlug(header.username));
   const [isWorkspaceReady, setIsWorkspaceReady] = useState(false);
@@ -119,11 +124,19 @@ export const AdminShell = () => {
     try {
       const pages = await listPublicPages();
       setSavedProfiles(pages);
+      setSavedPagesError(null);
+      setAdminNotice((current) =>
+        current?.text === t("save_status_load_error") ? null : current,
+      );
       return pages;
-    } catch {
+    } catch (error) {
+      console.error("[admin-shell] saved pages refresh failed", error);
+      const message = t("save_status_load_error");
+      setSavedPagesError(message);
+      setAdminNotice({ type: "error", text: message });
       return null;
     }
-  }, []);
+  }, [t]);
 
   const clearPendingSaves = useCallback(() => {
     if (autosaveTimerRef.current) {
@@ -178,6 +191,9 @@ export const AdminShell = () => {
         remoteData = await getPublicPageBySlug(normalized);
       } catch (error) {
         console.error("[admin-shell] load workspace failed", error);
+        setAdminNotice({ type: "error", text: t("save_status_load_error") });
+        completeSwitch();
+        throw error;
       }
 
       if (workspaceLoadTokenRef.current !== loadToken) {
@@ -190,6 +206,7 @@ export const AdminShell = () => {
         replaceBuilderData(hydratedRemote);
         applyWorkspaceIdentity(normalized, hydratedRemote);
         setLastSavedAt(new Date());
+        setAdminNotice(null);
         completeSwitch();
         return "remote";
       }
@@ -207,7 +224,7 @@ export const AdminShell = () => {
       completeSwitch();
       return "fallback";
     },
-    [applyWorkspaceIdentity, clearPendingSaves, replaceBuilderData],
+    [applyWorkspaceIdentity, clearPendingSaves, replaceBuilderData, t],
   );
 
   const handleWorkspaceSwitchRequest = useCallback(
@@ -255,11 +272,13 @@ export const AdminShell = () => {
             pendingAutosaveRef.current = false;
             setLastSavedAt(new Date());
             setSaveStatus("saved");
+            setAdminNotice(null);
             window.dispatchEvent(new Event("storage"));
             setProfileRefreshKey((value) => value + 1);
             void refreshSavedPages();
           } catch (error) {
             console.error("[admin-shell] save failed", error);
+            setAdminNotice({ type: "error", text: t("save_status_save_error") });
             pendingAutosaveRef.current = true;
             setSaveStatus("unsaved");
           } finally {
@@ -268,7 +287,7 @@ export const AdminShell = () => {
         })();
       }, 180);
     },
-    [refreshSavedPages],
+    [refreshSavedPages, t],
   );
 
   const handleSaveNow = useCallback(() => {
@@ -308,7 +327,11 @@ export const AdminShell = () => {
       if (canceled) {
         return;
       }
-      await loadWorkspaceFromSlug(resolvedSlug);
+      try {
+        await loadWorkspaceFromSlug(resolvedSlug);
+      } catch {
+        // Error notice is set by loadWorkspaceFromSlug; keep the editor usable.
+      }
       if (canceled) {
         return;
       }
@@ -352,7 +375,7 @@ export const AdminShell = () => {
     const normalized = activeSlug ? toProfileSlug(activeSlug) : null;
     if (normalized && normalized !== workspaceSlugRef.current && !isSwitchingWorkspaceRef.current) {
       const frameId = window.requestAnimationFrame(() => {
-        void loadWorkspaceFromSlug(normalized);
+        void loadWorkspaceFromSlug(normalized).catch(() => undefined);
       });
       return () => window.cancelAnimationFrame(frameId);
     }
@@ -458,6 +481,7 @@ export const AdminShell = () => {
               isSwitchingWorkspace={isSwitchingWorkspace}
               onSwitchWorkspace={handleWorkspaceSwitchRequest}
               savedProfiles={savedProfiles}
+              savedPagesError={savedPagesError}
               onRefreshSavedPages={refreshSavedPages}
             />
           </div>
@@ -472,6 +496,17 @@ export const AdminShell = () => {
               onLogout={handleLogout}
               isSwitchingWorkspace={isSwitchingWorkspace}
             />
+            {adminNotice ? (
+              <div
+                className={`mb-3 rounded-lg border px-3 py-2 text-sm ${
+                  adminNotice.type === "error"
+                    ? "border-red-300 bg-red-50 text-red-800"
+                    : "border-sky-300 bg-sky-50 text-sky-800"
+                }`}
+              >
+                {adminNotice.text}
+              </div>
+            ) : null}
             <div className={isSwitchingWorkspace ? "pointer-events-none opacity-65" : ""}>
               <EditorPanel key={workspaceHydrationKey} slugCollisionWarning={slugCollisionWarning} />
             </div>

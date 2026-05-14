@@ -7,6 +7,11 @@ export type PublicPageListItem = {
   updatedAt: string | null;
 };
 
+type PublicPageListResponseItem = Omit<PublicPageListItem, "updatedAt"> & {
+  updatedAt?: string | null;
+  updated_at?: string | null;
+};
+
 const parseErrorMessage = async (response: Response, fallback: string) => {
   try {
     const payload = (await parseJsonResponse(response)) as { error?: unknown } | null;
@@ -36,8 +41,14 @@ export const listPublicPages = async (): Promise<PublicPageListItem[]> => {
     throw new Error(await parseErrorMessage(response, "Failed to list public pages."));
   }
 
-  const payload = await parseJsonResponse<{ pages?: PublicPageListItem[] }>(response);
-  return Array.isArray(payload?.pages) ? payload.pages : [];
+  const payload = await parseJsonResponse<{ pages?: PublicPageListResponseItem[] }>(response);
+  return Array.isArray(payload?.pages)
+    ? payload.pages.map((page) => ({
+        slug: page.slug,
+        data: page.data,
+        updatedAt: page.updatedAt ?? page.updated_at ?? null,
+      }))
+    : [];
 };
 
 export const getPublicPageBySlug = async (slug: string): Promise<BuilderData | null> => {

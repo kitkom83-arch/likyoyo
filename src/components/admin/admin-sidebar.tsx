@@ -20,6 +20,7 @@ type AdminSidebarProps = {
   isSwitchingWorkspace?: boolean;
   onSwitchWorkspace?: (slug: string, options?: { fallbackData?: BuilderData; markUnsaved?: boolean }) => Promise<"remote" | "fallback">;
   savedProfiles?: PublicPageListItem[];
+  savedPagesError?: string | null;
   onRefreshSavedPages?: () => Promise<PublicPageListItem[] | null>;
 };
 
@@ -28,6 +29,7 @@ export const AdminSidebar = ({
   isSwitchingWorkspace = false,
   onSwitchWorkspace,
   savedProfiles,
+  savedPagesError,
   onRefreshSavedPages,
 }: AdminSidebarProps) => (
   <AdminSidebarContent
@@ -35,6 +37,7 @@ export const AdminSidebar = ({
     isSwitchingWorkspace={isSwitchingWorkspace}
     onSwitchWorkspace={onSwitchWorkspace}
     savedProfiles={savedProfiles}
+    savedPagesError={savedPagesError}
     onRefreshSavedPages={onRefreshSavedPages}
   />
 );
@@ -44,6 +47,7 @@ const AdminSidebarContent = ({
   isSwitchingWorkspace = false,
   onSwitchWorkspace,
   savedProfiles,
+  savedPagesError,
   onRefreshSavedPages,
 }: AdminSidebarProps) => {
   const { t } = useI18n();
@@ -182,6 +186,7 @@ const AdminSidebarContent = ({
           isSwitchingWorkspace={isSwitchingWorkspace}
           onSwitchWorkspace={onSwitchWorkspace}
           savedProfiles={savedProfiles}
+          savedPagesError={savedPagesError}
           onRefreshSavedPages={onRefreshSavedPages}
         />
         <AnalyticsSummaryCard currentSlug={currentSlug} />
