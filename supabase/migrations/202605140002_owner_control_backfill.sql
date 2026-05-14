@@ -5,6 +5,7 @@
 --
 -- This assigns every existing public_pages row, including /110, to the first owner.
 -- It never deletes public_pages data.
+-- It intentionally leaves owner_admin_id nullable until the app deploy is verified.
 
 begin;
 
@@ -27,8 +28,5 @@ begin
   set owner_admin_id = first_owner_id
   where owner_admin_id is null;
 end $$;
-
-alter table public.public_pages
-  alter column owner_admin_id set not null;
 
 commit;

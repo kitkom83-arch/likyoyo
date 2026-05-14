@@ -45,7 +45,14 @@ insert into public.admin_users (
 
 4. Run `supabase/migrations/202605140002_owner_control_backfill.sql`.
 
-5. Deploy the app with `ADMIN_SESSION_SECRET` set, then log in at `/admin/login` with the first owner username and password.
+5. Deploy the `feature/owner-control` app with `ADMIN_SESSION_SECRET` set.
+
+6. Verify the owner/admin flow:
+   - Log in at `/admin/login` with the first owner username and password.
+   - Confirm the owner can see and manage existing public pages.
+   - Confirm creating or updating an admin-owned page works.
+
+7. Run `supabase/migrations/202605140003_owner_control_enforce_not_null.sql`.
 
 ## Verification queries
 
