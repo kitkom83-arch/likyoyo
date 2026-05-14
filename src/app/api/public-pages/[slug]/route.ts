@@ -3,11 +3,11 @@ import { NextResponse } from "next/server";
 import { builderDataSchema } from "@/features/builder/schema";
 import { BuilderData } from "@/features/builder/types";
 import { normalizeBuilderData } from "@/features/builder/utils";
-import { isAdminRequestAuthenticated } from "@/lib/server/admin-auth";
+import { getAdminSessionFromRequest } from "@/lib/server/admin-auth";
 import {
   getPublicPageBySlug,
-  removePublicPageBySlug,
-  upsertPublicPage,
+  removePublicPageBySlugForSession,
+  upsertPublicPageForSession,
 } from "@/lib/server/public-pages-store";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +58,8 @@ export async function PUT(
   request: Request,
   context: { params: Promise<RouteParams> },
 ) {
-  if (!(await isAdminRequestAuthenticated(request))) {
+  const session = await getAdminSessionFromRequest(request);
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
@@ -104,7 +105,14 @@ export async function PUT(
   }
 
   try {
-    await upsertPublicPage(slug, normalizeBuilderData(parsed.data as BuilderData));
+    const result = await upsertPublicPageForSession(
+      slug,
+      normalizeBuilderData(parsed.data as BuilderData),
+      session,
+    );
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
   } catch (error) {
     console.error("[public-pages] PUT failed", error);
     return NextResponse.json({ error: "Failed to save public page." }, { status: 500 });
@@ -116,7 +124,8 @@ export async function DELETE(
   request: Request,
   context: { params: Promise<RouteParams> },
 ) {
-  if (!(await isAdminRequestAuthenticated(request))) {
+  const session = await getAdminSessionFromRequest(request);
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
@@ -126,7 +135,10 @@ export async function DELETE(
   }
 
   try {
-    await removePublicPageBySlug(slug);
+    const result = await removePublicPageBySlugForSession(slug, session);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
   } catch (error) {
     console.error("[public-pages] DELETE failed", error);
     return NextResponse.json({ error: "Failed to delete public page." }, { status: 500 });

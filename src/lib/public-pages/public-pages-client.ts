@@ -5,11 +5,38 @@ export type PublicPageListItem = {
   slug: string;
   data: BuilderData;
   updatedAt: string | null;
+  ownerAdminId?: string | null;
+  owner?: {
+    id: string;
+    username: string;
+    displayName: string;
+    role: string;
+  } | null;
 };
 
 type PublicPageListResponseItem = Omit<PublicPageListItem, "updatedAt"> & {
   updatedAt?: string | null;
   updated_at?: string | null;
+};
+
+export type AdminViewer = {
+  adminId: string;
+  username: string;
+  displayName: string;
+  role: "owner" | "admin";
+  slugLimit?: number;
+  active?: boolean;
+};
+
+export type AdminQuota = {
+  used: number;
+  limit: number;
+  remaining: number;
+};
+
+export type AdminMe = {
+  user: AdminViewer;
+  quota: AdminQuota;
 };
 
 const parseErrorMessage = async (response: Response, fallback: string) => {
@@ -47,8 +74,25 @@ export const listPublicPages = async (): Promise<PublicPageListItem[]> => {
         slug: page.slug,
         data: page.data,
         updatedAt: page.updatedAt ?? page.updated_at ?? null,
+        ownerAdminId: page.ownerAdminId ?? null,
+        owner: page.owner ?? null,
       }))
     : [];
+};
+
+export const getCurrentAdmin = async (): Promise<AdminMe> => {
+  const response = await fetch("/api/admin/me", {
+    method: "GET",
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, "Failed to load admin session."));
+  }
+  const payload = await parseJsonResponse<AdminMe>(response);
+  if (!payload?.user || !payload.quota) {
+    throw new Error("Failed to load admin session.");
+  }
+  return payload;
 };
 
 export const getPublicPageBySlug = async (slug: string): Promise<BuilderData | null> => {

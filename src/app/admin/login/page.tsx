@@ -18,6 +18,7 @@ export default function AdminLoginPage() {
   const { t } = useI18n();
   const [nextPath, setNextPath] = useState("/admin");
 
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -38,7 +39,7 @@ export default function AdminLoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
 
       if (!response.ok) {
@@ -60,6 +61,17 @@ export default function AdminLoginPage() {
         <h1 className="text-xl font-semibold">{t("admin_login_title")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t("admin_login_subtitle")}</p>
         <form className="mt-5 space-y-3" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <Label htmlFor="admin-username">{t("admin_login_username")}</Label>
+            <Input
+              id="admin-username"
+              type="text"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              autoComplete="username"
+              required
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="admin-password">{t("admin_login_password")}</Label>
             <Input

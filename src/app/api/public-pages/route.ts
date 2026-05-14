@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { isAdminRequestAuthenticated } from "@/lib/server/admin-auth";
+import { getAdminSessionFromRequest } from "@/lib/server/admin-auth";
 import { listPublicPages } from "@/lib/server/public-pages-store";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,8 @@ const protectedResponseHeaders = {
 };
 
 export async function GET(request: Request) {
-  if (!(await isAdminRequestAuthenticated(request))) {
+  const session = await getAdminSessionFromRequest(request);
+  if (!session) {
     return NextResponse.json(
       { error: "Unauthorized." },
       { status: 401, headers: protectedResponseHeaders },
@@ -21,14 +22,22 @@ export async function GET(request: Request) {
   }
 
   try {
-    const pages = await listPublicPages();
+    const pages = await listPublicPages(session);
     return NextResponse.json(
       {
         pages: pages.map((page) => ({
           slug: page.slug,
           data: page.data,
           updatedAt: page.updated_at ?? null,
+          ownerAdminId: page.owner_admin_id ?? null,
+          owner: page.owner ?? null,
         })),
+        viewer: {
+          adminId: session.adminId,
+          username: session.username,
+          displayName: session.displayName,
+          role: session.role,
+        },
       },
       { headers: protectedResponseHeaders },
     );

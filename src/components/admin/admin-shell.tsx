@@ -19,8 +19,10 @@ import {
 } from "@/lib/local-storage/profile-storage";
 import {
   getPublicPageBySlug,
+  getCurrentAdmin,
   listPublicPages,
   upsertPublicPageBySlug,
+  type AdminMe,
   type PublicPageListItem,
 } from "@/lib/public-pages/public-pages-client";
 
@@ -105,8 +107,11 @@ export const AdminShell = () => {
   const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false);
   const [workspaceHydrationKey, setWorkspaceHydrationKey] = useState(0);
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
+  const [adminMe, setAdminMe] = useState<AdminMe | null>(null);
 
   const workspaceSlugRef = useRef<string>(toProfileSlug(header.username));
+  const adminScopeKeyRef = useRef<string | null>(null);
+  const accessibleSlugsRef = useRef<Set<string>>(new Set());
   const lastSavedSnapshotRef = useRef<string>("");
   const hasInitializedRef = useRef(false);
   const autosaveTimerRef = useRef<number | null>(null);
@@ -123,6 +128,7 @@ export const AdminShell = () => {
   const refreshSavedPages = useCallback(async () => {
     try {
       const pages = await listPublicPages();
+      accessibleSlugsRef.current = new Set(pages.map((page) => page.slug));
       setSavedProfiles(pages);
       setSavedPagesError(null);
       setAdminNotice((current) =>
@@ -137,6 +143,19 @@ export const AdminShell = () => {
       return null;
     }
   }, [t]);
+
+  const refreshAdminContext = useCallback(async () => {
+    try {
+      const currentAdmin = await getCurrentAdmin();
+      adminScopeKeyRef.current = currentAdmin.user.adminId;
+      setAdminMe(currentAdmin);
+      return currentAdmin;
+    } catch (error) {
+      console.error("[admin-shell] admin context refresh failed", error);
+      setAdminMe(null);
+      return null;
+    }
+  }, []);
 
   const clearPendingSaves = useCallback(() => {
     if (autosaveTimerRef.current) {
@@ -155,7 +174,7 @@ export const AdminShell = () => {
       clearPendingSaves();
       workspaceSlugRef.current = normalized;
       setCurrentEditorSlug(normalized);
-      setActiveEditorSlug(normalized);
+      setActiveEditorSlug(normalized, adminScopeKeyRef.current);
       const snapshot = JSON.stringify(baselineData ?? selectBuilderDataSnapshot());
       lastSavedSnapshotRef.current = snapshot;
       pendingAutosaveRef.current = false;
@@ -172,6 +191,14 @@ export const AdminShell = () => {
       options: WorkspaceSwitchOptions = {},
     ): Promise<WorkspaceSwitchResult> => {
       const normalized = toProfileSlug(slug);
+      if (
+        !options.fallbackData &&
+        adminMe?.user.role === "admin" &&
+        !accessibleSlugsRef.current.has(normalized)
+      ) {
+        setAdminNotice({ type: "error", text: "This page belongs to another admin." });
+        return "fallback";
+      }
       const loadToken = workspaceLoadTokenRef.current + 1;
       workspaceLoadTokenRef.current = loadToken;
       const completeSwitch = () => {
@@ -184,7 +211,7 @@ export const AdminShell = () => {
       setIsSwitchingWorkspace(true);
       workspaceSlugRef.current = normalized;
       setCurrentEditorSlug(normalized);
-      setActiveEditorSlug(normalized);
+      setActiveEditorSlug(normalized, adminScopeKeyRef.current);
 
       let remoteData: BuilderData | null = null;
       try {
@@ -224,7 +251,7 @@ export const AdminShell = () => {
       completeSwitch();
       return "fallback";
     },
-    [applyWorkspaceIdentity, clearPendingSaves, replaceBuilderData, t],
+    [adminMe?.user.role, applyWorkspaceIdentity, clearPendingSaves, replaceBuilderData, t],
   );
 
   const handleWorkspaceSwitchRequest = useCallback(
@@ -267,7 +294,7 @@ export const AdminShell = () => {
             await upsertPublicPageBySlug(targetSlug, payloadForSave);
             workspaceSlugRef.current = targetSlug;
             setCurrentEditorSlug(targetSlug);
-            setActiveEditorSlug(targetSlug);
+            setActiveEditorSlug(targetSlug, adminScopeKeyRef.current);
             lastSavedSnapshotRef.current = snapshot;
             pendingAutosaveRef.current = false;
             setLastSavedAt(new Date());
@@ -276,6 +303,7 @@ export const AdminShell = () => {
             window.dispatchEvent(new Event("storage"));
             setProfileRefreshKey((value) => value + 1);
             void refreshSavedPages();
+            void refreshAdminContext();
           } catch (error) {
             console.error("[admin-shell] save failed", error);
             setAdminNotice({ type: "error", text: t("save_status_save_error") });
@@ -287,7 +315,7 @@ export const AdminShell = () => {
         })();
       }, 180);
     },
-    [refreshSavedPages, t],
+    [refreshAdminContext, refreshSavedPages, t],
   );
 
   const handleSaveNow = useCallback(() => {
@@ -316,7 +344,9 @@ export const AdminShell = () => {
     clearStaleLocalStorageKeysOnce();
 
     const initialize = async () => {
-      const activeSlug = getActiveEditorSlug();
+      const currentAdmin = await refreshAdminContext();
+      const scopeKey = currentAdmin?.user.adminId ?? null;
+      const activeSlug = getActiveEditorSlug(scopeKey);
       const pages = await refreshSavedPages();
       const normalizedActiveSlug = activeSlug ? toProfileSlug(activeSlug) : null;
       const hasActiveInRemotePages = Boolean(
@@ -368,10 +398,10 @@ export const AdminShell = () => {
       window.clearInterval(intervalId);
       clearPendingSaves();
     };
-  }, [clearPendingSaves, loadWorkspaceFromSlug, refreshSavedPages, storageWarningMessage]);
+  }, [clearPendingSaves, loadWorkspaceFromSlug, refreshAdminContext, refreshSavedPages, storageWarningMessage]);
 
   useEffect(() => {
-    const activeSlug = getActiveEditorSlug();
+    const activeSlug = getActiveEditorSlug(adminScopeKeyRef.current);
     const normalized = activeSlug ? toProfileSlug(activeSlug) : null;
     if (normalized && normalized !== workspaceSlugRef.current && !isSwitchingWorkspaceRef.current) {
       const frameId = window.requestAnimationFrame(() => {
@@ -478,6 +508,7 @@ export const AdminShell = () => {
           <div className="lg:sticky lg:top-4 rounded-3xl border border-border/60 bg-gradient-to-b from-background/95 to-muted/35 p-2 shadow-sm backdrop-blur">
             <AdminSidebar
               currentSlug={currentEditorSlug}
+              adminMe={adminMe}
               isSwitchingWorkspace={isSwitchingWorkspace}
               onSwitchWorkspace={handleWorkspaceSwitchRequest}
               savedProfiles={savedProfiles}

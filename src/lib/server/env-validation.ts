@@ -10,7 +10,6 @@ type ValidatedEnv = {
   nextPublicSupabaseUrl: string;
   nextPublicSupabaseAnonKey: string;
   supabaseServiceRoleKey: string;
-  adminPassword: string;
 };
 
 type ValidatedImageUploadEnv = Pick<
@@ -77,8 +76,6 @@ export const validateCriticalServerEnv = (): ValidatedEnv => {
   const nextPublicSupabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
   const nextPublicSupabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
   const supabaseServiceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
-  const adminPassword = (process.env.ADMIN_PASSWORD ?? "").trim();
-
   const errors: string[] = [];
 
   addEmptyOrPlaceholderError(
@@ -101,14 +98,12 @@ export const validateCriticalServerEnv = (): ValidatedEnv => {
     supabaseServiceRoleKey,
     "Supabase service role key",
   );
-  addEmptyOrPlaceholderError(errors, "ADMIN_PASSWORD", adminPassword, "admin password");
   throwValidationError(errors);
 
   cachedValidatedEnv = {
     nextPublicSupabaseUrl,
     nextPublicSupabaseAnonKey,
     supabaseServiceRoleKey,
-    adminPassword,
   };
   return cachedValidatedEnv;
 };

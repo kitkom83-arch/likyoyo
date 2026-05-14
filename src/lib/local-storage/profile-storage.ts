@@ -97,6 +97,9 @@ const isBuilderData = (value: unknown): value is BuilderData => {
 export const toProfileSlug = (username: string): string =>
   username.trim().toLowerCase();
 
+const getScopedActiveEditorSlugKey = (scopeKey?: string | null): string =>
+  scopeKey ? `${ACTIVE_EDITOR_SLUG_KEY}-${scopeKey}` : ACTIVE_EDITOR_SLUG_KEY;
+
 const readJSON = <T>(key: string): T | null => {
   if (typeof window === "undefined") {
     return null;
@@ -209,25 +212,25 @@ export const getSavedProfileBySlug = (slug: string): BuilderData | null => {
   return profiles[normalizedSlug] ?? null;
 };
 
-export const getActiveEditorSlug = (): string | null => {
+export const getActiveEditorSlug = (scopeKey?: string | null): string | null => {
   if (typeof window === "undefined") {
     return null;
   }
   let raw: string | null = null;
   try {
-    raw = window.localStorage.getItem(ACTIVE_EDITOR_SLUG_KEY);
+    raw = window.localStorage.getItem(getScopedActiveEditorSlugKey(scopeKey));
   } catch {
     return null;
   }
   return raw ? toProfileSlug(raw) : null;
 };
 
-export const setActiveEditorSlug = (slug: string): void => {
+export const setActiveEditorSlug = (slug: string, scopeKey?: string | null): void => {
   if (typeof window === "undefined") {
     return;
   }
   try {
-    window.localStorage.setItem(ACTIVE_EDITOR_SLUG_KEY, toProfileSlug(slug));
+    window.localStorage.setItem(getScopedActiveEditorSlugKey(scopeKey), toProfileSlug(slug));
   } catch {
     return;
   }

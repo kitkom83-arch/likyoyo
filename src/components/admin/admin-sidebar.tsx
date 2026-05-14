@@ -12,11 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BuilderData } from "@/features/builder/types";
 import { useI18n } from "@/i18n/use-i18n";
-import { PublicPageListItem } from "@/lib/public-pages/public-pages-client";
+import { AdminMe, PublicPageListItem } from "@/lib/public-pages/public-pages-client";
 import { cn } from "@/lib/utils";
 
 type AdminSidebarProps = {
   currentSlug: string;
+  adminMe?: AdminMe | null;
   isSwitchingWorkspace?: boolean;
   onSwitchWorkspace?: (slug: string, options?: { fallbackData?: BuilderData; markUnsaved?: boolean }) => Promise<"remote" | "fallback">;
   savedProfiles?: PublicPageListItem[];
@@ -26,15 +27,17 @@ type AdminSidebarProps = {
 
 export const AdminSidebar = ({
   currentSlug,
+  adminMe,
   isSwitchingWorkspace = false,
   onSwitchWorkspace,
   savedProfiles,
   savedPagesError,
   onRefreshSavedPages,
 }: AdminSidebarProps) => (
-  <AdminSidebarContent
-    currentSlug={currentSlug}
-    isSwitchingWorkspace={isSwitchingWorkspace}
+    <AdminSidebarContent
+      currentSlug={currentSlug}
+      adminMe={adminMe}
+      isSwitchingWorkspace={isSwitchingWorkspace}
     onSwitchWorkspace={onSwitchWorkspace}
     savedProfiles={savedProfiles}
     savedPagesError={savedPagesError}
@@ -44,6 +47,7 @@ export const AdminSidebar = ({
 
 const AdminSidebarContent = ({
   currentSlug,
+  adminMe,
   isSwitchingWorkspace = false,
   onSwitchWorkspace,
   savedProfiles,
@@ -166,6 +170,17 @@ const AdminSidebarContent = ({
       </div>
 
       <div className="mt-4 space-y-2">
+        {adminMe?.user.role === "owner" ? (
+          <Button
+            className="w-full justify-start"
+            variant="outline"
+            onClick={() => {
+              window.location.href = "/admin/owner";
+            }}
+          >
+            Owner Control
+          </Button>
+        ) : null}
         <Button className="w-full justify-start" variant="secondary" onClick={handleCopy}>
           <Link2 className="size-4" />
           {copied ? t("sidebar_copied") : t("sidebar_copy_public_link")}
@@ -183,6 +198,7 @@ const AdminSidebarContent = ({
       <div className="mt-5 space-y-3 border-t border-border/60 pt-4">
         <SavedProfilesManagerCard
           currentSlug={currentSlug}
+          adminMe={adminMe}
           isSwitchingWorkspace={isSwitchingWorkspace}
           onSwitchWorkspace={onSwitchWorkspace}
           savedProfiles={savedProfiles}
@@ -190,7 +206,7 @@ const AdminSidebarContent = ({
           onRefreshSavedPages={onRefreshSavedPages}
         />
         <AnalyticsSummaryCard currentSlug={currentSlug} />
-        <DataToolsCard currentSlug={currentSlug} />
+        <DataToolsCard currentSlug={currentSlug} adminScopeKey={adminMe?.user.adminId ?? null} />
       </div>
     </aside>
   );

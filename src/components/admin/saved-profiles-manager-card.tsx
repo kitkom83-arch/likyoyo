@@ -15,11 +15,13 @@ import { setActiveEditorSlug, toProfileSlug } from "@/lib/local-storage/profile-
 import {
   deletePublicPageBySlug,
   listPublicPages,
+  type AdminMe,
   type PublicPageListItem,
 } from "@/lib/public-pages/public-pages-client";
 
 type SavedProfilesManagerCardProps = {
   currentSlug: string;
+  adminMe?: AdminMe | null;
   isSwitchingWorkspace?: boolean;
   onSwitchWorkspace?: (slug: string, options?: { fallbackData?: BuilderData; markUnsaved?: boolean }) => Promise<"remote" | "fallback">;
   savedProfiles?: PublicPageListItem[];
@@ -63,6 +65,7 @@ const createPageWorkspaceData = (slug: string, pageName: string): BuilderData =>
 
 export const SavedProfilesManagerCard = ({
   currentSlug,
+  adminMe,
   isSwitchingWorkspace = false,
   onSwitchWorkspace,
   savedProfiles: externalSavedProfiles,
@@ -88,6 +91,11 @@ export const SavedProfilesManagerCard = ({
   const [pendingActionSlug, setPendingActionSlug] = useState<string | null>(null);
   const activeSlug = useMemo(() => toProfileSlug(currentSlug), [currentSlug]);
   const savedProfiles = externalSavedProfiles ?? savedProfilesState;
+  const adminScopeKey = adminMe?.user.adminId ?? null;
+  const isOwner = adminMe?.user.role === "owner";
+  const quotaUsed = adminMe?.quota.used ?? savedProfiles.length;
+  const quotaLimit = adminMe?.quota.limit ?? 0;
+  const isQuotaReached = Boolean(adminMe && !isOwner && quotaUsed >= quotaLimit);
   const visibleRefreshError = externalSavedPagesError ?? refreshError;
   const statusTimerRef = useRef<number | null>(null);
 
@@ -111,10 +119,10 @@ export const SavedProfilesManagerCard = ({
       if (options?.fallbackData) {
         replaceBuilderData(options.fallbackData);
       }
-      setActiveEditorSlug(normalizedSlug);
+      setActiveEditorSlug(normalizedSlug, adminScopeKey);
       return options?.fallbackData ? "fallback" : "remote";
     },
-    [onSwitchWorkspace, replaceBuilderData],
+    [adminScopeKey, onSwitchWorkspace, replaceBuilderData],
   );
 
   const refreshSavedPages = useCallback(async () => {
@@ -256,6 +264,11 @@ export const SavedProfilesManagerCard = ({
   };
 
   const handleCreateNewPage = () => {
+    if (isQuotaReached) {
+      showToast("error", `Reached slug limit (${quotaUsed}/${quotaLimit}).`);
+      return;
+    }
+
     const slug = toProfileSlug(createPageSlug);
     const pageName = createPageName.trim();
     if (!slug || !pageName) {
@@ -345,12 +358,19 @@ export const SavedProfilesManagerCard = ({
           <div className="rounded-lg border border-border/60 bg-background/70 p-3 text-xs text-muted-foreground">
             <p>{t("saved_manager_current_page", { slug: activeSlug })}</p>
             <p className="mt-1">{t("saved_manager_saved_pages")}</p>
+            {adminMe ? (
+              <p className="mt-1 font-medium text-foreground">
+                {isOwner
+                  ? `Owner view: ${savedProfiles.length} visible slug`
+                  : `ใช้แล้ว ${quotaUsed}/${quotaLimit} slug`}
+              </p>
+            ) : null}
           </div>
           <Button
             variant="secondary"
             size="sm"
             className="w-full"
-            disabled={isSwitchingWorkspace}
+            disabled={isSwitchingWorkspace || isQuotaReached}
             onClick={() => {
               setShowCreateDialog(true);
               setNewPageCollision(null);
@@ -358,6 +378,11 @@ export const SavedProfilesManagerCard = ({
           >
             {t("saved_manager_create")}
           </Button>
+          {isQuotaReached ? (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Reached slug limit ({quotaUsed}/{quotaLimit}). Ask owner to increase quota.
+            </div>
+          ) : null}
           <p className="text-xs leading-5 text-muted-foreground">
             {t("saved_manager_help_1")}
           </p>
@@ -392,6 +417,11 @@ export const SavedProfilesManagerCard = ({
                     <p className="truncate text-xs text-muted-foreground">
                       {item.data.header.displayName}
                     </p>
+                    {isOwner && item.owner ? (
+                      <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                        Owner: {item.owner.displayName} ({item.owner.username})
+                      </p>
+                    ) : null}
                     <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                       <Button
                         variant="secondary"

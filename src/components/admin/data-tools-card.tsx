@@ -53,6 +53,7 @@ type ConfirmAction = "resetEditor" | "clearCurrentRoute" | "clearAllData" | null
 
 type DataToolsCardProps = {
   currentSlug: string;
+  adminScopeKey?: string | null;
 };
 
 const createUniqueSlug = (baseSlug: string, existingSlugs: Set<string>) => {
@@ -81,7 +82,7 @@ const createPageWorkspaceData = (slug: string, pageName: string): BuilderData =>
   },
 });
 
-export const DataToolsCard = ({ currentSlug }: DataToolsCardProps) => {
+export const DataToolsCard = ({ currentSlug, adminScopeKey = null }: DataToolsCardProps) => {
   const { t } = useI18n();
   const header = useBuilderStore((state) => state.header);
   const theme = useBuilderStore((state) => state.theme);
@@ -306,16 +307,16 @@ export const DataToolsCard = ({ currentSlug }: DataToolsCardProps) => {
         const fallbackData = await getPublicPageBySlug(fallbackPage.slug);
         if (fallbackData) {
           replaceBuilderData(fallbackData);
-          setActiveEditorSlug(fallbackPage.slug);
+          setActiveEditorSlug(fallbackPage.slug, adminScopeKey);
         } else {
           const nextSlug = createUniqueSlug(`${activeSlug}-new`, new Set([activeSlug]));
           replaceBuilderData(createPageWorkspaceData(nextSlug, t("saved_manager_new_page_default")));
-          setActiveEditorSlug(nextSlug);
+          setActiveEditorSlug(nextSlug, adminScopeKey);
         }
       } else {
         const nextSlug = createUniqueSlug(`${activeSlug}-new`, new Set([activeSlug]));
         replaceBuilderData(createPageWorkspaceData(nextSlug, t("saved_manager_new_page_default")));
-        setActiveEditorSlug(nextSlug);
+        setActiveEditorSlug(nextSlug, adminScopeKey);
       }
 
       setConfirmAction(null);
@@ -339,7 +340,7 @@ export const DataToolsCard = ({ currentSlug }: DataToolsCardProps) => {
     clearAnalyticsStore();
     window.localStorage.removeItem(BUILDER_STORE_KEY);
     replaceBuilderData(createPageWorkspaceData(activeSlug, t("saved_manager_new_page_default")));
-    setActiveEditorSlug(activeSlug);
+    setActiveEditorSlug(activeSlug, adminScopeKey);
 
     setConfirmAction(null);
     setStrongConfirmText("");
@@ -367,7 +368,7 @@ export const DataToolsCard = ({ currentSlug }: DataToolsCardProps) => {
         await deletePublicPageBySlug(activeSlug);
       }
       replaceAnalyticsEventsForSlug(activeSlug, backupSnapshot.analyticsEvents);
-      setActiveEditorSlug(activeSlug);
+      setActiveEditorSlug(activeSlug, adminScopeKey);
 
       window.dispatchEvent(new Event("storage"));
       setBackupRefreshKey((value) => value + 1);
