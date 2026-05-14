@@ -1,6 +1,13 @@
 import { BuilderData } from "@/features/builder/types";
 import { defaultBrandPreset } from "@/features/builder/default-brand-preset";
 
+const demoMenuIconUrl =
+  "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=240&q=80";
+const demoMenuBannerUrl =
+  "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=960&q=80";
+const demoMenuCardUrl =
+  "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=320&q=80";
+
 export const mockBuilderData: BuilderData = {
   header: {
     username: defaultBrandPreset.username,
@@ -68,9 +75,9 @@ export const mockBuilderData: BuilderData = {
         textAlign: "left",
         bannerRatio: "3:1",
         imageFit: "cover",
-        imageUrl: "/placeholders/link-thumbnail-default.svg",
-        iconImageUrl: "/placeholders/link-thumbnail-default.svg",
-        backgroundImageUrl: "/placeholders/link-thumbnail-default.svg",
+        imageUrl: "",
+        iconImageUrl: demoMenuIconUrl,
+        backgroundImageUrl: "",
         preserveLineBreaks: true,
         openInNewTab: true,
         showBorder: true,
@@ -98,6 +105,52 @@ export const mockBuilderData: BuilderData = {
         openInNewTab: true,
         showBorder: true,
         textPanelContent: "",
+      },
+    },
+    {
+      id: "link-image-full-01",
+      contentType: "link",
+      title: "Featured Launch",
+      url: "https://example.com/featured",
+      description: "Highlight one important campaign with a full image button.",
+      enabled: true,
+      settings: {
+        prioritize: false,
+        locked: false,
+        style: "image_banner",
+        textAlign: "left",
+        bannerRatio: "3:1",
+        imageFit: "cover",
+        imageUrl: "",
+        iconImageUrl: "",
+        backgroundImageUrl: demoMenuBannerUrl,
+        preserveLineBreaks: true,
+        openInNewTab: true,
+        showBorder: true,
+        textPanelContent: "",
+      },
+    },
+    {
+      id: "link-text-panel-01",
+      contentType: "link",
+      title: "Studio Notes",
+      url: "https://example.com/notes",
+      description: "A text-first panel for longer copy.",
+      enabled: true,
+      settings: {
+        prioritize: false,
+        locked: false,
+        style: "text_panel",
+        textAlign: "left",
+        bannerRatio: "3:1",
+        imageFit: "cover",
+        imageUrl: "",
+        iconImageUrl: "",
+        backgroundImageUrl: "",
+        preserveLineBreaks: true,
+        openInNewTab: true,
+        showBorder: true,
+        textPanelContent: "Opening hours\nMonday-Friday, 9:00-18:00\nBookings by appointment.",
       },
     },
     {
@@ -137,9 +190,9 @@ export const mockBuilderData: BuilderData = {
         textAlign: "left",
         bannerRatio: "3:1",
         imageFit: "cover",
-        imageUrl: "/placeholders/link-thumbnail-default.svg",
-        iconImageUrl: "/placeholders/link-thumbnail-default.svg",
-        backgroundImageUrl: "/placeholders/link-thumbnail-default.svg",
+        imageUrl: demoMenuCardUrl,
+        iconImageUrl: "",
+        backgroundImageUrl: "",
         preserveLineBreaks: true,
         openInNewTab: true,
         showBorder: true,
@@ -185,7 +238,7 @@ export const mockBuilderData: BuilderData = {
         textAlign: "left",
         bannerRatio: "3:1",
         imageFit: "cover",
-        imageUrl: "/placeholders/link-thumbnail-default.svg",
+        imageUrl: demoMenuCardUrl,
         iconImageUrl: "",
         backgroundImageUrl: "",
         preserveLineBreaks: true,

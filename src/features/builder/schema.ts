@@ -25,12 +25,32 @@ const optionalImageSourceSchema = (message: string) =>
 const isUrlOrLocalPathValue = (value: string): boolean =>
   z.string().url().safeParse(value).success || value.startsWith("/");
 
+const isWebUrlValue = (value: string): boolean => {
+  const parsed = z.string().url().safeParse(value);
+  if (!parsed.success) {
+    return false;
+  }
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 const optionalUrlOrLocalPathSchema = (message: string) =>
   z
     .string()
     .trim()
     .optional()
     .refine((value) => !value || isUrlOrLocalPathValue(value), message);
+
+const optionalWebUrlSchema = (message: string) =>
+  z
+    .string()
+    .trim()
+    .optional()
+    .refine((value) => !value || isWebUrlValue(value), message);
 
 const optionalEditableImageSourceSchema = (message: string) =>
   optionalImageSourceSchema(message);
@@ -51,6 +71,37 @@ const persistedOptionalImageSourceSchema = z
   .optional()
   .catch(undefined)
   .transform((value) => (value && isImageSourceValue(value) ? value : undefined));
+
+const persistedOptionalWebUrlSchema = z
+  .string()
+  .trim()
+  .optional()
+  .catch(undefined)
+  .transform((value) => (value && isWebUrlValue(value) ? value : undefined));
+
+const normalizeOptionalNumberInput = (value: unknown) => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return value;
+};
+
+const optionalTuningNumberSchema = (max: number) =>
+  z.number().min(0).max(max).optional();
+
+const persistedTuningNumberSchema = (max: number, fallback: number) =>
+  z
+    .preprocess(normalizeOptionalNumberInput, z.number().min(0).max(max))
+    .catch(fallback)
+    .default(fallback);
 
 const preOpenModalSchema = z.object({
   enabled: z.boolean().optional(),
@@ -305,19 +356,13 @@ export const linkSchema = z
     bannerRatio: z.enum(["3:1", "2:1"]).optional(),
     imageAspect: z.enum(["3:1", "2:1"]).optional(),
     imageFit: z.enum(["cover", "contain"]).optional(),
-    imageUrl: optionalEditableImageSourceSchema(
-      "Image URL must be a valid URL, local placeholder path, or uploaded image.",
-    ),
-    iconImageUrl: optionalEditableImageSourceSchema(
-      "Icon image URL must be a valid URL, local placeholder path, or uploaded image.",
-    ),
-    backgroundImageUrl: optionalEditableImageSourceSchema(
-      "Background image URL must be a valid URL, local placeholder path, or uploaded image.",
-    ),
-    imageBrightness: z.number().min(0).max(200).optional(),
-    imageContrast: z.number().min(0).max(200).optional(),
-    imageSaturation: z.number().min(0).max(200).optional(),
-    overlayOpacity: z.number().min(0).max(100).optional(),
+    imageUrl: optionalWebUrlSchema("Image URL must be a valid http(s) URL."),
+    iconImageUrl: optionalWebUrlSchema("Icon image URL must be a valid http(s) URL."),
+    backgroundImageUrl: optionalWebUrlSchema("Background image URL must be a valid http(s) URL."),
+    imageBrightness: optionalTuningNumberSchema(200),
+    imageContrast: optionalTuningNumberSchema(200),
+    imageSaturation: optionalTuningNumberSchema(200),
+    overlayOpacity: optionalTuningNumberSchema(100),
     preserveLineBreaks: z.boolean().optional(),
     textPanelContent: z.string().optional(),
     openInNewTab: z.boolean().optional(),
@@ -610,17 +655,13 @@ export const linkSettingsSchema = z.object({
   textAlign: z.enum(["left", "center", "right"]).optional(),
   bannerRatio: z.enum(["3:1", "2:1"]).optional(),
   imageFit: z.enum(["cover", "contain"]).optional(),
-  imageUrl: optionalEditableImageSourceSchema("Image URL must be a valid URL, local placeholder path, or uploaded image."),
-  iconImageUrl: optionalEditableImageSourceSchema(
-    "Icon image URL must be a valid URL, local placeholder path, or uploaded image.",
-  ),
-  backgroundImageUrl: optionalEditableImageSourceSchema(
-    "Background image URL must be a valid URL, local placeholder path, or uploaded image.",
-  ),
-  imageBrightness: z.number().min(0).max(200).optional(),
-  imageContrast: z.number().min(0).max(200).optional(),
-  imageSaturation: z.number().min(0).max(200).optional(),
-  overlayOpacity: z.number().min(0).max(100).optional(),
+  imageUrl: optionalWebUrlSchema("Image URL must be a valid http(s) URL."),
+  iconImageUrl: optionalWebUrlSchema("Icon image URL must be a valid http(s) URL."),
+  backgroundImageUrl: optionalWebUrlSchema("Background image URL must be a valid http(s) URL."),
+  imageBrightness: optionalTuningNumberSchema(200),
+  imageContrast: optionalTuningNumberSchema(200),
+  imageSaturation: optionalTuningNumberSchema(200),
+  overlayOpacity: optionalTuningNumberSchema(100),
   preserveLineBreaks: z.boolean().optional(),
   textPanelContent: z.string().optional(),
   openInNewTab: z.boolean().optional(),
@@ -895,13 +936,13 @@ export const builderDataSchema = z.object({
         bannerRatio: z.enum(["3:1", "2:1"]).default("3:1"),
         imageAspect: z.enum(["3:1", "2:1"]).optional(),
         imageFit: z.enum(["cover", "contain"]).default("cover"),
-        imageUrl: persistedStringSchema.optional(),
-        iconImageUrl: persistedStringSchema.optional(),
-        backgroundImageUrl: persistedStringSchema.optional(),
-        imageBrightness: z.number().min(0).max(200).default(100),
-        imageContrast: z.number().min(0).max(200).default(100),
-        imageSaturation: z.number().min(0).max(200).default(100),
-        overlayOpacity: z.number().min(0).max(100).default(0),
+        imageUrl: persistedOptionalWebUrlSchema,
+        iconImageUrl: persistedOptionalWebUrlSchema,
+        backgroundImageUrl: persistedOptionalWebUrlSchema,
+        imageBrightness: persistedTuningNumberSchema(200, 100),
+        imageContrast: persistedTuningNumberSchema(200, 100),
+        imageSaturation: persistedTuningNumberSchema(200, 100),
+        overlayOpacity: persistedTuningNumberSchema(100, 0),
         preserveLineBreaks: z.boolean().default(true),
         textPanelContent: persistedStringSchema.optional(),
         openInNewTab: z.boolean().default(true),

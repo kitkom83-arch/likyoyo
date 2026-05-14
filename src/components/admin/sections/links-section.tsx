@@ -482,9 +482,6 @@ export const LinksSection = () => {
   const editCardThumbnail = useWatch({ control: editForm.control, name: "cardThumbnail" });
   const editEmbedCardIcon = useWatch({ control: editForm.control, name: "embedCardIcon" });
   const editEmbedCardThumbnail = useWatch({ control: editForm.control, name: "embedCardThumbnail" });
-  const editImageUrl = useWatch({ control: editForm.control, name: "imageUrl" });
-  const editIconImageUrl = useWatch({ control: editForm.control, name: "iconImageUrl" });
-  const editBackgroundImageUrl = useWatch({ control: editForm.control, name: "backgroundImageUrl" });
   const editFormFields = useWatch({ control: editForm.control, name: "formFields" }) ?? [];
   const editPromoItems = useWatch({ control: editForm.control, name: "promoItems" }) ?? [];
   const editExternalFormEnabled = useWatch({ control: editForm.control, name: "externalFormEnabled" });
@@ -2349,7 +2346,7 @@ export const LinksSection = () => {
                     <div className="space-y-2">
                       <Label>{t("links_style_icon_image_url")}</Label>
                       <Input
-                        placeholder="https://... or /placeholders/link-thumbnail-default.svg"
+                        placeholder="https://..."
                         aria-invalid={Boolean(editIconImageUrlError)}
                         className={editIconImageUrlError ? "border-destructive" : undefined}
                         {...editForm.register("iconImageUrl")}
@@ -2357,17 +2354,6 @@ export const LinksSection = () => {
                       {editIconImageUrlError ? (
                         <p className="text-xs text-destructive">{editIconImageUrlError}</p>
                       ) : null}
-                      <CustomImageUpload
-                        value={editIconImageUrl}
-                        preset="icon"
-                        onValueChange={(nextValue) =>
-                          editForm.setValue("iconImageUrl", nextValue, {
-                            shouldDirty: true,
-                            shouldValidate: true,
-                          })
-                        }
-                        onError={setImageUploadWarning}
-                      />
                     </div>
                   ) : null}
                   {editStyle === "image_banner" ? (
@@ -2375,7 +2361,7 @@ export const LinksSection = () => {
                       <div className="space-y-2">
                         <Label>{t("links_style_background_image_url")}</Label>
                         <Input
-                          placeholder="https://... or /placeholders/link-thumbnail-default.svg"
+                          placeholder="https://..."
                           aria-invalid={Boolean(editBackgroundImageUrlError)}
                           className={editBackgroundImageUrlError ? "border-destructive" : undefined}
                           {...editForm.register("backgroundImageUrl")}
@@ -2383,17 +2369,6 @@ export const LinksSection = () => {
                         {editBackgroundImageUrlError ? (
                           <p className="text-xs text-destructive">{editBackgroundImageUrlError}</p>
                         ) : null}
-                        <CustomImageUpload
-                          value={editBackgroundImageUrl}
-                          preset="thumbnail_banner"
-                          onValueChange={(nextValue) =>
-                            editForm.setValue("backgroundImageUrl", nextValue, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                            })
-                          }
-                          onError={setImageUploadWarning}
-                        />
                       </div>
                       <div className="space-y-2">
                         <Label>{t("links_style_image_aspect")}</Label>
@@ -2421,7 +2396,7 @@ export const LinksSection = () => {
                     <div className="space-y-2">
                       <Label>{t("links_style_image_url")}</Label>
                       <Input
-                        placeholder="https://... or /placeholders/link-thumbnail-default.svg"
+                        placeholder="https://..."
                         aria-invalid={Boolean(editImageUrlError)}
                         className={editImageUrlError ? "border-destructive" : undefined}
                         {...editForm.register("imageUrl")}
@@ -2429,17 +2404,6 @@ export const LinksSection = () => {
                       {editImageUrlError ? (
                         <p className="text-xs text-destructive">{editImageUrlError}</p>
                       ) : null}
-                      <CustomImageUpload
-                        value={editImageUrl}
-                        preset="thumbnail_banner"
-                        onValueChange={(nextValue) =>
-                          editForm.setValue("imageUrl", nextValue, {
-                            shouldDirty: true,
-                            shouldValidate: true,
-                          })
-                        }
-                        onError={setImageUploadWarning}
-                      />
                     </div>
                   ) : null}
                   {(editStyle === "image_banner" || editStyle === "media_card") ? (

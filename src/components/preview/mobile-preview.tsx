@@ -25,6 +25,7 @@ import {
   getLinkDisplaySettings,
   getPromoGalleryData,
   getSortedVisibleLinks,
+  normalizeImageTuningValue,
 } from "@/features/builder/utils";
 import {
   AVATAR_HEADER_FALLBACK_SRC,
@@ -998,22 +999,10 @@ export const MobilePreview = ({
                 normalizeImageSrc(displaySettings.backgroundImageUrl, styleImageSrc) ?? styleImageSrc;
               const activeStyle = displaySettings.style ?? "icon_left";
               const openInNewTab = displaySettings.openInNewTab ?? true;
-              const imageBrightness = Math.min(
-                200,
-                Math.max(0, displaySettings.imageBrightness ?? 100),
-              );
-              const imageContrast = Math.min(
-                200,
-                Math.max(0, displaySettings.imageContrast ?? 100),
-              );
-              const imageSaturation = Math.min(
-                200,
-                Math.max(0, displaySettings.imageSaturation ?? 100),
-              );
-              const imageOverlayExtraOpacity = Math.min(
-                100,
-                Math.max(0, displaySettings.overlayOpacity ?? 0),
-              );
+              const imageBrightness = normalizeImageTuningValue(displaySettings.imageBrightness, 100, 200);
+              const imageContrast = normalizeImageTuningValue(displaySettings.imageContrast, 100, 200);
+              const imageSaturation = normalizeImageTuningValue(displaySettings.imageSaturation, 100, 200);
+              const imageOverlayExtraOpacity = normalizeImageTuningValue(displaySettings.overlayOpacity, 0, 100);
               const imageFilterStyle = {
                 filter: `brightness(${imageBrightness}%) contrast(${imageContrast}%) saturate(${imageSaturation}%)`,
               } as const;

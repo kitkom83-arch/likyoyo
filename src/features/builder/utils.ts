@@ -73,14 +73,62 @@ const DEFAULT_LINK_SETTINGS_STYLE: Pick<
   showBorder: true,
 };
 
-export const getLinkDisplaySettings = (link: BioLink) => ({
-  ...DEFAULT_LINK_SETTINGS_STYLE,
-  style: link.settings.style ?? link.settings.displayStyle ?? DEFAULT_LINK_SETTINGS_STYLE.style,
-  bannerRatio: link.settings.bannerRatio ?? (link.settings as { imageAspect?: "3:1" | "2:1" }).imageAspect ?? DEFAULT_LINK_SETTINGS_STYLE.bannerRatio,
-  backgroundImageUrl: link.settings.backgroundImageUrl ?? link.settings.imageUrl ?? "",
-  iconImageUrl: link.settings.iconImageUrl ?? link.settings.imageUrl ?? "",
-  ...link.settings,
-});
+export const normalizeImageTuningValue = (
+  value: unknown,
+  fallback: number,
+  max: number,
+): number => {
+  const numericValue =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim()
+        ? Number(value)
+        : fallback;
+
+  if (!Number.isFinite(numericValue)) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.max(0, numericValue));
+};
+
+const normalizeMenuImageUrl = (value: unknown): string => {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? trimmed : "";
+  } catch {
+    return "";
+  }
+};
+
+export const getLinkDisplaySettings = (link: BioLink) => {
+  const settings = {
+    ...DEFAULT_LINK_SETTINGS_STYLE,
+    style: link.settings.style ?? link.settings.displayStyle ?? DEFAULT_LINK_SETTINGS_STYLE.style,
+    bannerRatio: link.settings.bannerRatio ?? (link.settings as { imageAspect?: "3:1" | "2:1" }).imageAspect ?? DEFAULT_LINK_SETTINGS_STYLE.bannerRatio,
+    backgroundImageUrl: link.settings.backgroundImageUrl ?? link.settings.imageUrl ?? "",
+    iconImageUrl: link.settings.iconImageUrl ?? link.settings.imageUrl ?? "",
+    ...link.settings,
+  };
+
+  return {
+    ...settings,
+    imageUrl: normalizeMenuImageUrl(settings.imageUrl),
+    iconImageUrl: normalizeMenuImageUrl(settings.iconImageUrl),
+    backgroundImageUrl: normalizeMenuImageUrl(settings.backgroundImageUrl),
+    imageBrightness: normalizeImageTuningValue(settings.imageBrightness, 100, 200),
+    imageContrast: normalizeImageTuningValue(settings.imageContrast, 100, 200),
+    imageSaturation: normalizeImageTuningValue(settings.imageSaturation, 100, 200),
+    overlayOpacity: normalizeImageTuningValue(settings.overlayOpacity, 0, 100),
+  };
+};
 
 export const getUnifiedMenuItemDisplay = (
   link: BioLink,
