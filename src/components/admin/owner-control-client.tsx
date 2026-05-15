@@ -793,13 +793,11 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
             aria-modal="true"
             className="w-full max-w-md rounded-lg border border-border bg-background p-5 shadow-2xl"
           >
-            <h3 className="text-base font-semibold">Delete forever</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Type DELETE {deleteForeverPage.slug} to permanently delete /{deleteForeverPage.slug}.
-            </p>
+            <h3 className="text-base font-semibold">ยืนยันการลบถาวร</h3>
+            <p className="mt-2 text-sm text-muted-foreground">การลบนี้กู้คืนไม่ได้</p>
             <div className="mt-4 space-y-1">
               <label htmlFor="delete-forever-confirm" className="text-xs text-muted-foreground">
-                Confirmation
+                พิมพ์ DELETE {deleteForeverPage.slug} เพื่อยืนยัน
               </label>
               <Input
                 id="delete-forever-confirm"
@@ -817,7 +815,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                   setDeleteForeverConfirm("");
                 }}
               >
-                Cancel
+                ยกเลิก
               </Button>
               <Button
                 variant="destructive"
@@ -826,7 +824,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                   void handleDeleteForever();
                 }}
               >
-                Delete forever
+                ลบถาวร
               </Button>
             </div>
           </div>

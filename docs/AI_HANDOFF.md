@@ -3,6 +3,23 @@
 ## Current goal
 Add owner-only trash/restore support for deleted public pages without changing support forms, Google Sheets flow, or existing admin session behavior.
 
+## Update 2026-05-16 (delete forever confirmation copy)
+
+### Changed files
+- `src/components/admin/owner-control-client.tsx`
+- `docs/AI_HANDOFF.md`
+
+### Behavior change
+- Owner Control Deleted Pages still opens a confirmation modal before delete-forever.
+- The modal now uses Thai safety copy: title `ยืนยันการลบถาวร`, description `การลบนี้กู้คืนไม่ได้`, confirmation label `พิมพ์ DELETE {slug} เพื่อยืนยัน`, secondary button `ยกเลิก`, and primary button `ลบถาวร`.
+- The primary delete button remains disabled until the typed value exactly matches `DELETE {slug}`.
+
+### Scope/guardrails preserved
+- Restore, restore as new slug, and assign-to-admin restore behavior unchanged.
+- Support form logic unchanged.
+- Google Sheets logic unchanged.
+- Supabase schema unchanged.
+
 ## Update 2026-05-15 (owner deleted public pages trash/restore)
 
 ### Changed files
