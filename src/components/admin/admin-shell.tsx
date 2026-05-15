@@ -123,6 +123,11 @@ export const AdminShell = () => {
   const workspaceLoadTokenRef = useRef(0);
   const isSwitchingWorkspaceRef = useRef(false);
   const pendingAutosaveRef = useRef(false);
+  const tRef = useRef(t);
+
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   const builderData = useMemo<BuilderData>(
     () => ({ header, theme, text, buttonStyle, socials, links }),
@@ -143,7 +148,7 @@ export const AdminShell = () => {
         setSavedProfiles(pages);
         setSavedPagesError(null);
         setAdminNotice((current) =>
-          current?.text === t("save_status_load_error") ? null : current,
+          current?.text === tRef.current("save_status_load_error") ? null : current,
         );
         return pages;
       } catch (error) {
@@ -151,7 +156,7 @@ export const AdminShell = () => {
           return null;
         }
         console.error("[admin-shell] saved pages refresh failed", error);
-        const message = t("save_status_load_error");
+        const message = tRef.current("save_status_load_error");
         setSavedPagesError(message);
         setAdminNotice({ type: "error", text: message });
         return null;
@@ -164,7 +169,7 @@ export const AdminShell = () => {
     })();
     savedPagesRequestRef.current = request;
     return request;
-  }, [t]);
+  }, []);
 
   const refreshAdminContext = useCallback(async () => {
     try {
@@ -192,6 +197,13 @@ export const AdminShell = () => {
       saveOperationTimerRef.current = null;
     }
   }, []);
+
+  useEffect(() => {
+    return () => {
+      savedPagesAbortRef.current?.abort();
+      clearPendingSaves();
+    };
+  }, [clearPendingSaves]);
 
   const applyWorkspaceIdentity = useCallback(
     (slug: string, baselineData?: BuilderData) => {
@@ -263,7 +275,7 @@ export const AdminShell = () => {
         return "fallback";
       } catch (error) {
         console.error("[admin-shell] load workspace failed", error);
-        setAdminNotice({ type: "error", text: t("save_status_load_error") });
+        setAdminNotice({ type: "error", text: tRef.current("save_status_load_error") });
         throw error;
       } finally {
         if (workspaceLoadTokenRef.current === loadToken) {
@@ -272,7 +284,7 @@ export const AdminShell = () => {
         }
       }
     },
-    [applyWorkspaceIdentity, clearPendingSaves, replaceBuilderData, t],
+    [applyWorkspaceIdentity, clearPendingSaves, replaceBuilderData],
   );
 
   const handleWorkspaceSwitchRequest = useCallback(
@@ -313,14 +325,14 @@ export const AdminShell = () => {
         void refreshAdminContext();
       } catch (error) {
         console.error("[admin-shell] save failed", error);
-        setAdminNotice({ type: "error", text: t("save_status_save_error") });
+        setAdminNotice({ type: "error", text: tRef.current("save_status_save_error") });
         pendingAutosaveRef.current = true;
         setSaveStatus("unsaved");
       } finally {
         saveOperationTimerRef.current = null;
       }
     },
-    [refreshAdminContext, refreshSavedPages, t],
+    [refreshAdminContext, refreshSavedPages],
   );
 
   const persistProfile = useCallback(
@@ -420,6 +432,18 @@ export const AdminShell = () => {
 
     void initialize();
 
+    return () => {
+      canceled = true;
+      if (!hasCompletedInitialLoadRef.current) {
+        hasStartedInitialLoadRef.current = false;
+      }
+      if (syncFrameId) {
+        window.cancelAnimationFrame(syncFrameId);
+      }
+    };
+  }, [loadWorkspaceFromSlug, refreshAdminContext, refreshSavedPages]);
+
+  useEffect(() => {
     const onStorageWarning = () => {
       setStorageWarning(storageWarningMessage);
       window.setTimeout(() => {
@@ -431,18 +455,9 @@ export const AdminShell = () => {
     window.addEventListener("linkbio-storage-warning", onStorageWarning);
 
     return () => {
-      canceled = true;
-      if (!hasCompletedInitialLoadRef.current) {
-        hasStartedInitialLoadRef.current = false;
-      }
-      if (syncFrameId) {
-        window.cancelAnimationFrame(syncFrameId);
-      }
       window.removeEventListener("linkbio-storage-warning", onStorageWarning);
-      savedPagesAbortRef.current?.abort();
-      clearPendingSaves();
     };
-  }, [clearPendingSaves, loadWorkspaceFromSlug, refreshAdminContext, refreshSavedPages, storageWarningMessage]);
+  }, [storageWarningMessage]);
 
   useEffect(() => {
     if (!isWorkspaceReady || isSwitchingWorkspace) {

@@ -3,6 +3,29 @@
 ## Current goal
 Fix admin public-pages request storm and stuck save state without changing Supabase schema, support forms, Google Sheets flow, `/admin`, or `/`.
 
+## Update 2026-05-15 (Admin My Pages response/render fix)
+
+### Changed files
+- `src/components/admin/admin-shell.tsx`
+- `src/lib/public-pages/public-pages-client.ts`
+- `docs/AI_HANDOFF.md`
+
+### Root cause addressed
+- `AdminShell` kept the initial My Pages load effect dependent on callbacks that changed when translation/session-related state updated. The effect cleanup aborted the active `/api/me/public-pages` request before it could populate `savedProfiles`, leaving My Pages at `Owner view: 0 visible slug` even though the API returned pages.
+- The public-pages client already targeted `/api/me/public-pages`, but malformed 200 responses were silently treated as an empty list. It now requires the authenticated response shape `{ pages: [...], viewer: {...} }` and reads `response.pages`.
+
+### Behavior change
+- My Pages list refresh callbacks now use a stable translation ref for messages, so normal render/session updates do not recreate the active list-loading effect.
+- The active My Pages list request is aborted only by `AdminShell` cleanup, such as component unmount or route change.
+- Storage-warning event wiring is split out from the initial data-load effect so warning text changes cannot abort list loading.
+- Save Now PUT flow remains unchanged: one immediate `PUT /api/public-pages/[slug]` per click, followed by the existing list/admin context refresh on success.
+
+### Validation
+- `listPublicPages()` expects `{ pages: PublicPageListResponseItem[], viewer?: AdminViewer }` and maps `payload.pages` into saved profiles.
+- Owner visible slug count is still derived from `savedProfiles.length`, which is now populated from `response.pages`.
+- `npm run lint`: PASS
+- `npm run build`: PASS
+
 ## Update 2026-05-15 (admin public-pages request storm fix)
 
 ### Changed files

@@ -39,6 +39,11 @@ export type AdminMe = {
   quota: AdminQuota;
 };
 
+type PublicPageListResponse = {
+  pages: PublicPageListResponseItem[];
+  viewer?: AdminViewer;
+};
+
 const REQUEST_TIMEOUT_MS = 20_000;
 
 const fetchWithTimeout = async (
@@ -99,16 +104,18 @@ export const listPublicPages = async (signal?: AbortSignal): Promise<PublicPageL
     throw new Error(await parseErrorMessage(response, "Failed to list public pages."));
   }
 
-  const payload = await parseJsonResponse<{ pages?: PublicPageListResponseItem[] }>(response);
-  return Array.isArray(payload?.pages)
-    ? payload.pages.map((page) => ({
-        slug: page.slug,
-        data: page.data,
-        updatedAt: page.updatedAt ?? page.updated_at ?? null,
-        ownerAdminId: page.ownerAdminId ?? null,
-        owner: page.owner ?? null,
-      }))
-    : [];
+  const payload = await parseJsonResponse<PublicPageListResponse>(response);
+  if (!payload || !Array.isArray(payload.pages)) {
+    throw new Error("Unexpected public pages response shape.");
+  }
+
+  return payload.pages.map((page) => ({
+    slug: page.slug,
+    data: page.data,
+    updatedAt: page.updatedAt ?? page.updated_at ?? null,
+    ownerAdminId: page.ownerAdminId ?? null,
+    owner: page.owner ?? null,
+  }));
 };
 
 export const getCurrentAdmin = async (): Promise<AdminMe> => {
