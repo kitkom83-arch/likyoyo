@@ -94,7 +94,6 @@ export const AdminShell = () => {
   const replaceBuilderData = useBuilderStore((state) => state.replaceBuilderData);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
-  const [profileRefreshKey, setProfileRefreshKey] = useState(0);
   const [savedProfiles, setSavedProfiles] = useState<PublicPageListItem[]>([]);
   const [savedPagesError, setSavedPagesError] = useState<string | null>(null);
   const [adminNotice, setAdminNotice] = useState<{
@@ -111,11 +110,16 @@ export const AdminShell = () => {
 
   const workspaceSlugRef = useRef<string>(toProfileSlug(header.username));
   const adminScopeKeyRef = useRef<string | null>(null);
+  const adminRoleRef = useRef<AdminMe["user"]["role"] | null>(null);
   const accessibleSlugsRef = useRef<Set<string>>(new Set());
   const lastSavedSnapshotRef = useRef<string>("");
   const hasInitializedRef = useRef(false);
+  const hasStartedInitialLoadRef = useRef(false);
+  const hasCompletedInitialLoadRef = useRef(false);
   const autosaveTimerRef = useRef<number | null>(null);
   const saveOperationTimerRef = useRef<number | null>(null);
+  const savedPagesRequestRef = useRef<Promise<PublicPageListItem[] | null> | null>(null);
+  const savedPagesAbortRef = useRef<AbortController | null>(null);
   const workspaceLoadTokenRef = useRef(0);
   const isSwitchingWorkspaceRef = useRef(false);
   const pendingAutosaveRef = useRef(false);
@@ -126,32 +130,53 @@ export const AdminShell = () => {
   );
 
   const refreshSavedPages = useCallback(async () => {
-    try {
-      const pages = await listPublicPages();
-      accessibleSlugsRef.current = new Set(pages.map((page) => page.slug));
-      setSavedProfiles(pages);
-      setSavedPagesError(null);
-      setAdminNotice((current) =>
-        current?.text === t("save_status_load_error") ? null : current,
-      );
-      return pages;
-    } catch (error) {
-      console.error("[admin-shell] saved pages refresh failed", error);
-      const message = t("save_status_load_error");
-      setSavedPagesError(message);
-      setAdminNotice({ type: "error", text: message });
-      return null;
+    if (savedPagesRequestRef.current) {
+      return savedPagesRequestRef.current;
     }
+
+    const controller = new AbortController();
+    savedPagesAbortRef.current = controller;
+    const request = (async () => {
+      try {
+        const pages = await listPublicPages(controller.signal);
+        accessibleSlugsRef.current = new Set(pages.map((page) => page.slug));
+        setSavedProfiles(pages);
+        setSavedPagesError(null);
+        setAdminNotice((current) =>
+          current?.text === t("save_status_load_error") ? null : current,
+        );
+        return pages;
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return null;
+        }
+        console.error("[admin-shell] saved pages refresh failed", error);
+        const message = t("save_status_load_error");
+        setSavedPagesError(message);
+        setAdminNotice({ type: "error", text: message });
+        return null;
+      } finally {
+        if (savedPagesAbortRef.current === controller) {
+          savedPagesRequestRef.current = null;
+          savedPagesAbortRef.current = null;
+        }
+      }
+    })();
+    savedPagesRequestRef.current = request;
+    return request;
   }, [t]);
 
   const refreshAdminContext = useCallback(async () => {
     try {
       const currentAdmin = await getCurrentAdmin();
       adminScopeKeyRef.current = currentAdmin.user.adminId;
+      adminRoleRef.current = currentAdmin.user.role;
       setAdminMe(currentAdmin);
       return currentAdmin;
     } catch (error) {
       console.error("[admin-shell] admin context refresh failed", error);
+      adminScopeKeyRef.current = null;
+      adminRoleRef.current = null;
       setAdminMe(null);
       return null;
     }
@@ -193,7 +218,7 @@ export const AdminShell = () => {
       const normalized = toProfileSlug(slug);
       if (
         !options.fallbackData &&
-        adminMe?.user.role === "admin" &&
+        adminRoleRef.current === "admin" &&
         !accessibleSlugsRef.current.has(normalized)
       ) {
         setAdminNotice({ type: "error", text: "This page belongs to another admin." });
@@ -201,11 +226,6 @@ export const AdminShell = () => {
       }
       const loadToken = workspaceLoadTokenRef.current + 1;
       workspaceLoadTokenRef.current = loadToken;
-      const completeSwitch = () => {
-        isSwitchingWorkspaceRef.current = false;
-        setIsSwitchingWorkspace(false);
-      };
-
       clearPendingSaves();
       isSwitchingWorkspaceRef.current = true;
       setIsSwitchingWorkspace(true);
@@ -216,42 +236,43 @@ export const AdminShell = () => {
       let remoteData: BuilderData | null = null;
       try {
         remoteData = await getPublicPageBySlug(normalized);
+
+        if (workspaceLoadTokenRef.current !== loadToken) {
+          return "fallback";
+        }
+
+        if (remoteData) {
+          const hydratedRemote = normalizeWorkspaceData(normalized, remoteData);
+          replaceBuilderData(hydratedRemote);
+          applyWorkspaceIdentity(normalized, hydratedRemote);
+          setLastSavedAt(new Date());
+          setAdminNotice(null);
+          return "remote";
+        }
+
+        const fallbackSource = options.fallbackData ?? mockBuilderData;
+        const fallbackHydrated = normalizeWorkspaceData(normalized, fallbackSource);
+        replaceBuilderData(fallbackHydrated);
+        applyWorkspaceIdentity(normalized, fallbackHydrated);
+        setLastSavedAt(null);
+        if (options.markUnsaved) {
+          lastSavedSnapshotRef.current = "";
+          pendingAutosaveRef.current = true;
+          setSaveStatus("unsaved");
+        }
+        return "fallback";
       } catch (error) {
         console.error("[admin-shell] load workspace failed", error);
         setAdminNotice({ type: "error", text: t("save_status_load_error") });
-        completeSwitch();
         throw error;
+      } finally {
+        if (workspaceLoadTokenRef.current === loadToken) {
+          isSwitchingWorkspaceRef.current = false;
+          setIsSwitchingWorkspace(false);
+        }
       }
-
-      if (workspaceLoadTokenRef.current !== loadToken) {
-        completeSwitch();
-        return "fallback";
-      }
-
-      if (remoteData) {
-        const hydratedRemote = normalizeWorkspaceData(normalized, remoteData);
-        replaceBuilderData(hydratedRemote);
-        applyWorkspaceIdentity(normalized, hydratedRemote);
-        setLastSavedAt(new Date());
-        setAdminNotice(null);
-        completeSwitch();
-        return "remote";
-      }
-
-      const fallbackSource = options.fallbackData ?? mockBuilderData;
-      const fallbackHydrated = normalizeWorkspaceData(normalized, fallbackSource);
-      replaceBuilderData(fallbackHydrated);
-      applyWorkspaceIdentity(normalized, fallbackHydrated);
-      setLastSavedAt(null);
-      if (options.markUnsaved) {
-        lastSavedSnapshotRef.current = "";
-        pendingAutosaveRef.current = true;
-        setSaveStatus("unsaved");
-      }
-      completeSwitch();
-      return "fallback";
     },
-    [adminMe?.user.role, applyWorkspaceIdentity, clearPendingSaves, replaceBuilderData, t],
+    [applyWorkspaceIdentity, clearPendingSaves, replaceBuilderData, t],
   );
 
   const handleWorkspaceSwitchRequest = useCallback(
@@ -260,62 +281,72 @@ export const AdminShell = () => {
     [loadWorkspaceFromSlug],
   );
 
+  const executeProfileSave = useCallback(
+    async (targetSlug: string, payload: BuilderData, snapshot: string) => {
+      try {
+        if (isSwitchingWorkspaceRef.current || targetSlug !== workspaceSlugRef.current) {
+          setSaveStatus("saved");
+          return;
+        }
+
+        const payloadForSave: BuilderData = {
+          ...payload,
+          header: {
+            ...payload.header,
+            username: targetSlug,
+            publicHandle:
+              payload.header.publicHandle?.trim() ||
+              payload.header.publicUsername?.trim() ||
+              payload.header.username,
+          },
+        };
+        await upsertPublicPageBySlug(targetSlug, payloadForSave);
+        workspaceSlugRef.current = targetSlug;
+        setCurrentEditorSlug(targetSlug);
+        setActiveEditorSlug(targetSlug, adminScopeKeyRef.current);
+        lastSavedSnapshotRef.current = snapshot;
+        pendingAutosaveRef.current = false;
+        setLastSavedAt(new Date());
+        setSaveStatus("saved");
+        setAdminNotice(null);
+        await refreshSavedPages();
+        void refreshAdminContext();
+      } catch (error) {
+        console.error("[admin-shell] save failed", error);
+        setAdminNotice({ type: "error", text: t("save_status_save_error") });
+        pendingAutosaveRef.current = true;
+        setSaveStatus("unsaved");
+      } finally {
+        saveOperationTimerRef.current = null;
+      }
+    },
+    [refreshAdminContext, refreshSavedPages, t],
+  );
+
   const persistProfile = useCallback(
-    (payload: BuilderData, snapshot: string) => {
+    (payload: BuilderData, snapshot: string, options: { immediate?: boolean } = {}) => {
       if (isSwitchingWorkspaceRef.current) {
         return;
       }
       if (saveOperationTimerRef.current) {
         window.clearTimeout(saveOperationTimerRef.current);
+        saveOperationTimerRef.current = null;
       }
 
       const targetSlug = workspaceSlugRef.current;
       setCollisionDialog(null);
       setSaveStatus("saving");
+
+      if (options.immediate) {
+        void executeProfileSave(targetSlug, payload, snapshot);
+        return;
+      }
+
       saveOperationTimerRef.current = window.setTimeout(() => {
-        void (async () => {
-          if (isSwitchingWorkspaceRef.current || targetSlug !== workspaceSlugRef.current) {
-            setSaveStatus("saved");
-            saveOperationTimerRef.current = null;
-            return;
-          }
-          try {
-            const payloadForSave: BuilderData = {
-              ...payload,
-              header: {
-                ...payload.header,
-                username: targetSlug,
-                publicHandle:
-                  payload.header.publicHandle?.trim() ||
-                  payload.header.publicUsername?.trim() ||
-                  payload.header.username,
-              },
-            };
-            await upsertPublicPageBySlug(targetSlug, payloadForSave);
-            workspaceSlugRef.current = targetSlug;
-            setCurrentEditorSlug(targetSlug);
-            setActiveEditorSlug(targetSlug, adminScopeKeyRef.current);
-            lastSavedSnapshotRef.current = snapshot;
-            pendingAutosaveRef.current = false;
-            setLastSavedAt(new Date());
-            setSaveStatus("saved");
-            setAdminNotice(null);
-            window.dispatchEvent(new Event("storage"));
-            setProfileRefreshKey((value) => value + 1);
-            void refreshSavedPages();
-            void refreshAdminContext();
-          } catch (error) {
-            console.error("[admin-shell] save failed", error);
-            setAdminNotice({ type: "error", text: t("save_status_save_error") });
-            pendingAutosaveRef.current = true;
-            setSaveStatus("unsaved");
-          } finally {
-            saveOperationTimerRef.current = null;
-          }
-        })();
+        void executeProfileSave(targetSlug, payload, snapshot);
       }, 180);
     },
-    [refreshAdminContext, refreshSavedPages, t],
+    [executeProfileSave],
   );
 
   const handleSaveNow = useCallback(() => {
@@ -328,7 +359,7 @@ export const AdminShell = () => {
     }
 
     const snapshot = JSON.stringify(builderData);
-    persistProfile(builderData, snapshot);
+    persistProfile(builderData, snapshot, { immediate: true });
   }, [builderData, persistProfile]);
 
   const handleLogout = useCallback(() => {
@@ -338,6 +369,11 @@ export const AdminShell = () => {
   }, []);
 
   useEffect(() => {
+    if (hasCompletedInitialLoadRef.current || hasStartedInitialLoadRef.current) {
+      return;
+    }
+    hasStartedInitialLoadRef.current = true;
+
     let syncFrameId: number | null = null;
     let canceled = false;
 
@@ -345,6 +381,17 @@ export const AdminShell = () => {
 
     const initialize = async () => {
       const currentAdmin = await refreshAdminContext();
+      if (canceled) {
+        return;
+      }
+      if (!currentAdmin) {
+        syncFrameId = window.requestAnimationFrame(() => {
+          hasCompletedInitialLoadRef.current = true;
+          setIsWorkspaceReady(true);
+        });
+        return;
+      }
+
       const scopeKey = currentAdmin?.user.adminId ?? null;
       const activeSlug = getActiveEditorSlug(scopeKey);
       const pages = await refreshSavedPages();
@@ -366,16 +413,13 @@ export const AdminShell = () => {
         return;
       }
       syncFrameId = window.requestAnimationFrame(() => {
+        hasCompletedInitialLoadRef.current = true;
         setIsWorkspaceReady(true);
       });
     };
 
     void initialize();
 
-    const onStorage = () => {
-      setProfileRefreshKey((value) => value + 1);
-      void refreshSavedPages();
-    };
     const onStorageWarning = () => {
       setStorageWarning(storageWarningMessage);
       window.setTimeout(() => {
@@ -384,32 +428,21 @@ export const AdminShell = () => {
         );
       }, 2600);
     };
-    window.addEventListener("storage", onStorage);
     window.addEventListener("linkbio-storage-warning", onStorageWarning);
-    const intervalId = window.setInterval(onStorage, 2500);
 
     return () => {
       canceled = true;
+      if (!hasCompletedInitialLoadRef.current) {
+        hasStartedInitialLoadRef.current = false;
+      }
       if (syncFrameId) {
         window.cancelAnimationFrame(syncFrameId);
       }
-      window.removeEventListener("storage", onStorage);
       window.removeEventListener("linkbio-storage-warning", onStorageWarning);
-      window.clearInterval(intervalId);
+      savedPagesAbortRef.current?.abort();
       clearPendingSaves();
     };
   }, [clearPendingSaves, loadWorkspaceFromSlug, refreshAdminContext, refreshSavedPages, storageWarningMessage]);
-
-  useEffect(() => {
-    const activeSlug = getActiveEditorSlug(adminScopeKeyRef.current);
-    const normalized = activeSlug ? toProfileSlug(activeSlug) : null;
-    if (normalized && normalized !== workspaceSlugRef.current && !isSwitchingWorkspaceRef.current) {
-      const frameId = window.requestAnimationFrame(() => {
-        void loadWorkspaceFromSlug(normalized).catch(() => undefined);
-      });
-      return () => window.cancelAnimationFrame(frameId);
-    }
-  }, [loadWorkspaceFromSlug, profileRefreshKey]);
 
   useEffect(() => {
     if (!isWorkspaceReady || isSwitchingWorkspace) {
@@ -459,10 +492,9 @@ export const AdminShell = () => {
   }, [builderData, isSwitchingWorkspace, isWorkspaceReady, persistProfile]);
 
   const slugCollisionWarning = useMemo(() => {
-    void profileRefreshKey;
     void savedProfiles;
     return null;
-  }, [profileRefreshKey, savedProfiles]);
+  }, [savedProfiles]);
 
   const handleLoadExistingRoute = () => {
     if (!collisionDialog) {

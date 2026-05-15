@@ -39,6 +39,36 @@ export type AdminMe = {
   quota: AdminQuota;
 };
 
+const REQUEST_TIMEOUT_MS = 20_000;
+
+const fetchWithTimeout = async (
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+): Promise<Response> => {
+  const timeoutController = new AbortController();
+  const timeoutId = window.setTimeout(() => {
+    timeoutController.abort();
+  }, REQUEST_TIMEOUT_MS);
+  const upstreamSignal = init.signal;
+  const abortFromUpstream = () => timeoutController.abort();
+
+  if (upstreamSignal?.aborted) {
+    timeoutController.abort();
+  } else {
+    upstreamSignal?.addEventListener("abort", abortFromUpstream, { once: true });
+  }
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: timeoutController.signal,
+    });
+  } finally {
+    window.clearTimeout(timeoutId);
+    upstreamSignal?.removeEventListener("abort", abortFromUpstream);
+  }
+};
+
 const parseErrorMessage = async (response: Response, fallback: string) => {
   try {
     const payload = (await parseJsonResponse(response)) as { error?: unknown } | null;
@@ -59,10 +89,11 @@ const parseJsonResponse = async <T = unknown>(response: Response): Promise<T | n
   return JSON.parse(text) as T;
 };
 
-export const listPublicPages = async (): Promise<PublicPageListItem[]> => {
-  const response = await fetch("/api/public-pages", {
+export const listPublicPages = async (signal?: AbortSignal): Promise<PublicPageListItem[]> => {
+  const response = await fetchWithTimeout("/api/me/public-pages", {
     method: "GET",
     cache: "no-store",
+    signal,
   });
   if (!response.ok) {
     throw new Error(await parseErrorMessage(response, "Failed to list public pages."));
@@ -81,7 +112,7 @@ export const listPublicPages = async (): Promise<PublicPageListItem[]> => {
 };
 
 export const getCurrentAdmin = async (): Promise<AdminMe> => {
-  const response = await fetch("/api/admin/me", {
+  const response = await fetchWithTimeout("/api/admin/me", {
     method: "GET",
     cache: "no-store",
   });
@@ -96,7 +127,7 @@ export const getCurrentAdmin = async (): Promise<AdminMe> => {
 };
 
 export const getPublicPageBySlug = async (slug: string): Promise<BuilderData | null> => {
-  const response = await fetch(`/api/public-pages/${encodeURIComponent(slug)}`, {
+  const response = await fetchWithTimeout(`/api/public-pages/${encodeURIComponent(slug)}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -113,7 +144,7 @@ export const getPublicPageBySlug = async (slug: string): Promise<BuilderData | n
 
 export const upsertPublicPageBySlug = async (slug: string, data: BuilderData): Promise<void> => {
   const durableData = await resolveBuilderDataImagesForPersistence(data);
-  const response = await fetch(`/api/public-pages/${encodeURIComponent(slug)}`, {
+  const response = await fetchWithTimeout(`/api/public-pages/${encodeURIComponent(slug)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ data: durableData }),
@@ -124,7 +155,7 @@ export const upsertPublicPageBySlug = async (slug: string, data: BuilderData): P
 };
 
 export const deletePublicPageBySlug = async (slug: string): Promise<void> => {
-  const response = await fetch(`/api/public-pages/${encodeURIComponent(slug)}`, {
+  const response = await fetchWithTimeout(`/api/public-pages/${encodeURIComponent(slug)}`, {
     method: "DELETE",
   });
   if (!response.ok) {

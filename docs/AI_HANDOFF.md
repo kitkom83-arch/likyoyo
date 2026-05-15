@@ -1,7 +1,41 @@
 # AI Handoff
 
 ## Current goal
-Add Google Sheets integration for existing in-site support forms while keeping current UX/routes unchanged and preserving local-dev fallback.
+Fix admin public-pages request storm and stuck save state without changing Supabase schema, support forms, Google Sheets flow, `/admin`, or `/`.
+
+## Update 2026-05-15 (admin public-pages request storm fix)
+
+### Changed files
+- `src/components/admin/admin-shell.tsx`
+- `src/lib/public-pages/public-pages-client.ts`
+- `src/app/api/public-pages/route.ts`
+- `src/app/api/me/public-pages/route.ts`
+- `docs/AI_HANDOFF.md`
+
+### Root cause addressed
+- `AdminShell` refreshed My Pages from storage events and a polling interval while the initial load effect could also rerun after admin session state changed.
+- Save success dispatched a storage event and separately refreshed My Pages, so list fetches could stack up before the PUT save completed.
+
+### Behavior change
+- My Pages now fetches from `/api/me/public-pages` once after the admin session is confirmed.
+- The shared My Pages refresh has a single-flight guard plus an abort controller for unmount cleanup.
+- Save Now bypasses the autosave debounce and starts one immediate `PUT /api/public-pages/[slug]` per click.
+- After a successful PUT, the admin list refreshes once and admin context refreshes separately for quota/account state.
+- Client public-pages requests now use a timeout so loading/saving state can leave pending UI via existing `catch`/`finally` paths.
+- `/api/me/public-pages` reuses the authenticated public-pages list handler, returning JSON 200, 401, or 500 responses.
+
+### Scope/guardrails preserved
+- Supabase public page persistence remains in `public_pages`.
+- Support form logic unchanged.
+- Google Sheets flow unchanged.
+- `/admin` route unchanged.
+- Root `/` redirect behavior unchanged.
+
+### Lint result
+- `npm run lint`: PASS
+
+### Build result
+- `npm run build`: PASS
 
 ## Update 2026-04-21 (mobile social/embed UI polish + social icon image URL)
 

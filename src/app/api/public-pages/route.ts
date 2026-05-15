@@ -12,17 +12,30 @@ const protectedResponseHeaders = {
   Expires: "0",
 };
 
-export async function GET(request: Request) {
-  const session = await getAdminSessionFromRequest(request);
-  if (!session) {
-    return NextResponse.json(
-      { error: "Unauthorized." },
-      { status: 401, headers: protectedResponseHeaders },
-    );
-  }
+const LIST_TIMEOUT_MS = 15_000;
 
+const withListTimeout = <T,>(operation: Promise<T>): Promise<T> =>
+  new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error("Timed out while listing public pages."));
+    }, LIST_TIMEOUT_MS);
+
+    operation
+      .then(resolve, reject)
+      .finally(() => clearTimeout(timeoutId));
+  });
+
+export async function GET(request: Request) {
   try {
-    const pages = await listPublicPages(session);
+    const session = await getAdminSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json(
+        { error: "Unauthorized." },
+        { status: 401, headers: protectedResponseHeaders },
+      );
+    }
+
+    const pages = await withListTimeout(listPublicPages(session));
     return NextResponse.json(
       {
         pages: pages.map((page) => ({
