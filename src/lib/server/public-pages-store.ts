@@ -22,6 +22,19 @@ export type PublicPageRow = {
   owner?: PublicPageOwner | null;
 };
 
+export type DeletedPublicPageRow = {
+  id: string;
+  slug: string;
+  displayName: string;
+  owner_admin_id: string | null;
+  original_updated_at: string | null;
+  deleted_at: string;
+  deleted_reason: string | null;
+  deleted_by_admin_id: string | null;
+  owner: PublicPageOwner | null;
+  deletedBy: PublicPageOwner | null;
+};
+
 type PublicPageDbRow = {
   slug: string;
   data: BuilderData;
@@ -35,11 +48,51 @@ type PublicPageDbRow = {
   } | null;
 };
 
+type AdminUserEmbed =
+  | {
+      id: string;
+      username: string;
+      display_name: string;
+      role: string;
+    }
+  | Array<{
+      id: string;
+      username: string;
+      display_name: string;
+      role: string;
+    }>
+  | null;
+
+type ActivePublicPageArchiveSourceRow = {
+  slug: string;
+  data: unknown;
+  updated_at?: string | null;
+  owner_admin_id?: string | null;
+};
+
+type DeletedPublicPageDbRow = {
+  id: string;
+  slug: string;
+  data: unknown;
+  owner_admin_id?: string | null;
+  original_updated_at?: string | null;
+  deleted_at: string;
+  deleted_by_admin_id?: string | null;
+  deleted_reason?: string | null;
+  owner?: AdminUserEmbed;
+  deleted_by?: AdminUserEmbed;
+};
+
 export type PublicPageMutationResult =
   | { ok: true; created?: boolean }
   | { ok: false; status: 403 | 404 | 409; error: string };
 
+export type DeletedPublicPageMutationResult =
+  | { ok: true }
+  | { ok: false; status: 400 | 403 | 404 | 409; error: string };
+
 const PUBLIC_PAGES_TABLE = "public_pages";
+const PUBLIC_PAGES_DELETED_TABLE = "public_pages_deleted";
 export const PROTECTED_PUBLIC_SLUGS = new Set(["110"]);
 
 const getSupabaseServerConfig = () => {
@@ -106,6 +159,74 @@ const mapPublicPageRow = (row: PublicPageDbRow): PublicPageRow | null => {
   };
 };
 
+const normalizePublicSlug = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/^\/+/, "")
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const mapAdminEmbed = (embed: AdminUserEmbed): PublicPageOwner | null => {
+  const row = Array.isArray(embed) ? (embed[0] ?? null) : embed;
+  if (!row) {
+    return null;
+  }
+  return {
+    id: row.id,
+    username: row.username,
+    displayName: row.display_name,
+    role: row.role,
+  };
+};
+
+const getDisplayNameFromStoredData = (rawData: unknown): string => {
+  if (
+    rawData &&
+    typeof rawData === "object" &&
+    "header" in rawData &&
+    rawData.header &&
+    typeof rawData.header === "object" &&
+    "displayName" in rawData.header &&
+    typeof rawData.header.displayName === "string"
+  ) {
+    return rawData.header.displayName.trim();
+  }
+  return "";
+};
+
+const retargetStoredDataSlug = (rawData: unknown, slug: string): unknown => {
+  if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) {
+    return rawData;
+  }
+  const data = rawData as Record<string, unknown>;
+  const header =
+    data.header && typeof data.header === "object" && !Array.isArray(data.header)
+      ? (data.header as Record<string, unknown>)
+      : {};
+
+  return {
+    ...data,
+    header: {
+      ...header,
+      username: slug,
+    },
+  };
+};
+
+const mapDeletedPublicPageRow = (row: DeletedPublicPageDbRow): DeletedPublicPageRow => ({
+  id: row.id,
+  slug: row.slug,
+  displayName: getDisplayNameFromStoredData(row.data),
+  owner_admin_id: row.owner_admin_id ?? null,
+  original_updated_at: row.original_updated_at ?? null,
+  deleted_at: row.deleted_at,
+  deleted_reason: row.deleted_reason ?? null,
+  deleted_by_admin_id: row.deleted_by_admin_id ?? null,
+  owner: mapAdminEmbed(row.owner ?? null),
+  deletedBy: mapAdminEmbed(row.deleted_by ?? null),
+});
+
 export const getPublicPageBySlug = async (slug: string): Promise<BuilderData | null> => {
   const client = getSupabaseAdminClient();
   const { data, error } = await client
@@ -129,6 +250,22 @@ export const getPublicPageOwnershipBySlug = async (
     .select("slug,owner_admin_id")
     .eq("slug", slug)
     .maybeSingle<{ slug: string; owner_admin_id: string | null }>();
+
+  if (error) {
+    throw error;
+  }
+  return data;
+};
+
+const getActivePublicPageArchiveSourceBySlug = async (
+  slug: string,
+): Promise<ActivePublicPageArchiveSourceRow | null> => {
+  const client = getSupabaseAdminClient();
+  const { data, error } = await client
+    .from(PUBLIC_PAGES_TABLE)
+    .select("slug,data,updated_at,owner_admin_id")
+    .eq("slug", slug)
+    .maybeSingle<ActivePublicPageArchiveSourceRow>();
 
   if (error) {
     throw error;
@@ -251,7 +388,7 @@ export const removePublicPageBySlugForSession = async (
   }
 
   const client = getSupabaseAdminClient();
-  const existing = await getPublicPageOwnershipBySlug(slug);
+  const existing = await getActivePublicPageArchiveSourceBySlug(slug);
   if (!existing) {
     return { ok: false, status: 404, error: "Not found." };
   }
@@ -263,10 +400,163 @@ export const removePublicPageBySlugForSession = async (
     };
   }
 
-  const { error } = await client.from(PUBLIC_PAGES_TABLE).delete().eq("slug", slug);
+  const { error: archiveError } = await client.from(PUBLIC_PAGES_DELETED_TABLE).insert({
+    slug: existing.slug,
+    data: existing.data,
+    owner_admin_id: existing.owner_admin_id ?? null,
+    original_updated_at: existing.updated_at ?? null,
+    deleted_by_admin_id: session.adminId,
+  });
+
+  if (archiveError) {
+    throw archiveError;
+  }
+
+  const { error: deleteError } = await client.from(PUBLIC_PAGES_TABLE).delete().eq("slug", slug);
+
+  if (deleteError) {
+    throw deleteError;
+  }
+  return { ok: true };
+};
+
+export const listDeletedPublicPagesForOwner = async (
+  session: AdminSession,
+): Promise<DeletedPublicPageRow[]> => {
+  if (session.role !== "owner") {
+    return [];
+  }
+
+  const client = getSupabaseAdminClient();
+  const { data, error } = await client
+    .from(PUBLIC_PAGES_DELETED_TABLE)
+    .select(
+      [
+        "id",
+        "slug",
+        "data",
+        "owner_admin_id",
+        "original_updated_at",
+        "deleted_at",
+        "deleted_by_admin_id",
+        "deleted_reason",
+        "owner:admin_users!public_pages_deleted_owner_admin_id_fkey(id,username,display_name,role)",
+        "deleted_by:admin_users!public_pages_deleted_deleted_by_admin_id_fkey(id,username,display_name,role)",
+      ].join(","),
+    )
+    .order("deleted_at", { ascending: false })
+    .returns<DeletedPublicPageDbRow[]>();
 
   if (error) {
     throw error;
+  }
+
+  return (data ?? []).map(mapDeletedPublicPageRow);
+};
+
+export const restoreDeletedPublicPageForOwner = async (
+  id: string,
+  session: AdminSession,
+  input: {
+    slug?: string;
+    ownerAdminId?: string | null;
+  } = {},
+): Promise<DeletedPublicPageMutationResult> => {
+  if (session.role !== "owner") {
+    return { ok: false, status: 403, error: "Forbidden." };
+  }
+
+  const client = getSupabaseAdminClient();
+  const { data: deletedPage, error: loadError } = await client
+    .from(PUBLIC_PAGES_DELETED_TABLE)
+    .select("id,slug,data,owner_admin_id,original_updated_at")
+    .eq("id", id)
+    .maybeSingle<{
+      id: string;
+      slug: string;
+      data: unknown;
+      owner_admin_id: string | null;
+      original_updated_at: string | null;
+    }>();
+
+  if (loadError) {
+    throw loadError;
+  }
+  if (!deletedPage) {
+    return { ok: false, status: 404, error: "Deleted page not found." };
+  }
+
+  const targetSlug = normalizePublicSlug(input.slug ?? deletedPage.slug);
+  if (!targetSlug) {
+    return { ok: false, status: 400, error: "Invalid slug." };
+  }
+
+  const targetOwnerAdminId = input.ownerAdminId ?? deletedPage.owner_admin_id ?? session.adminId;
+  const targetOwner = await getAdminUserById(targetOwnerAdminId);
+  if (!targetOwner || !targetOwner.active) {
+    return { ok: false, status: 400, error: "Target admin is inactive or missing." };
+  }
+
+  const existing = await getPublicPageOwnershipBySlug(targetSlug);
+  if (existing) {
+    return {
+      ok: false,
+      status: 409,
+      error: "Slug already exists. Restore as a new slug.",
+    };
+  }
+
+  const { error: insertError } = await client.from(PUBLIC_PAGES_TABLE).insert({
+    slug: targetSlug,
+    data: retargetStoredDataSlug(deletedPage.data, targetSlug),
+    owner_admin_id: targetOwnerAdminId,
+    updated_at: deletedPage.original_updated_at ?? new Date().toISOString(),
+  });
+
+  if (insertError) {
+    if (insertError.code === "23505") {
+      return {
+        ok: false,
+        status: 409,
+        error: "Slug already exists. Restore as a new slug.",
+      };
+    }
+    throw insertError;
+  }
+
+  const { error: deleteError } = await client
+    .from(PUBLIC_PAGES_DELETED_TABLE)
+    .delete()
+    .eq("id", id);
+
+  if (deleteError) {
+    throw deleteError;
+  }
+
+  return { ok: true };
+};
+
+export const permanentlyDeleteDeletedPublicPageForOwner = async (
+  id: string,
+  session: AdminSession,
+): Promise<DeletedPublicPageMutationResult> => {
+  if (session.role !== "owner") {
+    return { ok: false, status: 403, error: "Forbidden." };
+  }
+
+  const client = getSupabaseAdminClient();
+  const { data, error } = await client
+    .from(PUBLIC_PAGES_DELETED_TABLE)
+    .delete()
+    .eq("id", id)
+    .select("id")
+    .maybeSingle<{ id: string }>();
+
+  if (error) {
+    throw error;
+  }
+  if (!data) {
+    return { ok: false, status: 404, error: "Deleted page not found." };
   }
   return { ok: true };
 };

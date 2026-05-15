@@ -1,7 +1,47 @@
 # AI Handoff
 
 ## Current goal
-Fix admin public-pages request storm and stuck save state without changing Supabase schema, support forms, Google Sheets flow, `/admin`, or `/`.
+Add owner-only trash/restore support for deleted public pages without changing support forms, Google Sheets flow, or existing admin session behavior.
+
+## Update 2026-05-15 (owner deleted public pages trash/restore)
+
+### Changed files
+- `supabase/migrations/202605150001_public_pages_deleted.sql`
+- `src/lib/server/public-pages-store.ts`
+- `src/app/api/admin/deleted-public-pages/route.ts`
+- `src/app/api/admin/deleted-public-pages/[id]/route.ts`
+- `src/app/api/admin/deleted-public-pages/[id]/restore/route.ts`
+- `src/components/admin/owner-control-client.tsx`
+- `docs/AI_HANDOFF.md`
+
+### Schema/migration
+- Added `public.public_pages_deleted` archive table with `id`, `slug`, `data`, previous owner, original update time, deleted time, deleting admin, reason, FK constraints, and indexes for owner, deleted date, and slug.
+
+### Behavior change
+- `DELETE /api/public-pages/[slug]` now archives the full active row to `public_pages_deleted` before deleting from `public_pages`.
+- Archive insert errors are not swallowed; the API returns failure and does not report successful deletion if archive insertion fails.
+- Public route reads remain scoped to `public_pages`, so deleted pages do not render publicly.
+- `/api/me/public-pages` and My Pages continue to list active `public_pages` only.
+- Added owner-only deleted-pages APIs:
+  - `GET /api/admin/deleted-public-pages`
+  - `POST /api/admin/deleted-public-pages/[id]/restore`
+  - `DELETE /api/admin/deleted-public-pages/[id]`
+- Restore checks active slug conflicts before inserting. Existing active slug returns 409 with a restore-as-new-slug message.
+- Owner can restore archived pages to the original slug, restore as a new slug, and assign the restored page to an active admin.
+- Owner Control now shows active slug count and deleted slug count separately, plus a `Deleted Pages` table with restore, restore-as-new-slug, assign, and delete-forever actions.
+- Delete forever UI requires typing `DELETE {slug}`.
+
+### Scope/guardrails preserved
+- Support form logic unchanged.
+- Google Sheets logic unchanged.
+- Existing admin session/auth logic unchanged except owner checks on new owner-only APIs.
+- Save Now PUT flow unchanged.
+
+### Lint result
+- `npm run lint`: PASS
+
+### Build result
+- `npm run build`: PASS
 
 ## Update 2026-05-15 (Admin My Pages response/render fix)
 
