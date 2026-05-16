@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { PublicProfile } from "@/components/public/public-profile";
 import { BuilderData } from "@/features/builder/types";
+import { getHeaderLayout } from "@/features/builder/utils/header-media";
 import { useI18n } from "@/i18n/use-i18n";
 import { getPublicPageApiPath } from "@/lib/public-pages/paths";
 import {
@@ -36,6 +37,7 @@ const normalizeHeaderForSlug = (slug: string, profile: BuilderData): BuilderData
   ...profile,
   header: {
     ...profile.header,
+    layout: getHeaderLayout(profile.header),
     username: slug,
     publicHandle:
       typeof profile.header.publicHandle === "string" && profile.header.publicHandle.trim()

@@ -29,6 +29,7 @@ import {
 } from "@/features/builder/utils";
 import {
   AVATAR_HEADER_FALLBACK_SRC,
+  getHeaderLayout,
   getAvatarHeaderRequestSrc,
   getAvatarHeaderSrc,
   getHeroHeaderKey,
@@ -515,6 +516,20 @@ export const MobilePreview = ({
   const wallpaperSrc = brokenWallpaperSources[wallpaperRequestSrc]
     ? WALLPAPER_FALLBACK_SRC
     : wallpaperRequestSrc;
+  const headerLayout = getHeaderLayout(data.header);
+  const profileHeaderData = useMemo(
+    () =>
+      data.header.layout === headerLayout
+        ? data
+        : {
+            ...data,
+            header: {
+              ...data.header,
+              layout: headerLayout,
+            },
+          },
+    [data, headerLayout],
+  );
   const avatarRequestSrc = getAvatarHeaderRequestSrc(data.header);
   const avatarSrc = getAvatarHeaderSrc(data.header, brokenAvatarSources);
   const heroHeaderRequestSrc = getHeroHeaderRequestSrc(data.header);
@@ -820,9 +835,9 @@ export const MobilePreview = ({
           )}
           style={isAdminPreview ? { scrollbarWidth: "thin" } : undefined}
         >
-          {data.header.layout !== "none" ? (
+          {headerLayout !== "none" ? (
             <ProfileHeader
-              data={data}
+              data={profileHeaderData}
               avatarSrc={avatarSrc}
               heroHeaderSrc={heroHeaderSrc}
               flushToTop={false}
@@ -847,7 +862,7 @@ export const MobilePreview = ({
             />
           ) : null}
 
-          <div className={cn(data.header.layout === "none" ? "mt-0" : "mt-4", "flex justify-center gap-3")}>
+          <div className={cn(headerLayout === "none" ? "mt-0" : "mt-4", "flex justify-center gap-3")}>
               {data.socials
                 .filter((social) => social.enabled)
                 .map((social) => {

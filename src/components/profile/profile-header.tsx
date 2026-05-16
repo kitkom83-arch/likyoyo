@@ -3,6 +3,10 @@
 import { SafeImage } from "@/components/shared/safe-image";
 
 import { BuilderData } from "@/features/builder/types";
+import {
+  getExplicitHeroHeaderSrc,
+  getHeaderLayout,
+} from "@/features/builder/utils/header-media";
 import { cn } from "@/lib/utils";
 
 type ProfileHeaderProps = {
@@ -37,7 +41,8 @@ export const ProfileHeader = ({
   const heroTextAlign = data.header.heroTextAlign ?? "center";
   const heroOverlay = data.header.heroOverlay ?? true;
   const heroOverlayStrength = data.header.heroOverlayStrength ?? 0.35;
-  const hasHeroImage = Boolean(data.header.heroImageUrl?.trim());
+  const headerLayout = getHeaderLayout(data.header);
+  const hasHeroImage = Boolean(getExplicitHeroHeaderSrc(data.header));
   const pageBackground = data.theme.pageBackground || "#111827";
   const heroFallbackGradient = `linear-gradient(135deg, ${data.theme.buttonBackground || "#334155"} 0%, ${pageBackground} 100%)`;
 
@@ -45,11 +50,11 @@ export const ProfileHeader = ({
   const intro = data.text.intro?.trim() ?? "";
   const body = data.text.body?.trim() ?? "";
 
-  if (data.header.layout === "none") {
+  if (headerLayout === "none") {
     return null;
   }
 
-  if (data.header.layout === "hero") {
+  if (headerLayout === "hero") {
     return (
       <section className={cn("-mx-5 mb-2", flushToTop ? "mt-0" : "-mt-6")}>
         <div
