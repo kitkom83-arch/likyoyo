@@ -26,13 +26,10 @@ export const getAvatarHeaderSrc = (
 };
 
 export const getHeroHeaderRequestSrc = (header: ProfileHeader): string =>
-  normalizeHeaderMediaSrc(
-    header.heroImageUrl,
-    normalizeHeaderMediaSrc(header.avatarUrl, HERO_HEADER_FALLBACK_SRC),
-  ) ?? HERO_HEADER_FALLBACK_SRC;
+  normalizeHeaderMediaSrc(header.heroImageUrl, HERO_HEADER_FALLBACK_SRC) ??
+  HERO_HEADER_FALLBACK_SRC;
 
-export const getHeroHeaderFallbackSrc = (header: ProfileHeader): string =>
-  normalizeHeaderMediaSrc(header.avatarUrl, HERO_HEADER_FALLBACK_SRC) ?? HERO_HEADER_FALLBACK_SRC;
+export const getHeroHeaderFallbackSrc = (): string => HERO_HEADER_FALLBACK_SRC;
 
 export const getHeroHeaderKey = (requestSrc: string): string => `header::hero::${requestSrc}`;
 
@@ -42,5 +39,5 @@ export const getHeroHeaderSrc = (
 ): string => {
   const requestSrc = getHeroHeaderRequestSrc(header);
   const heroHeaderKey = getHeroHeaderKey(requestSrc);
-  return brokenHeroKeys[heroHeaderKey] ? getHeroHeaderFallbackSrc(header) : requestSrc;
+  return brokenHeroKeys[heroHeaderKey] ? getHeroHeaderFallbackSrc() : requestSrc;
 };
