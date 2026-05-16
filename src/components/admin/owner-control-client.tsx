@@ -481,7 +481,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                   <th className="px-3 py-2">Limit</th>
                   <th className="px-3 py-2">Used</th>
                   <th className="px-3 py-2">Remaining</th>
-                  <th className="px-3 py-2">Slugs</th>
+                  <th className="px-3 py-2">Owned public paths</th>
                   <th className="px-3 py-2">Actions</th>
                 </tr>
               </thead>
@@ -520,7 +520,12 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                       </td>
                       <td className="px-3 py-3 font-medium">{user.username}</td>
                       <td className="px-3 py-3">{user.role}</td>
-                      <td className="px-3 py-3">{user.active ? "active" : "inactive"}</td>
+                      <td className="px-3 py-3">
+                        <div>{user.active ? "active" : "inactive"}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {user.active ? "public links enabled" : "public links disabled"}
+                        </div>
+                      </td>
                       <td className="px-3 py-3">
                         <Input
                           type="number"
@@ -568,13 +573,18 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                             variant={user.active ? "destructive" : "secondary"}
                             disabled={isSaving}
                             onClick={() => {
-                              if (user.active && !window.confirm(`Disable ${user.username}?`)) {
+                              if (
+                                user.active &&
+                                !window.confirm(
+                                  `Disable ${user.username}? This prevents login, publishing, and public access for owned links without deleting data.`,
+                                )
+                              ) {
                                 return;
                               }
                               void updateUser(user.id, { active: !user.active });
                             }}
                           >
-                            {user.active ? "Disable" : "Enable"}
+                            {user.active ? "Disable links/login" : "Enable links/login"}
                           </Button>
                         </div>
                         <div className="flex gap-2">

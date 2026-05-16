@@ -2,18 +2,17 @@ import type { Metadata } from "next";
 
 import { PublicProfilePageClient } from "@/components/public/public-profile-page-client";
 import { BuilderData } from "@/features/builder/types";
-import { isSafePublicPageSlug } from "@/lib/public-pages/paths";
-import { getPublicPageBySlug } from "@/lib/server/public-pages-store";
+import { buildNestedPublicPagePath, isSafeAdminUsername, isSafePublicPageSlug } from "@/lib/public-pages/paths";
+import { getPublicPageByOwnerAndSlug } from "@/lib/server/public-pages-store";
 
-type PublicPageParams = {
+type NestedPublicPageParams = {
   username: string;
+  pageSlug: string;
 };
 
-type PublicPageProps = {
-  params: Promise<PublicPageParams>;
+type NestedPublicPageProps = {
+  params: Promise<NestedPublicPageParams>;
 };
-
-const normalizeSlug = (value: string): string => value.trim().toLowerCase();
 
 const getFirstNonEmpty = (...values: Array<string | null | undefined>): string => {
   for (const value of values) {
@@ -27,14 +26,14 @@ const getFirstNonEmpty = (...values: Array<string | null | undefined>): string =
 const isShareableImageUrl = (value: string): boolean =>
   value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/");
 
-const resolveShareMetadata = (profile: BuilderData, slug: string) => {
+const resolveShareMetadata = (profile: BuilderData, publicPath: string) => {
   const title = getFirstNonEmpty(
     profile.header.shareTitle,
     profile.header.displayName,
     profile.header.publicHandle,
     profile.header.publicUsername,
     profile.header.username,
-    slug,
+    publicPath,
   );
   const description = getFirstNonEmpty(
     profile.header.shareDescription,
@@ -52,26 +51,32 @@ const resolveShareMetadata = (profile: BuilderData, slug: string) => {
   return { title, description, image };
 };
 
-export async function generateMetadata({ params }: PublicPageProps): Promise<Metadata> {
-  const { username } = await params;
-  const slug = normalizeSlug(username);
+const normalizeParams = (params: NestedPublicPageParams) => ({
+  ownerUsername: (params.username ?? "").trim().toLowerCase(),
+  pageSlug: (params.pageSlug ?? "").trim().toLowerCase(),
+});
 
-  if (!slug || !isSafePublicPageSlug(slug)) {
+export async function generateMetadata({ params }: NestedPublicPageProps): Promise<Metadata> {
+  const resolved = normalizeParams(await params);
+  const { ownerUsername, pageSlug } = resolved;
+
+  if (!isSafeAdminUsername(ownerUsername) || !isSafePublicPageSlug(pageSlug)) {
     return {};
   }
 
   let profile: BuilderData | null = null;
   try {
-    profile = await getPublicPageBySlug(slug);
+    profile = await getPublicPageByOwnerAndSlug(ownerUsername, pageSlug);
   } catch (error) {
-    console.error("[public-page] metadata load failed", error);
+    console.error("[public-page] nested metadata load failed", error);
   }
 
   if (!profile) {
     return {};
   }
 
-  const { title, description, image } = resolveShareMetadata(profile, slug);
+  const publicPath = buildNestedPublicPagePath(ownerUsername, pageSlug);
+  const { title, description, image } = resolveShareMetadata(profile, publicPath);
   const imageList = image ? [image] : undefined;
 
   return {
@@ -91,14 +96,14 @@ export async function generateMetadata({ params }: PublicPageProps): Promise<Met
   };
 }
 
-export default async function PublicProfilePage({ params }: PublicPageProps) {
-  const { username } = await params;
-  const slug = normalizeSlug(username ?? "");
+export default async function NestedPublicProfilePage({ params }: NestedPublicPageProps) {
+  const { ownerUsername, pageSlug } = normalizeParams(await params);
+  const publicPath = buildNestedPublicPagePath(ownerUsername, pageSlug);
   let profile: BuilderData | null = null;
 
-  if (slug && isSafePublicPageSlug(slug)) {
+  if (isSafeAdminUsername(ownerUsername) && isSafePublicPageSlug(pageSlug)) {
     try {
-      profile = await getPublicPageBySlug(slug);
+      profile = await getPublicPageByOwnerAndSlug(ownerUsername, pageSlug);
     } catch {
       profile = null;
     }
@@ -106,7 +111,7 @@ export default async function PublicProfilePage({ params }: PublicPageProps) {
 
   return (
     <PublicProfilePageClient
-      username={username ?? ""}
+      username={publicPath}
       initialProfile={profile}
       initialProfileResolved
     />

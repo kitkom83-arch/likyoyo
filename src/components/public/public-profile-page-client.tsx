@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PublicProfile } from "@/components/public/public-profile";
 import { BuilderData } from "@/features/builder/types";
 import { useI18n } from "@/i18n/use-i18n";
+import { getPublicPageApiPath } from "@/lib/public-pages/paths";
 import {
   getClickSummary,
   recordCodeCopy,
@@ -78,7 +79,7 @@ export const PublicProfilePageClient = ({
 
         let profileData: BuilderData | null = null;
         try {
-          const response = await fetch(`/api/public-pages/${encodeURIComponent(slug)}`, {
+          const response = await fetch(getPublicPageApiPath(slug), {
             method: "GET",
             cache: "no-store",
           });

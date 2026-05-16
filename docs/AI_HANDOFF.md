@@ -1,7 +1,49 @@
 # AI Handoff
 
 ## Current goal
-Add owner-only trash/restore support for deleted public pages without changing support forms, Google Sheets flow, or existing admin session behavior.
+Build multi-admin public page namespaces without changing support forms, Google Sheets flow, or Supabase schema.
+
+## Update 2026-05-16 (multi-admin public namespaces)
+
+### Changed files
+- `src/lib/public-pages/paths.ts`
+- `src/lib/server/public-pages-store.ts`
+- `src/lib/public-pages/public-pages-client.ts`
+- `src/lib/local-storage/profile-storage.ts`
+- `src/app/api/public-pages/[slug]/route.ts`
+- `src/app/api/public-pages/[slug]/[pageSlug]/route.ts`
+- `src/app/[username]/page.tsx`
+- `src/app/[username]/[pageSlug]/page.tsx`
+- `src/app/api/admin/users/route.ts`
+- `src/components/public/public-profile-page-client.tsx`
+- `src/components/admin/saved-profiles-manager-card.tsx`
+- `src/components/admin/owner-control-client.tsx`
+- `docs/AI_HANDOFF.md`
+
+### Behavior change
+- Legacy public rows still use one-segment `public_pages.slug` keys such as `mh1`, so `/mh1` keeps resolving through `src/app/[username]/page.tsx`.
+- Sub-admin pages now use full public-path keys in the existing `public_pages.slug` column, for example `admin1/test-page-1`.
+- Added nested public rendering at `/{adminUsername}/{pageSlug}` using the same public profile component as legacy pages.
+- Added nested public-page API routes under `/api/public-pages/{adminUsername}/{pageSlug}` so client fetch, save, and delete calls work with full public paths.
+- Sub-admin saves are forced into that admin's namespace. An admin cannot write another admin's namespace, and duplicate page slugs are blocked within the same owner namespace.
+- Owner/admin active status now controls public availability for owned pages: inactive owners return no public page data without deleting rows.
+- Admin usernames and page slugs share reserved/unsafe segment validation. Reserved usernames include `admin`, `api`, `_next`, `icon.png`, and `favicon.ico`.
+- Owner Control now labels the existing enable/disable action as affecting links/login and shows owned public paths.
+- Delete-to-trash stores the full active public path. Restore computes the correct target path for the selected owner; assigning a deleted page to a sub-admin restores it under that admin username.
+
+### Schema decision
+- Supabase schema unchanged. The existing `public_pages.slug text primary key` can support per-admin duplicate page slugs by storing nested public paths as unique keys (`admin1/test-page-1`, `admin2/test-page-1`) while legacy keys remain unchanged.
+
+### Scope/guardrails preserved
+- No Supabase schema migration was added.
+- Support form route handlers and Google Sheets adapters were not edited.
+- Existing delete-forever confirmation remains exact-match based; nested archived rows require `DELETE {ownerUsername}/{pageSlug}` because the archived `slug` is the full path.
+
+### Lint result
+- `npm run lint`: PASS
+
+### Build result
+- `npm run build`: PASS
 
 ## Update 2026-05-16 (delete forever confirmation copy)
 

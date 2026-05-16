@@ -16,10 +16,11 @@ const interpolate = (template: string, params?: Record<string, string | number>)
 };
 
 export const useI18n = () => {
-  const [language, setLanguageState] = useState<AppLanguage>(() => getAppLanguage());
+  const [language, setLanguageState] = useState<AppLanguage>("en");
 
   useEffect(() => {
     const onSync = () => setLanguageState(getAppLanguage());
+    onSync();
     window.addEventListener("storage", onSync);
     window.addEventListener(LANGUAGE_EVENT, onSync);
     return () => {

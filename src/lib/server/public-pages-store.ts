@@ -4,8 +4,15 @@ import { builderDataSchema } from "@/features/builder/schema";
 import { BuilderData } from "@/features/builder/types";
 import { normalizeBuilderData } from "@/features/builder/utils";
 import { type AdminSession } from "@/lib/server/admin-auth";
-import { getAdminUserById } from "@/lib/server/admin-users-store";
+import { getAdminUserById, type AdminUser } from "@/lib/server/admin-users-store";
 import { validateCriticalServerEnv } from "@/lib/server/env-validation";
+import {
+  buildNestedPublicPagePath,
+  isSafeAdminUsername,
+  isSafePublicPageSlug,
+  normalizePublicPageSlug,
+  splitPublicPagePath,
+} from "@/lib/public-pages/paths";
 
 export type PublicPageOwner = {
   id: string;
@@ -40,28 +47,15 @@ type PublicPageDbRow = {
   data: BuilderData;
   updated_at?: string | null;
   owner_admin_id?: string | null;
-  admin_users?: {
-    id: string;
-    username: string;
-    display_name: string;
-    role: string;
-  } | null;
 };
 
-type AdminUserEmbed =
-  | {
-      id: string;
-      username: string;
-      display_name: string;
-      role: string;
-    }
-  | Array<{
-      id: string;
-      username: string;
-      display_name: string;
-      role: string;
-    }>
-  | null;
+type AdminUserLookupRow = {
+  id: string;
+  username: string;
+  display_name: string;
+  role: string;
+  active?: boolean;
+};
 
 type ActivePublicPageArchiveSourceRow = {
   slug: string;
@@ -79,13 +73,11 @@ type DeletedPublicPageDbRow = {
   deleted_at: string;
   deleted_by_admin_id?: string | null;
   deleted_reason?: string | null;
-  owner?: AdminUserEmbed;
-  deleted_by?: AdminUserEmbed;
 };
 
 export type PublicPageMutationResult =
   | { ok: true; created?: boolean }
-  | { ok: false; status: 403 | 404 | 409; error: string };
+  | { ok: false; status: 400 | 403 | 404 | 409; error: string };
 
 export type DeletedPublicPageMutationResult =
   | { ok: true }
@@ -123,6 +115,12 @@ const getSupabaseAdminClient = () => {
   });
 };
 
+const isMissingOwnerAdminIdError = (error: { code?: string; message?: string } | null): boolean =>
+  error?.code === "42703" && /owner_admin_id/i.test(error.message ?? "");
+
+const isMissingAdminUsersError = (error: { code?: string; message?: string } | null): boolean =>
+  error?.code === "PGRST205" && /admin_users/i.test(error.message ?? "");
+
 const parseStoredPublicPageData = (rawData: unknown, slug: string): BuilderData | null => {
   const parsed = builderDataSchema.safeParse(rawData);
   if (!parsed.success) {
@@ -138,7 +136,17 @@ const parseStoredPublicPageData = (rawData: unknown, slug: string): BuilderData 
   return normalizeBuilderData(parsed.data as BuilderData);
 };
 
-const mapPublicPageRow = (row: PublicPageDbRow): PublicPageRow | null => {
+const mapAdminUserToOwner = (user: AdminUser | AdminUserLookupRow): PublicPageOwner => ({
+  id: user.id,
+  username: user.username,
+  displayName: "displayName" in user ? user.displayName : user.display_name,
+  role: user.role,
+});
+
+const mapPublicPageRow = (
+  row: PublicPageDbRow,
+  owner: PublicPageOwner | null = null,
+): PublicPageRow | null => {
   const parsedData = parseStoredPublicPageData(row.data, row.slug);
   if (!parsedData) {
     return null;
@@ -148,36 +156,52 @@ const mapPublicPageRow = (row: PublicPageDbRow): PublicPageRow | null => {
     data: parsedData,
     updated_at: row.updated_at ?? null,
     owner_admin_id: row.owner_admin_id ?? null,
-    owner: row.admin_users
-      ? {
-          id: row.admin_users.id,
-          username: row.admin_users.username,
-          displayName: row.admin_users.display_name,
-          role: row.admin_users.role,
-        }
-      : null,
+    owner,
   };
 };
 
-const normalizePublicSlug = (value: string): string =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/^\/+/, "")
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+const normalizePublicSlug = normalizePublicPageSlug;
 
-const mapAdminEmbed = (embed: AdminUserEmbed): PublicPageOwner | null => {
-  const row = Array.isArray(embed) ? (embed[0] ?? null) : embed;
-  if (!row) {
+const isOwnerActive = (owner: Pick<AdminUser, "active"> | AdminUserLookupRow | null): boolean =>
+  owner?.active !== false;
+
+const getAdminUserLookupById = async (id: string | null | undefined): Promise<AdminUser | null> => {
+  if (!id) {
     return null;
   }
-  return {
-    id: row.id,
-    username: row.username,
-    displayName: row.display_name,
-    role: row.role,
-  };
+  try {
+    return await getAdminUserById(id);
+  } catch (error) {
+    if (isMissingAdminUsersError(error as { code?: string; message?: string })) {
+      return null;
+    }
+    throw error;
+  }
+};
+
+const getAdminUserLookupsByIds = async (
+  client: ReturnType<typeof getSupabaseAdminClient>,
+  ids: Array<string | null | undefined>,
+): Promise<Map<string, AdminUserLookupRow>> => {
+  const uniqueIds = Array.from(new Set(ids.filter((id): id is string => Boolean(id))));
+  if (uniqueIds.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await client
+    .from("admin_users")
+    .select("id,username,display_name,role,active")
+    .in("id", uniqueIds)
+    .returns<AdminUserLookupRow[]>();
+
+  if (error) {
+    if (isMissingAdminUsersError(error)) {
+      return new Map();
+    }
+    throw error;
+  }
+
+  return new Map((data ?? []).map((row) => [row.id, row]));
 };
 
 const getDisplayNameFromStoredData = (rawData: unknown): string => {
@@ -223,8 +247,8 @@ const mapDeletedPublicPageRow = (row: DeletedPublicPageDbRow): DeletedPublicPage
   deleted_at: row.deleted_at,
   deleted_reason: row.deleted_reason ?? null,
   deleted_by_admin_id: row.deleted_by_admin_id ?? null,
-  owner: mapAdminEmbed(row.owner ?? null),
-  deletedBy: mapAdminEmbed(row.deleted_by ?? null),
+  owner: null,
+  deletedBy: null,
 });
 
 export const getPublicPageBySlug = async (slug: string): Promise<BuilderData | null> => {
@@ -233,12 +257,52 @@ export const getPublicPageBySlug = async (slug: string): Promise<BuilderData | n
     .from(PUBLIC_PAGES_TABLE)
     .select("slug,data")
     .eq("slug", slug)
-    .maybeSingle<Pick<PublicPageRow, "slug" | "data">>();
+    .maybeSingle<Pick<PublicPageDbRow, "slug" | "data">>();
 
   if (error) {
     throw error;
   }
   return data ? parseStoredPublicPageData(data.data, data.slug) : null;
+};
+
+export const getPublicPageByOwnerAndSlug = async (
+  ownerUsername: string,
+  pageSlug: string,
+): Promise<BuilderData | null> => {
+  const normalizedOwner = ownerUsername.trim().toLowerCase();
+  const normalizedSlug = pageSlug.trim().toLowerCase();
+  if (!isSafeAdminUsername(normalizedOwner) || !isSafePublicPageSlug(normalizedSlug)) {
+    return null;
+  }
+
+  const publicPath = buildNestedPublicPagePath(normalizedOwner, normalizedSlug);
+  const byPath = await getPublicPageBySlug(publicPath);
+  if (byPath) {
+    return byPath;
+  }
+
+  const client = getSupabaseAdminClient();
+  const { data, error } = await client
+    .from(PUBLIC_PAGES_TABLE)
+    .select("slug,data,owner_admin_id")
+    .eq("slug", normalizedSlug)
+    .maybeSingle<{
+      slug: string;
+      data: BuilderData;
+      owner_admin_id?: string | null;
+    }>();
+
+  if (error) {
+    if (isMissingOwnerAdminIdError(error)) {
+      return null;
+    }
+    throw error;
+  }
+  const owner = await getAdminUserLookupById(data?.owner_admin_id);
+  if (!data || owner?.username !== normalizedOwner || !isOwnerActive(owner)) {
+    return null;
+  }
+  return parseStoredPublicPageData(data.data, data.slug);
 };
 
 export const getPublicPageOwnershipBySlug = async (
@@ -252,6 +316,17 @@ export const getPublicPageOwnershipBySlug = async (
     .maybeSingle<{ slug: string; owner_admin_id: string | null }>();
 
   if (error) {
+    if (isMissingOwnerAdminIdError(error)) {
+      const fallback = await client
+        .from(PUBLIC_PAGES_TABLE)
+        .select("slug")
+        .eq("slug", slug)
+        .maybeSingle<{ slug: string }>();
+      if (fallback.error) {
+        throw fallback.error;
+      }
+      return fallback.data ? { slug: fallback.data.slug, owner_admin_id: null } : null;
+    }
     throw error;
   }
   return data;
@@ -268,6 +343,17 @@ const getActivePublicPageArchiveSourceBySlug = async (
     .maybeSingle<ActivePublicPageArchiveSourceRow>();
 
   if (error) {
+    if (isMissingOwnerAdminIdError(error)) {
+      const fallback = await client
+        .from(PUBLIC_PAGES_TABLE)
+        .select("slug,data,updated_at")
+        .eq("slug", slug)
+        .maybeSingle<Omit<ActivePublicPageArchiveSourceRow, "owner_admin_id">>();
+      if (fallback.error) {
+        throw fallback.error;
+      }
+      return fallback.data ? { ...fallback.data, owner_admin_id: null } : null;
+    }
     throw error;
   }
   return data;
@@ -279,9 +365,7 @@ export const listPublicPages = async (
   const client = getSupabaseAdminClient();
   let query = client
     .from(PUBLIC_PAGES_TABLE)
-    .select(
-      "slug,data,updated_at,owner_admin_id,admin_users!public_pages_owner_admin_id_fkey(id,username,display_name,role)",
-    );
+    .select("slug,data,updated_at,owner_admin_id");
 
   if (session?.role === "admin") {
     query = query.eq("owner_admin_id", session.adminId);
@@ -292,10 +376,40 @@ export const listPublicPages = async (
     .returns<PublicPageDbRow[]>();
 
   if (error) {
+    if (isMissingOwnerAdminIdError(error)) {
+      if (session?.role === "admin") {
+        return [];
+      }
+      const fallback = await client
+        .from(PUBLIC_PAGES_TABLE)
+        .select("slug,data,updated_at")
+        .order("updated_at", { ascending: false })
+        .returns<Array<Omit<PublicPageDbRow, "owner_admin_id">>>();
+      if (fallback.error) {
+        throw fallback.error;
+      }
+      return (fallback.data ?? [])
+        .map((row) => mapPublicPageRow({ ...row, owner_admin_id: null }))
+        .filter((row): row is PublicPageRow => Boolean(row));
+    }
     throw error;
   }
 
-  return (data ?? []).map(mapPublicPageRow).filter((row): row is PublicPageRow => Boolean(row));
+  const ownerById = await getAdminUserLookupsByIds(
+    client,
+    (data ?? []).map((row) => row.owner_admin_id),
+  );
+
+  return (data ?? [])
+    .map((row) =>
+      mapPublicPageRow(
+        row,
+        row.owner_admin_id && ownerById.has(row.owner_admin_id)
+          ? mapAdminUserToOwner(ownerById.get(row.owner_admin_id)!)
+          : null,
+      ),
+    )
+    .filter((row): row is PublicPageRow => Boolean(row));
 };
 
 export const countPublicPagesForAdmin = async (adminId: string): Promise<number> => {
@@ -306,9 +420,76 @@ export const countPublicPagesForAdmin = async (adminId: string): Promise<number>
     .eq("owner_admin_id", adminId);
 
   if (error) {
+    if (isMissingOwnerAdminIdError(error)) {
+      return 0;
+    }
     throw error;
   }
   return count ?? 0;
+};
+
+const getPageSlugFromPublicPath = (publicPath: string): string =>
+  splitPublicPagePath(publicPath).pageSlug;
+
+const resolveMutationPublicPath = (
+  requestedSlug: string,
+  session: AdminSession,
+): { ok: true; publicPath: string; pageSlug: string } | { ok: false; status: 400 | 403; error: string } => {
+  const normalized = requestedSlug.trim().toLowerCase().replace(/^\/+|\/+$/g, "");
+  const parts = normalized.split("/").filter(Boolean);
+
+  if (parts.length > 2 || parts.length === 0) {
+    return { ok: false, status: 400, error: "Invalid public path." };
+  }
+
+  if (session.role !== "admin") {
+    const publicPath = parts.join("/");
+    const pageSlug = getPageSlugFromPublicPath(publicPath);
+    if (!isSafePublicPageSlug(pageSlug)) {
+      return { ok: false, status: 400, error: "Invalid slug." };
+    }
+    if (parts.length === 2 && !isSafeAdminUsername(parts[0])) {
+      return { ok: false, status: 400, error: "Invalid owner username." };
+    }
+    return { ok: true, publicPath, pageSlug };
+  }
+
+  const pageSlug = parts.length === 2 ? parts[1] : parts[0];
+  const ownerUsername = parts.length === 2 ? parts[0] : session.username;
+  if (ownerUsername !== session.username) {
+    return { ok: false, status: 403, error: "This namespace belongs to another admin." };
+  }
+  if (!isSafePublicPageSlug(pageSlug)) {
+    return { ok: false, status: 400, error: "Invalid slug." };
+  }
+  return {
+    ok: true,
+    publicPath: buildNestedPublicPagePath(session.username, pageSlug),
+    pageSlug,
+  };
+};
+
+const findOwnedPageWithPageSlug = async (
+  ownerAdminId: string,
+  pageSlug: string,
+): Promise<Pick<PublicPageRow, "slug" | "owner_admin_id"> | null> => {
+  const client = getSupabaseAdminClient();
+  const { data, error } = await client
+    .from(PUBLIC_PAGES_TABLE)
+    .select("slug,owner_admin_id")
+    .eq("owner_admin_id", ownerAdminId)
+    .returns<Array<{ slug: string; owner_admin_id: string | null }>>();
+
+  if (error) {
+    if (isMissingOwnerAdminIdError(error)) {
+      return null;
+    }
+    throw error;
+  }
+
+  return (
+    (data ?? []).find((row) => getPageSlugFromPublicPath(row.slug) === pageSlug) ?? null
+  );
 };
 
 export const upsertPublicPageForSession = async (
@@ -318,10 +499,15 @@ export const upsertPublicPageForSession = async (
 ): Promise<PublicPageMutationResult> => {
   const client = getSupabaseAdminClient();
   const normalizedData = normalizeBuilderData(data);
-  const existing = await getPublicPageOwnershipBySlug(slug);
+  const resolved = resolveMutationPublicPath(slug, session);
+  if (!resolved.ok) {
+    return resolved;
+  }
+  const slugPath = resolved.publicPath;
+  const existing = await getPublicPageOwnershipBySlug(slugPath);
 
   if (existing) {
-    if (session.role !== "owner" && existing.owner_admin_id !== session.adminId) {
+    if (session.role !== "owner" && existing.owner_admin_id && existing.owner_admin_id !== session.adminId) {
       return {
         ok: false,
         status: 403,
@@ -332,7 +518,7 @@ export const upsertPublicPageForSession = async (
     const { error } = await client
       .from(PUBLIC_PAGES_TABLE)
       .update({ data: normalizedData, updated_at: new Date().toISOString() })
-      .eq("slug", slug);
+      .eq("slug", slugPath);
 
     if (error) {
       throw error;
@@ -345,6 +531,14 @@ export const upsertPublicPageForSession = async (
     if (!admin || !admin.active) {
       return { ok: false, status: 403, error: "Admin is inactive." };
     }
+    const duplicate = await findOwnedPageWithPageSlug(session.adminId, resolved.pageSlug);
+    if (duplicate && duplicate.slug !== slugPath) {
+      return {
+        ok: false,
+        status: 409,
+        error: "Slug already exists in this admin namespace.",
+      };
+    }
     const currentCount = await countPublicPagesForAdmin(session.adminId);
     if (currentCount >= admin.slugLimit) {
       return {
@@ -355,14 +549,33 @@ export const upsertPublicPageForSession = async (
     }
   }
 
-  const { error } = await client.from(PUBLIC_PAGES_TABLE).insert({
-    slug,
+  const insertPayload = {
+    slug: slugPath,
     data: normalizedData,
     owner_admin_id: session.adminId,
     updated_at: new Date().toISOString(),
-  });
+  };
+  const { error } = await client.from(PUBLIC_PAGES_TABLE).insert(insertPayload);
 
   if (error) {
+    if (isMissingOwnerAdminIdError(error)) {
+      const { error: fallbackError } = await client.from(PUBLIC_PAGES_TABLE).insert({
+        slug: slugPath,
+        data: normalizedData,
+        updated_at: insertPayload.updated_at,
+      });
+      if (!fallbackError) {
+        return { ok: true, created: true };
+      }
+      if (fallbackError.code === "23505") {
+        return {
+          ok: false,
+          status: 409,
+          error: "Slug already exists.",
+        };
+      }
+      throw fallbackError;
+    }
     if (error.code === "23505") {
       return {
         ok: false,
@@ -379,7 +592,13 @@ export const removePublicPageBySlugForSession = async (
   slug: string,
   session: AdminSession,
 ): Promise<PublicPageMutationResult> => {
-  if (PROTECTED_PUBLIC_SLUGS.has(slug)) {
+  const resolved = resolveMutationPublicPath(slug, session);
+  if (!resolved.ok) {
+    return resolved;
+  }
+  const slugPath = resolved.publicPath;
+
+  if (PROTECTED_PUBLIC_SLUGS.has(slugPath)) {
     return {
       ok: false,
       status: 403,
@@ -388,11 +607,11 @@ export const removePublicPageBySlugForSession = async (
   }
 
   const client = getSupabaseAdminClient();
-  const existing = await getActivePublicPageArchiveSourceBySlug(slug);
+  const existing = await getActivePublicPageArchiveSourceBySlug(slugPath);
   if (!existing) {
     return { ok: false, status: 404, error: "Not found." };
   }
-  if (session.role !== "owner" && existing.owner_admin_id !== session.adminId) {
+  if (session.role !== "owner" && existing.owner_admin_id && existing.owner_admin_id !== session.adminId) {
     return {
       ok: false,
       status: 403,
@@ -412,7 +631,7 @@ export const removePublicPageBySlugForSession = async (
     throw archiveError;
   }
 
-  const { error: deleteError } = await client.from(PUBLIC_PAGES_TABLE).delete().eq("slug", slug);
+  const { error: deleteError } = await client.from(PUBLIC_PAGES_TABLE).delete().eq("slug", slugPath);
 
   if (deleteError) {
     throw deleteError;
@@ -440,18 +659,33 @@ export const listDeletedPublicPagesForOwner = async (
         "deleted_at",
         "deleted_by_admin_id",
         "deleted_reason",
-        "owner:admin_users!public_pages_deleted_owner_admin_id_fkey(id,username,display_name,role)",
-        "deleted_by:admin_users!public_pages_deleted_deleted_by_admin_id_fkey(id,username,display_name,role)",
       ].join(","),
     )
     .order("deleted_at", { ascending: false })
     .returns<DeletedPublicPageDbRow[]>();
 
   if (error) {
+    if (isMissingOwnerAdminIdError(error)) {
+      return [];
+    }
     throw error;
   }
 
-  return (data ?? []).map(mapDeletedPublicPageRow);
+  const userById = await getAdminUserLookupsByIds(
+    client,
+    (data ?? []).flatMap((row) => [row.owner_admin_id, row.deleted_by_admin_id]),
+  );
+
+  return (data ?? []).map((row) => {
+    const mapped = mapDeletedPublicPageRow(row);
+    const owner = row.owner_admin_id ? userById.get(row.owner_admin_id) : null;
+    const deletedBy = row.deleted_by_admin_id ? userById.get(row.deleted_by_admin_id) : null;
+    return {
+      ...mapped,
+      owner: owner ? mapAdminUserToOwner(owner) : null,
+      deletedBy: deletedBy ? mapAdminUserToOwner(deletedBy) : null,
+    };
+  });
 };
 
 export const restoreDeletedPublicPageForOwner = async (
@@ -486,8 +720,10 @@ export const restoreDeletedPublicPageForOwner = async (
     return { ok: false, status: 404, error: "Deleted page not found." };
   }
 
-  const targetSlug = normalizePublicSlug(input.slug ?? deletedPage.slug);
-  if (!targetSlug) {
+  const requestedSlug = input.slug ?? deletedPage.slug;
+  const requestedPath = requestedSlug.trim().toLowerCase().replace(/^\/+|\/+$/g, "");
+  const requestedPageSlug = normalizePublicSlug(getPageSlugFromPublicPath(requestedPath));
+  if (!requestedPageSlug || !isSafePublicPageSlug(requestedPageSlug)) {
     return { ok: false, status: 400, error: "Invalid slug." };
   }
 
@@ -495,6 +731,20 @@ export const restoreDeletedPublicPageForOwner = async (
   const targetOwner = await getAdminUserById(targetOwnerAdminId);
   if (!targetOwner || !targetOwner.active) {
     return { ok: false, status: 400, error: "Target admin is inactive or missing." };
+  }
+  const targetSlug =
+    targetOwner.role === "admin"
+      ? buildNestedPublicPagePath(targetOwner.username, requestedPageSlug)
+      : requestedPath.includes("/") && splitPublicPagePath(requestedPath).ownerUsername
+        ? requestedPath
+        : requestedPageSlug;
+  const duplicateInNamespace = await findOwnedPageWithPageSlug(targetOwnerAdminId, requestedPageSlug);
+  if (duplicateInNamespace && duplicateInNamespace.slug !== targetSlug) {
+    return {
+      ok: false,
+      status: 409,
+      error: "Slug already exists in this admin namespace.",
+    };
   }
 
   const existing = await getPublicPageOwnershipBySlug(targetSlug);
@@ -508,7 +758,7 @@ export const restoreDeletedPublicPageForOwner = async (
 
   const { error: insertError } = await client.from(PUBLIC_PAGES_TABLE).insert({
     slug: targetSlug,
-    data: retargetStoredDataSlug(deletedPage.data, targetSlug),
+    data: retargetStoredDataSlug(deletedPage.data, requestedPageSlug),
     owner_admin_id: targetOwnerAdminId,
     updated_at: deletedPage.original_updated_at ?? new Date().toISOString(),
   });

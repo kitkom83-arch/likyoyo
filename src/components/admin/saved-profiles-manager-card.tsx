@@ -13,6 +13,12 @@ import { useI18n } from "@/i18n/use-i18n";
 import { removeAnalyticsForSlug } from "@/lib/local-storage/analytics-storage";
 import { setActiveEditorSlug, toProfileSlug } from "@/lib/local-storage/profile-storage";
 import {
+  buildNestedPublicPagePath,
+  isSafePublicPageSlug,
+  normalizePublicPageSlug,
+  splitPublicPagePath,
+} from "@/lib/public-pages/paths";
+import {
   deletePublicPageBySlug,
   listPublicPages,
   type AdminMe,
@@ -39,6 +45,8 @@ const PROTECTED_PUBLIC_SLUGS = new Set(["110"]);
 
 const isProtectedPublicSlug = (slug: string): boolean =>
   PROTECTED_PUBLIC_SLUGS.has(toProfileSlug(slug));
+
+const getPageSlug = (publicPath: string): string => splitPublicPagePath(publicPath).pageSlug;
 
 const createUniqueSlug = (baseSlug: string, existingSlugs: Set<string>) => {
   const initial = toProfileSlug(baseSlug);
@@ -93,6 +101,15 @@ export const SavedProfilesManagerCard = ({
   const savedProfiles = externalSavedProfiles ?? savedProfilesState;
   const adminScopeKey = adminMe?.user.adminId ?? null;
   const isOwner = adminMe?.user.role === "owner";
+  const publicPathForPageSlug = useCallback(
+    (pageSlug: string) =>
+      pageSlug.includes("/")
+        ? toProfileSlug(pageSlug)
+        : isOwner || !adminMe
+          ? normalizePublicPageSlug(pageSlug)
+          : buildNestedPublicPagePath(adminMe.user.username, pageSlug),
+    [adminMe, isOwner],
+  );
   const quotaUsed = adminMe?.quota.used ?? savedProfiles.length;
   const quotaLimit = adminMe?.quota.limit ?? 0;
   const isQuotaReached = Boolean(adminMe && !isOwner && quotaUsed >= quotaLimit);
@@ -212,7 +229,7 @@ export const SavedProfilesManagerCard = ({
     if (isSwitchingWorkspace) {
       return;
     }
-    const normalizedSlug = toProfileSlug(slug);
+    const normalizedSlug = publicPathForPageSlug(slug);
     const normalizedPageName = pageName.trim() || normalizedSlug;
     const pageWorkspace = createPageWorkspaceData(normalizedSlug, normalizedPageName);
 
@@ -269,17 +286,20 @@ export const SavedProfilesManagerCard = ({
       return;
     }
 
-    const slug = toProfileSlug(createPageSlug);
+    const slug = normalizePublicPageSlug(createPageSlug);
     const pageName = createPageName.trim();
-    if (!slug || !pageName) {
+    if (!slug || !isSafePublicPageSlug(slug) || !pageName) {
       showToast("error", t("saved_manager_toast_create_missing"));
       return;
     }
 
-    const existingProfile = savedProfiles.find((item) => item.slug === slug);
+    const targetPublicPath = publicPathForPageSlug(slug);
+    const existingProfile = savedProfiles.find((item) =>
+      isOwner ? item.slug === targetPublicPath : getPageSlug(item.slug) === slug,
+    );
     if (existingProfile) {
       setNewPageCollision({
-        targetSlug: slug,
+        targetSlug: targetPublicPath,
         pageName,
         existingProfile: existingProfile.data,
       });
@@ -519,7 +539,7 @@ export const SavedProfilesManagerCard = ({
               <Input
                 id="create-page-slug"
                 value={createPageSlug}
-                onChange={(event) => setCreatePageSlug(toProfileSlug(event.target.value))}
+                onChange={(event) => setCreatePageSlug(normalizePublicPageSlug(event.target.value))}
                 placeholder="my-page"
               />
             </div>

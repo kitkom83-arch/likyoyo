@@ -1,5 +1,6 @@
 import { BuilderData } from "@/features/builder/types";
 import { resolveBuilderDataImagesForPersistence } from "@/lib/local-storage/image-storage";
+import { getPublicPageApiPath } from "@/lib/public-pages/paths";
 
 export type PublicPageListItem = {
   slug: string;
@@ -134,7 +135,7 @@ export const getCurrentAdmin = async (): Promise<AdminMe> => {
 };
 
 export const getPublicPageBySlug = async (slug: string): Promise<BuilderData | null> => {
-  const response = await fetchWithTimeout(`/api/public-pages/${encodeURIComponent(slug)}`, {
+  const response = await fetchWithTimeout(getPublicPageApiPath(slug), {
     method: "GET",
     cache: "no-store",
   });
@@ -151,7 +152,7 @@ export const getPublicPageBySlug = async (slug: string): Promise<BuilderData | n
 
 export const upsertPublicPageBySlug = async (slug: string, data: BuilderData): Promise<void> => {
   const durableData = await resolveBuilderDataImagesForPersistence(data);
-  const response = await fetchWithTimeout(`/api/public-pages/${encodeURIComponent(slug)}`, {
+  const response = await fetchWithTimeout(getPublicPageApiPath(slug), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ data: durableData }),
@@ -162,7 +163,7 @@ export const upsertPublicPageBySlug = async (slug: string, data: BuilderData): P
 };
 
 export const deletePublicPageBySlug = async (slug: string): Promise<void> => {
-  const response = await fetchWithTimeout(`/api/public-pages/${encodeURIComponent(slug)}`, {
+  const response = await fetchWithTimeout(getPublicPageApiPath(slug), {
     method: "DELETE",
   });
   if (!response.ok) {

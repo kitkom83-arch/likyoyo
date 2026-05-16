@@ -33,11 +33,20 @@ type AdminUserRow = {
   updated_at?: string | null;
 };
 
-type AdminUserSummaryRow = AdminUserRow & {
-  public_pages?: Array<{ slug: string }> | null;
+type PublicPageOwnerRow = {
+  slug: string;
+  owner_admin_id: string | null;
 };
 
 const ADMIN_USERS_TABLE = "admin_users";
+
+const isMissingAdminUsersTableError = (
+  error: { code?: string; message?: string } | null,
+): boolean => error?.code === "PGRST205" && /admin_users/i.test(error.message ?? "");
+
+const isMissingOwnerAdminIdError = (
+  error: { code?: string; message?: string } | null,
+): boolean => error?.code === "42703" && /owner_admin_id/i.test(error.message ?? "");
 
 const getSupabaseAdminClient = () => {
   const env = validateCriticalServerEnv();
@@ -61,12 +70,47 @@ const mapAdminUser = (row: AdminUserRow): AdminUser => ({
   updatedAt: row.updated_at ?? null,
 });
 
-const mapAdminUserSummary = (row: AdminUserSummaryRow): AdminUserSummary => {
+const listPublicPageSlugsByOwner = async (
+  client: ReturnType<typeof getSupabaseAdminClient>,
+  ownerIds: string[],
+): Promise<Map<string, string[]>> => {
+  const uniqueOwnerIds = Array.from(new Set(ownerIds.filter(Boolean)));
+  if (uniqueOwnerIds.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await client
+    .from("public_pages")
+    .select("slug,owner_admin_id")
+    .in("owner_admin_id", uniqueOwnerIds)
+    .returns<PublicPageOwnerRow[]>();
+
+  if (error) {
+    if (isMissingOwnerAdminIdError(error)) {
+      return new Map();
+    }
+    throw error;
+  }
+
+  const slugsByOwner = new Map<string, string[]>();
+  for (const row of data ?? []) {
+    if (!row.owner_admin_id || typeof row.slug !== "string") {
+      continue;
+    }
+    const slugs = slugsByOwner.get(row.owner_admin_id) ?? [];
+    slugs.push(row.slug);
+    slugsByOwner.set(row.owner_admin_id, slugs);
+  }
+
+  for (const slugs of slugsByOwner.values()) {
+    slugs.sort((left, right) => left.localeCompare(right));
+  }
+
+  return slugsByOwner;
+};
+
+const mapAdminUserSummary = (row: AdminUserRow, slugs: string[] = []): AdminUserSummary => {
   const user = mapAdminUser(row);
-  const slugs = (row.public_pages ?? [])
-    .map((page) => page.slug)
-    .filter((slug): slug is string => typeof slug === "string")
-    .sort((left, right) => left.localeCompare(right));
 
   return {
     id: user.id,
@@ -93,6 +137,9 @@ export const getAdminUserByUsername = async (
     .maybeSingle<AdminUserRow>();
 
   if (error) {
+    if (isMissingAdminUsersTableError(error)) {
+      return null;
+    }
     throw error;
   }
   return data ? mapAdminUser(data) : null;
@@ -107,6 +154,9 @@ export const getAdminUserById = async (id: string): Promise<AdminUser | null> =>
     .maybeSingle<AdminUserRow>();
 
   if (error) {
+    if (isMissingAdminUsersTableError(error)) {
+      return null;
+    }
     throw error;
   }
   return data ? mapAdminUser(data) : null;
@@ -116,16 +166,21 @@ export const listAdminUserSummaries = async (): Promise<AdminUserSummary[]> => {
   const client = getSupabaseAdminClient();
   const { data, error } = await client
     .from(ADMIN_USERS_TABLE)
-    .select(
-      "id,username,password_hash,display_name,role,slug_limit,active,created_at,updated_at,public_pages(slug)",
-    )
+    .select("id,username,password_hash,display_name,role,slug_limit,active,created_at,updated_at")
     .order("created_at", { ascending: true })
-    .returns<AdminUserSummaryRow[]>();
+    .returns<AdminUserRow[]>();
 
   if (error) {
+    if (isMissingAdminUsersTableError(error)) {
+      return [];
+    }
     throw error;
   }
-  return (data ?? []).map(mapAdminUserSummary);
+  const slugsByOwner = await listPublicPageSlugsByOwner(
+    client,
+    (data ?? []).map((row) => row.id),
+  );
+  return (data ?? []).map((row) => mapAdminUserSummary(row, slugsByOwner.get(row.id) ?? []));
 };
 
 export const createAdminUser = async (input: {
@@ -197,15 +252,14 @@ export const updateAdminUser = async (
     .from(ADMIN_USERS_TABLE)
     .update(patch)
     .eq("id", id)
-    .select(
-      "id,username,password_hash,display_name,role,slug_limit,active,created_at,updated_at,public_pages(slug)",
-    )
-    .single<AdminUserSummaryRow>();
+    .select("id,username,password_hash,display_name,role,slug_limit,active,created_at,updated_at")
+    .single<AdminUserRow>();
 
   if (error) {
     throw error;
   }
-  return mapAdminUserSummary(data);
+  const slugsByOwner = await listPublicPageSlugsByOwner(client, [id]);
+  return mapAdminUserSummary(data, slugsByOwner.get(id) ?? []);
 };
 
 export const resetAdminUserPassword = async (

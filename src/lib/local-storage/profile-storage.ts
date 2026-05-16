@@ -2,12 +2,12 @@
 
 import { BuilderData } from "@/features/builder/types";
 import { safeJsonParse } from "@/lib/json/safe-json-parse";
+import { getPublicPageApiPath } from "@/lib/public-pages/paths";
 
 const BUILDER_STORE_KEY = "linkbio-builder-store-v1";
 const PROFILE_INDEX_KEY = "linkbio-profile-index-v1";
 const ACTIVE_EDITOR_SLUG_KEY = "linkbio-active-editor-slug-v1";
 const STORAGE_CLEANUP_MARKER_KEY = "linkbio-storage-cleanup-v1";
-const DEV_PUBLIC_PAGES_API_PREFIX = "/api/public-pages";
 
 type PersistedBuilderSnapshot = {
   state?: Partial<BuilderData>;
@@ -169,7 +169,7 @@ export const upsertProfileIndex = (
   profiles[nextSlug] = sanitizedProfile;
   writeJSON(PROFILE_INDEX_KEY, profiles);
   if (typeof window !== "undefined") {
-    void fetch(`${DEV_PUBLIC_PAGES_API_PREFIX}/${encodeURIComponent(nextSlug)}`, {
+    void fetch(getPublicPageApiPath(nextSlug), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ data: sanitizedProfile }),
@@ -246,7 +246,7 @@ export const removeProfileBySlug = (slug: string): void => {
   delete profiles[normalizedSlug];
   setStoredProfiles(profiles);
   if (typeof window !== "undefined") {
-    void fetch(`${DEV_PUBLIC_PAGES_API_PREFIX}/${encodeURIComponent(normalizedSlug)}`, {
+    void fetch(getPublicPageApiPath(normalizedSlug), {
       method: "DELETE",
     }).catch(() => undefined);
   }

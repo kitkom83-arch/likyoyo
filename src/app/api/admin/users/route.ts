@@ -10,6 +10,7 @@ import {
   listAdminUserSummaries,
   type AdminRole,
 } from "@/lib/server/admin-users-store";
+import { isSafeAdminUsername } from "@/lib/public-pages/paths";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,10 @@ const createAdminUserSchema = z.object({
     .toLowerCase()
     .min(3)
     .max(64)
-    .regex(/^[a-z0-9._-]+$/),
+    .regex(/^[a-z0-9._-]+$/)
+    .refine((value) => isSafeAdminUsername(value), {
+      message: "Reserved or unsafe username.",
+    }),
   displayName: z.string().trim().min(1).max(120),
   password: z.string().min(8).max(256),
   role: z.enum(["owner", "admin"]).default("admin"),
