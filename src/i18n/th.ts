@@ -23,6 +23,7 @@ export const th: Record<keyof typeof en, string> = {
   sidebar_copy_public_link: "Copy public link (คัดลอกลิงก์สาธารณะ)",
   sidebar_copied: "คัดลอกแล้ว",
   sidebar_open_public_page: "Open public page (เปิดหน้า public)",
+  sidebar_image_url_tool: "อัปโหลดรูป / เอาลิงก์รูป",
   sidebar_section_header: "โปรไฟล์แบรนด์",
   sidebar_section_wallpaper: "พื้นหลังและสี",
   sidebar_section_text: "ข้อความแบรนด์",

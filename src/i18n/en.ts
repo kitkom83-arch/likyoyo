@@ -21,6 +21,7 @@ export const en = {
   sidebar_copy_public_link: "Copy public link",
   sidebar_copied: "Copied",
   sidebar_open_public_page: "Open public page",
+  sidebar_image_url_tool: "Image URL Tool",
   sidebar_section_header: "Brand Profile",
   sidebar_section_wallpaper: "Background & Colors",
   sidebar_section_text: "Brand Messaging",

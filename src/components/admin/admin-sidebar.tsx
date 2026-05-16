@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, Link2 } from "lucide-react";
+import { ExternalLink, Image as ImageIcon, Link2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AnalyticsSummaryCard } from "@/components/admin/analytics-summary-card";
 import { DataToolsCard } from "@/components/admin/data-tools-card";
 import { SavedProfilesManagerCard } from "@/components/admin/saved-profiles-manager-card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BuilderData } from "@/features/builder/types";
 import { useI18n } from "@/i18n/use-i18n";
@@ -193,6 +193,15 @@ const AdminSidebarContent = ({
           <ExternalLink className="size-4" />
           {t("sidebar_open_public_page")}
         </Button>
+        <a
+          className={cn(buttonVariants({ variant: "outline" }), "w-full justify-start")}
+          href="https://img.bn9.one/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <ImageIcon className="size-4" />
+          {t("sidebar_image_url_tool")}
+        </a>
       </div>
 
       <div className="mt-5 space-y-3 border-t border-border/60 pt-4">
