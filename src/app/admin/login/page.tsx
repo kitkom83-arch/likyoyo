@@ -24,8 +24,10 @@ export default function AdminLoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setNextPath(resolveNextPath(params.get("next")));
+    queueMicrotask(() => {
+      const params = new URLSearchParams(window.location.search);
+      setNextPath(resolveNextPath(params.get("next")));
+    });
   }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {

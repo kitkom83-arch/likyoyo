@@ -25,6 +25,9 @@ import {
   type AdminMe,
   type PublicPageListItem,
 } from "@/lib/public-pages/public-pages-client";
+import {
+  splitPublicPagePath,
+} from "@/lib/public-pages/paths";
 
 type CollisionDialogState = {
   targetSlug: string;
@@ -63,21 +66,104 @@ const selectBuilderDataSnapshot = (): BuilderData => {
   };
 };
 
+const SAFE_PUBLIC_HANDLE_PATTERN = /^[a-z0-9._-]{1,119}$/i;
+
+const getPageSlugForPublicPath = (publicPath: string): string => {
+  const pageSlug = splitPublicPagePath(publicPath).pageSlug;
+  return pageSlug || toProfileSlug(publicPath);
+};
+
+const getLastPathSegment = (value: string): string => {
+  const parts = toProfileSlug(value).split("/").filter(Boolean);
+  return parts[parts.length - 1] ?? "";
+};
+
+const isDuplicatedOwnerHandle = (value: string, publicPath: string): boolean => {
+  const { ownerUsername, pageSlug } = splitPublicPagePath(publicPath);
+  if (!ownerUsername) {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  const normalizedPageSlug = getLastPathSegment(pageSlug);
+  return (
+    normalized === ownerUsername ||
+    normalized === `${ownerUsername}-${normalizedPageSlug}` ||
+    normalized === `${ownerUsername}_${normalizedPageSlug}` ||
+    normalized === `${ownerUsername}.${normalizedPageSlug}`
+  );
+};
+
+const isDuplicatedOwnerPublicPath = (publicPath: string): boolean => {
+  const { ownerUsername, pageSlug } = splitPublicPagePath(publicPath);
+  return Boolean(ownerUsername && pageSlug === ownerUsername);
+};
+
+const normalizePublicHandleCandidate = (
+  value: string | null | undefined,
+  publicPath: string,
+): string | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!SAFE_PUBLIC_HANDLE_PATTERN.test(trimmed) || isDuplicatedOwnerHandle(trimmed, publicPath)) {
+    return null;
+  }
+  return trimmed;
+};
+
+const normalizeExplicitPublicHandle = (publicPath: string, payload: BuilderData): string | null => {
+  if (typeof payload.header.publicHandle !== "string") {
+    return null;
+  }
+  const trimmed = payload.header.publicHandle.trim();
+  if (!trimmed) {
+    return "";
+  }
+  return normalizePublicHandleCandidate(trimmed, publicPath) ?? "";
+};
+
+const getPublicHandleFallback = (publicPath: string, payload: BuilderData): string => {
+  const explicitHandle = normalizeExplicitPublicHandle(publicPath, payload);
+  if (explicitHandle !== null) {
+    return explicitHandle;
+  }
+  const pageSlug = getPageSlugForPublicPath(publicPath);
+  const pageHandle = getLastPathSegment(pageSlug);
+  const candidates = [payload.header.publicUsername, pageHandle];
+  return (
+    candidates
+      .map((value) => normalizePublicHandleCandidate(value, publicPath))
+      .find((value): value is string => Boolean(value)) ?? "page"
+  );
+};
+
 const normalizeWorkspaceData = (slug: string, payload: BuilderData): BuilderData => {
   const normalizedSlug = toProfileSlug(slug);
-  const fallbackPublicHandle =
-    typeof payload.header.publicHandle === "string" && payload.header.publicHandle.trim()
-      ? payload.header.publicHandle.trim()
-      : typeof payload.header.publicUsername === "string" && payload.header.publicUsername.trim()
-        ? payload.header.publicUsername.trim()
-        : payload.header.username;
+  const pageSlug = getPageSlugForPublicPath(normalizedSlug);
+  const fallbackPublicHandle = getPublicHandleFallback(normalizedSlug, payload);
 
   return {
     ...payload,
     header: {
       ...payload.header,
-      username: normalizedSlug,
+      username: pageSlug,
       publicHandle: fallbackPublicHandle,
+    },
+  };
+};
+
+const normalizePayloadForPublicPath = (publicPath: string, payload: BuilderData): BuilderData => {
+  const normalizedPublicPath = toProfileSlug(publicPath);
+  const pageSlug = getPageSlugForPublicPath(normalizedPublicPath);
+  const hasExplicitPublicHandle = typeof payload.header.publicHandle === "string";
+  return {
+    ...payload,
+    header: {
+      ...payload.header,
+      username: pageSlug,
+      publicHandle: getPublicHandleFallback(normalizedPublicPath, payload),
+      publicUsername: hasExplicitPublicHandle ? undefined : payload.header.publicUsername,
     },
   };
 };
@@ -301,17 +387,7 @@ export const AdminShell = () => {
           return;
         }
 
-        const payloadForSave: BuilderData = {
-          ...payload,
-          header: {
-            ...payload.header,
-            username: targetSlug,
-            publicHandle:
-              payload.header.publicHandle?.trim() ||
-              payload.header.publicUsername?.trim() ||
-              payload.header.username,
-          },
-        };
+        const payloadForSave = normalizePayloadForPublicPath(targetSlug, payload);
         await upsertPublicPageBySlug(targetSlug, payloadForSave);
         workspaceSlugRef.current = targetSlug;
         setCurrentEditorSlug(targetSlug);
@@ -409,7 +485,9 @@ export const AdminShell = () => {
       const pages = await refreshSavedPages();
       const normalizedActiveSlug = activeSlug ? toProfileSlug(activeSlug) : null;
       const hasActiveInRemotePages = Boolean(
-        normalizedActiveSlug && pages?.some((page) => page.slug === normalizedActiveSlug),
+        normalizedActiveSlug &&
+          !isDuplicatedOwnerPublicPath(normalizedActiveSlug) &&
+          pages?.some((page) => page.slug === normalizedActiveSlug),
       );
       const resolvedSlug =
         (hasActiveInRemotePages ? normalizedActiveSlug : pages?.[0]?.slug) ?? workspaceSlugRef.current;
@@ -516,9 +594,9 @@ export const AdminShell = () => {
       return;
     }
     const loaded = collisionDialog.existingProfile;
-    const normalizedLoaded = normalizeWorkspaceData(loaded.header.username, loaded);
+    const normalizedLoaded = normalizeWorkspaceData(collisionDialog.targetSlug, loaded);
     replaceBuilderData(normalizedLoaded);
-    const nextSlug = toProfileSlug(loaded.header.username);
+    const nextSlug = toProfileSlug(collisionDialog.targetSlug);
     applyWorkspaceIdentity(nextSlug, normalizedLoaded);
     setLastSavedAt(new Date());
     setCollisionDialog(null);
@@ -534,11 +612,8 @@ export const AdminShell = () => {
       ...collisionDialog.pendingPayload,
       header: {
         ...collisionDialog.pendingPayload.header,
-        username: duplicateSlug,
-        publicHandle:
-          collisionDialog.pendingPayload.header.publicHandle?.trim() ||
-          collisionDialog.pendingPayload.header.publicUsername?.trim() ||
-          collisionDialog.pendingPayload.header.username,
+        username: getPageSlugForPublicPath(duplicateSlug),
+        publicHandle: getPublicHandleFallback(duplicateSlug, collisionDialog.pendingPayload),
       },
     };
     replaceBuilderData(duplicated);

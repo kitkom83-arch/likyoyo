@@ -192,7 +192,9 @@ export const DataToolsCard = ({ currentSlug, adminScopeKey = null }: DataToolsCa
   }, [backupRefreshKey, isMounted]);
 
   useEffect(() => {
-    setPinDraft(safetySettings.pin);
+    queueMicrotask(() => {
+      setPinDraft(safetySettings.pin);
+    });
   }, [safetySettings.pin]);
 
   const handleExport = () => {

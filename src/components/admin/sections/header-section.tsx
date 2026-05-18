@@ -13,7 +13,6 @@ import { SectionCard } from "@/components/admin/section-card";
 import { headerSchema } from "@/features/builder/schema";
 import { useBuilderStore } from "@/features/builder/store/use-builder-store";
 import { useI18n } from "@/i18n/use-i18n";
-import { splitPublicPagePath } from "@/lib/public-pages/paths";
 
 type HeaderSectionProps = {
   slugCollisionWarning?: string | null;
@@ -21,6 +20,9 @@ type HeaderSectionProps = {
 type HeaderLayout = "classic" | "hero" | "none";
 
 const CONTROLLED_HEADER_FIELDS = [
+  "publicHandle",
+  "displayName",
+  "tagline",
   "layout",
   "titleMode",
   "heroTextAlign",
@@ -29,29 +31,25 @@ const CONTROLLED_HEADER_FIELDS = [
   "matchThemeToHero",
 ] as const;
 
-const PUBLIC_HANDLE_PATTERN = /^[a-z0-9._-]{3,119}$/i;
+const PUBLIC_HANDLE_PATTERN = /^[a-z0-9._-]{1,119}$/i;
+const HEADER_BLANK_PLACEHOLDER = "__blank__";
 
-const getLastPublicPathSegment = (value: string): string => {
-  const parts = value.split("/").filter(Boolean);
-  return parts[parts.length - 1] ?? "";
-};
+const isBlankHeaderText = (value: unknown): value is string =>
+  typeof value === "string" && value.trim() === "";
 
-const normalizePublicHandleDefault = (
-  publicPath: string,
+const normalizePublicHandleValue = (
   ...candidates: Array<string | null | undefined>
 ): string => {
-  const { pageSlug } = splitPublicPagePath(publicPath);
-  const pageHandle = getLastPublicPathSegment(pageSlug);
-  for (const candidate of [...candidates, pageHandle]) {
+  for (const candidate of candidates) {
     if (typeof candidate !== "string") {
       continue;
     }
     const value = candidate.trim();
-    if (PUBLIC_HANDLE_PATTERN.test(value) && !value.includes("/")) {
+    if (!value || (PUBLIC_HANDLE_PATTERN.test(value) && !value.includes("/"))) {
       return value;
     }
   }
-  return "page";
+  return "";
 };
 
 export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
@@ -67,11 +65,9 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
     mode: "onChange",
     defaultValues: {
       username: header.username,
-      publicHandle: normalizePublicHandleDefault(
-        header.username,
+      publicHandle: normalizePublicHandleValue(
         header.publicHandle,
         header.publicUsername,
-        header.username,
       ),
       displayName: header.displayName,
       tagline: header.tagline,
@@ -89,6 +85,9 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
     },
   });
   const values = useWatch({ control: form.control });
+  const publicHandle = useWatch({ control: form.control, name: "publicHandle" });
+  const displayName = useWatch({ control: form.control, name: "displayName" });
+  const tagline = useWatch({ control: form.control, name: "tagline" });
   const layout = useWatch({ control: form.control, name: "layout" });
   const titleMode = useWatch({ control: form.control, name: "titleMode" });
   const avatarUrl = useWatch({ control: form.control, name: "avatarUrl" });
@@ -111,9 +110,24 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
   }, [form]);
 
   useEffect(() => {
-    const parsed = headerSchema.safeParse(values);
+    const hasBlankPublicHandle = isBlankHeaderText(values.publicHandle);
+    const hasBlankDisplayName = isBlankHeaderText(values.displayName);
+    const hasBlankTagline = isBlankHeaderText(values.tagline);
+    const valuesForValidation = {
+      ...values,
+      publicHandle: hasBlankPublicHandle ? undefined : values.publicHandle,
+      displayName: hasBlankDisplayName ? HEADER_BLANK_PLACEHOLDER : values.displayName,
+      tagline: hasBlankTagline ? HEADER_BLANK_PLACEHOLDER : values.tagline,
+    };
+    const parsed = headerSchema.safeParse(valuesForValidation);
     if (parsed.success) {
-      updateHeader(parsed.data);
+      updateHeader({
+        ...parsed.data,
+        publicHandle: hasBlankPublicHandle ? "" : parsed.data.publicHandle,
+        publicUsername: hasBlankPublicHandle ? undefined : parsed.data.publicUsername,
+        displayName: hasBlankDisplayName ? "" : parsed.data.displayName,
+        tagline: hasBlankTagline ? "" : parsed.data.tagline,
+      });
     }
   }, [updateHeader, values]);
 
@@ -130,6 +144,29 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
       shouldValidate: true,
     });
     updateHeader({ layout: nextLayout });
+  };
+
+  const setProfileTextField = (
+    field: "publicHandle" | "displayName" | "tagline",
+    value: string,
+  ) => {
+    const options = {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    };
+    if (field === "publicHandle") {
+      form.setValue("publicHandle", value.trim() ? value : undefined, options);
+      updateHeader({ publicHandle: value, publicUsername: undefined });
+      return;
+    }
+    if (field === "displayName") {
+      form.setValue("displayName", value, options);
+      updateHeader({ displayName: value });
+      return;
+    }
+    form.setValue("tagline", value, options);
+    updateHeader({ tagline: value });
   };
 
   useEffect(() => {
@@ -227,15 +264,37 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
       </div>
       <div className="space-y-2">
         <Label htmlFor="publicHandle">{t("header_username")}</Label>
-        <Input id="publicHandle" {...form.register("publicHandle")} />
+        <Input
+          id="publicHandle"
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
+          value={publicHandle ?? ""}
+          onChange={(event) => setProfileTextField("publicHandle", event.target.value)}
+        />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="displayName">{t("header_display_name")}</Label>
-        <Input id="displayName" {...form.register("displayName")} />
+        <Label htmlFor="profileDisplayName">{t("header_display_name")}</Label>
+        <Input
+          id="profileDisplayName"
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
+          data-lpignore="true"
+          data-1p-ignore="true"
+          value={displayName ?? ""}
+          onChange={(event) => setProfileTextField("displayName", event.target.value)}
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="tagline">{t("header_tagline")}</Label>
-        <Input id="tagline" {...form.register("tagline")} />
+        <Input
+          id="tagline"
+          type="text"
+          autoComplete="off"
+          value={tagline ?? ""}
+          onChange={(event) => setProfileTextField("tagline", event.target.value)}
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="shareTitle">{t("header_share_title")}</Label>

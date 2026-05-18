@@ -717,17 +717,19 @@ export const MobilePreview = ({
     if (activeFormId) {
       return;
     }
-    setFormFilesByLink((current) => {
-      const allLinks = Object.values(current);
-      if (allLinks.length === 0) {
-        return current;
-      }
-      allLinks.forEach((perLink) => {
-        Object.values(perLink).forEach((selection) => {
-          URL.revokeObjectURL(selection.previewUrl);
+    queueMicrotask(() => {
+      setFormFilesByLink((current) => {
+        const allLinks = Object.values(current);
+        if (allLinks.length === 0) {
+          return current;
+        }
+        allLinks.forEach((perLink) => {
+          Object.values(perLink).forEach((selection) => {
+            URL.revokeObjectURL(selection.previewUrl);
+          });
         });
+        return {};
       });
-      return {};
     });
   }, [activeFormId]);
 

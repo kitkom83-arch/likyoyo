@@ -88,14 +88,26 @@ export const CustomImageUpload = ({
   useEffect(() => {
     let canceled = false;
 
+    const setResolvedImageValueAsync = (nextValue: string | null) => {
+      queueMicrotask(() => {
+        if (!canceled) {
+          setResolvedImageValue(nextValue);
+        }
+      });
+    };
+
     if (!normalizedValue) {
-      setResolvedImageValue(null);
-      return;
+      setResolvedImageValueAsync(null);
+      return () => {
+        canceled = true;
+      };
     }
 
     if (!isIndexedDbImageRef(normalizedValue)) {
-      setResolvedImageValue(normalizedValue);
-      return;
+      setResolvedImageValueAsync(normalizedValue);
+      return () => {
+        canceled = true;
+      };
     }
 
     void getImageDataUrlByRef(normalizedValue).then((resolved) => {

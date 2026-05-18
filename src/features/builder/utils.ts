@@ -746,11 +746,15 @@ export const normalizeBuilderData = (data: BuilderData): BuilderData => ({
   header: {
     ...data.header,
     publicHandle:
-      typeof data.header.publicHandle === "string" && data.header.publicHandle.trim()
+      typeof data.header.publicHandle === "string"
         ? data.header.publicHandle.trim()
         : typeof data.header.publicUsername === "string" && data.header.publicUsername.trim()
           ? data.header.publicUsername.trim()
-          : data.header.username,
+          : "",
+    publicUsername:
+      typeof data.header.publicHandle === "string"
+        ? undefined
+        : data.header.publicUsername,
   },
   links: data.links.map((link) => {
     if (getContentType(link) !== "discount") {

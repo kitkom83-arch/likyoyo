@@ -164,8 +164,10 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
   };
 
   useEffect(() => {
-    void refreshUsers();
-    void refreshDeletedPages();
+    queueMicrotask(() => {
+      void refreshUsers();
+      void refreshDeletedPages();
+    });
   }, []);
 
   const summary = useMemo(() => {
