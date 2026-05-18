@@ -526,20 +526,18 @@ export const MobilePreview = ({
     ? WALLPAPER_FALLBACK_SRC
     : wallpaperRequestSrc;
   const headerLayout = getSelectedHeaderLayout(data.header);
-  const profileHeaderData = useMemo(
-    () =>
-      data.header.layout === headerLayout && headerLayout === "hero"
-        ? data
-        : {
-            ...data,
-            header: {
-              ...data.header,
-              layout: headerLayout,
-              heroImageUrl: headerLayout === "hero" ? data.header.heroImageUrl : "",
-            },
-          },
-    [data, headerLayout],
-  );
+  const profileHeaderData = useMemo(() => {
+    const hasExplicitPublicHandle = typeof data.header.publicHandle === "string";
+    return {
+      ...data,
+      header: {
+        ...data.header,
+        layout: headerLayout,
+        heroImageUrl: headerLayout === "hero" ? data.header.heroImageUrl : "",
+        publicUsername: hasExplicitPublicHandle ? undefined : data.header.publicUsername,
+      },
+    };
+  }, [data, headerLayout]);
   const avatarRequestSrc = getAvatarHeaderRequestSrc(data.header);
   const avatarSrc = getAvatarHeaderSrc(data.header, brokenAvatarSources);
   const heroHeaderRequestSrc = getHeroHeaderRequestSrc(data.header);

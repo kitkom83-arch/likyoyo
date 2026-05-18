@@ -18,6 +18,14 @@ type ProfileHeaderProps = {
   flushToTop?: boolean;
 };
 
+const getVisiblePublicHandle = (header: BuilderData["header"]): string => {
+  if (typeof header.publicHandle === "string") {
+    return header.publicHandle.trim();
+  }
+  const legacyPublicUsername = header.publicUsername?.trim();
+  return legacyPublicUsername || header.username;
+};
+
 export const ProfileHeader = ({
   data,
   avatarSrc,
@@ -26,16 +34,16 @@ export const ProfileHeader = ({
   onHeroImageError,
   flushToTop = false,
 }: ProfileHeaderProps) => {
-  const publicHandle =
-    data.header.publicHandle?.trim() ||
-    data.header.publicUsername?.trim() ||
-    data.header.username;
+  const publicHandle = getVisiblePublicHandle(data.header);
+  const hasPublicHandle = Boolean(publicHandle);
 
   const titleColor = data.theme.titleColor ?? data.theme.textColor;
   const titleSize = data.theme.titleSize ?? 28;
   const displayTitle =
     data.header.titleMode === "username"
-      ? `@${publicHandle}`
+      ? hasPublicHandle
+        ? `@${publicHandle}`
+        : ""
       : data.header.displayName;
 
   const heroTextAlign = data.header.heroTextAlign ?? "center";
@@ -99,13 +107,17 @@ export const ProfileHeader = ({
               heroTextAlign === "left" ? "text-left" : "text-center",
             )}
           >
-            <h2 className="text-2xl font-bold leading-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] sm:text-3xl md:text-4xl">
-              {displayTitle}
-            </h2>
+            {displayTitle ? (
+              <h2 className="text-2xl font-bold leading-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] sm:text-3xl md:text-4xl">
+                {displayTitle}
+              </h2>
+            ) : null}
 
-            <p className="mt-1 text-sm text-white/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)] sm:text-base">
-              @{publicHandle}
-            </p>
+            {hasPublicHandle ? (
+              <p className="mt-1 text-sm text-white/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)] sm:text-base">
+                @{publicHandle}
+              </p>
+            ) : null}
 
             {tagline ? (
               <p className="mt-1 text-sm font-medium text-white/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)] sm:text-base">
@@ -154,16 +166,20 @@ export const ProfileHeader = ({
         />
       </div>
 
-      <h2
-        className="text-center font-bold"
-        style={{ color: titleColor, fontSize: `${titleSize}px`, lineHeight: 1.15 }}
-      >
-        {displayTitle}
-      </h2>
+      {displayTitle ? (
+        <h2
+          className="text-center font-bold"
+          style={{ color: titleColor, fontSize: `${titleSize}px`, lineHeight: 1.15 }}
+        >
+          {displayTitle}
+        </h2>
+      ) : null}
 
-      <p className="mt-1 text-center text-sm" style={{ color: data.theme.mutedTextColor }}>
-        @{publicHandle}
-      </p>
+      {hasPublicHandle ? (
+        <p className="mt-1 text-center text-sm" style={{ color: data.theme.mutedTextColor }}>
+          @{publicHandle}
+        </p>
+      ) : null}
 
       {tagline ? (
         <p className="mt-2 text-center text-xs font-medium opacity-90">{tagline}</p>

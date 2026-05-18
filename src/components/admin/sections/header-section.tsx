@@ -156,7 +156,7 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
       shouldValidate: true,
     };
     if (field === "publicHandle") {
-      form.setValue("publicHandle", value.trim() ? value : undefined, options);
+      form.setValue("publicHandle", value, options);
       updateHeader({ publicHandle: value, publicUsername: undefined });
       return;
     }

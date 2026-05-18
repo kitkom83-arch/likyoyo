@@ -140,8 +140,10 @@ export const headerSchema = z.object({
   publicHandle: z
     .string()
     .trim()
-    .min(3, "Public handle must be at least 3 characters.")
-    .regex(/^[a-z0-9._-]+$/i, "Use letters, numbers, dots, dashes, or underscores.")
+    .refine(
+      (value) => !value || /^[a-z0-9._-]{1,119}$/i.test(value),
+      "Use letters, numbers, dots, dashes, or underscores.",
+    )
     .optional(),
   // Backward-compat for older payloads.
   publicUsername: z

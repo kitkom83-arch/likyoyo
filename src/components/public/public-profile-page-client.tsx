@@ -34,7 +34,7 @@ const EMPTY_SUMMARY: ClickSummary = {
   totalCodeCopies: 0,
 };
 
-const PUBLIC_HANDLE_PATTERN = /^[a-z0-9._-]{3,119}$/i;
+const PUBLIC_HANDLE_PATTERN = /^[a-z0-9._-]{1,119}$/i;
 
 const getLastPublicPathSegment = (value: string): string => {
   const parts = value.split("/").filter(Boolean);
@@ -45,9 +45,17 @@ const normalizePublicHandle = (
   publicPath: string,
   ...candidates: Array<string | null | undefined>
 ): string => {
+  const explicitPublicHandle = candidates[0];
+  if (typeof explicitPublicHandle === "string") {
+    const trimmed = explicitPublicHandle.trim();
+    return PUBLIC_HANDLE_PATTERN.test(trimmed) && !trimmed.includes("/")
+      ? trimmed
+      : "";
+  }
+
   const pageSlug = splitPublicPagePath(publicPath).pageSlug;
   const pageHandle = getLastPublicPathSegment(pageSlug);
-  for (const candidate of [...candidates, pageHandle]) {
+  for (const candidate of [...candidates.slice(1), pageHandle]) {
     if (typeof candidate !== "string") {
       continue;
     }
@@ -72,6 +80,7 @@ const getSelectedHeaderLayout = (profile: BuilderData): HeaderLayout =>
 const normalizeHeaderForSlug = (slug: string, profile: BuilderData): BuilderData => {
   const pageSlug = splitPublicPagePath(slug).pageSlug || slug;
   const layout = getSelectedHeaderLayout(profile);
+  const hasExplicitPublicHandle = typeof profile.header.publicHandle === "string";
   return {
     ...profile,
     header: {
@@ -84,6 +93,7 @@ const normalizeHeaderForSlug = (slug: string, profile: BuilderData): BuilderData
         profile.header.publicUsername,
         profile.header.username,
       ),
+      publicUsername: hasExplicitPublicHandle ? undefined : profile.header.publicUsername,
     },
   };
 };

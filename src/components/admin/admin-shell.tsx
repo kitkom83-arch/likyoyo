@@ -93,11 +93,6 @@ const isDuplicatedOwnerHandle = (value: string, publicPath: string): boolean => 
   );
 };
 
-const isDuplicatedOwnerPublicPath = (publicPath: string): boolean => {
-  const { ownerUsername, pageSlug } = splitPublicPagePath(publicPath);
-  return Boolean(ownerUsername && pageSlug === ownerUsername);
-};
-
 const normalizePublicHandleCandidate = (
   value: string | null | undefined,
   publicPath: string,
@@ -486,7 +481,6 @@ export const AdminShell = () => {
       const normalizedActiveSlug = activeSlug ? toProfileSlug(activeSlug) : null;
       const hasActiveInRemotePages = Boolean(
         normalizedActiveSlug &&
-          !isDuplicatedOwnerPublicPath(normalizedActiveSlug) &&
           pages?.some((page) => page.slug === normalizedActiveSlug),
       );
       const resolvedSlug =
@@ -622,6 +616,11 @@ export const AdminShell = () => {
     setCollisionDialog(null);
   };
 
+  const currentRouteParts = splitPublicPagePath(currentEditorSlug);
+  const currentOwnerUsername = currentRouteParts.ownerUsername || adminMe?.user.username || "-";
+  const currentPageSlug = currentRouteParts.pageSlug || currentEditorSlug;
+  const currentFullPublicRoute = `/${currentEditorSlug}`;
+
   return (
     <>
       <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#e6edf9,_transparent_35%),radial-gradient(circle_at_top_right,_#e8f4ed,_transparent_32%),linear-gradient(to_bottom,_var(--background),_var(--muted))] px-3 py-4 sm:px-5 sm:py-5 lg:px-8">
@@ -661,6 +660,20 @@ export const AdminShell = () => {
               </div>
             ) : null}
             <div className={isSwitchingWorkspace ? "pointer-events-none opacity-65" : ""}>
+              <div className="mb-3 grid gap-2 rounded-xl border border-border/60 bg-background/70 p-3 text-xs text-muted-foreground sm:grid-cols-3">
+                <div>
+                  <span className="block font-medium text-foreground">Workspace/owner</span>
+                  <span>{currentOwnerUsername}</span>
+                </div>
+                <div>
+                  <span className="block font-medium text-foreground">Page slug</span>
+                  <span>{currentPageSlug}</span>
+                </div>
+                <div>
+                  <span className="block font-medium text-foreground">Full public route</span>
+                  <span>{currentFullPublicRoute}</span>
+                </div>
+              </div>
               <EditorPanel key={workspaceHydrationKey} slugCollisionWarning={slugCollisionWarning} />
             </div>
           </div>
