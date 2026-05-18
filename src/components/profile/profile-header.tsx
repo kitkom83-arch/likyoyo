@@ -18,9 +18,14 @@ type ProfileHeaderProps = {
   flushToTop?: boolean;
 };
 
+const PUBLIC_HANDLE_PATTERN = /^[a-z0-9._-]{1,119}$/i;
+
 const getVisiblePublicHandle = (header: BuilderData["header"]): string => {
   if (typeof header.publicHandle === "string") {
-    return header.publicHandle.trim();
+    const explicitPublicHandle = header.publicHandle.trim();
+    return PUBLIC_HANDLE_PATTERN.test(explicitPublicHandle) && !explicitPublicHandle.includes("/")
+      ? explicitPublicHandle
+      : "";
   }
   const legacyPublicUsername = header.publicUsername?.trim();
   return legacyPublicUsername || header.username;
