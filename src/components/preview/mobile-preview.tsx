@@ -59,6 +59,7 @@ type PreviewHrefResult = {
   kind: PreviewHrefKind;
   href: string | null;
 };
+type HeaderLayout = NonNullable<BuilderData["header"]["layout"]>;
 type XActivityChecklistState = {
   followed: boolean;
   reposted: boolean;
@@ -106,6 +107,14 @@ const normalizeImageSrc = (
   const normalized = value.trim();
   return normalized || fallback;
 };
+
+const isExplicitHeaderLayout = (
+  value: BuilderData["header"]["layout"],
+): value is HeaderLayout =>
+  value === "classic" || value === "hero" || value === "none";
+
+const getSelectedHeaderLayout = (header: BuilderData["header"]): HeaderLayout =>
+  isExplicitHeaderLayout(header.layout) ? header.layout : getHeaderLayout(header);
 
 const socialIconMap: Record<SocialLink["platform"], ComponentType<{ className?: string }>> = {
   instagram: Link2,
@@ -516,16 +525,17 @@ export const MobilePreview = ({
   const wallpaperSrc = brokenWallpaperSources[wallpaperRequestSrc]
     ? WALLPAPER_FALLBACK_SRC
     : wallpaperRequestSrc;
-  const headerLayout = getHeaderLayout(data.header);
+  const headerLayout = getSelectedHeaderLayout(data.header);
   const profileHeaderData = useMemo(
     () =>
-      data.header.layout === headerLayout
+      data.header.layout === headerLayout && headerLayout === "hero"
         ? data
         : {
             ...data,
             header: {
               ...data.header,
               layout: headerLayout,
+              heroImageUrl: headerLayout === "hero" ? data.header.heroImageUrl : "",
             },
           },
     [data, headerLayout],
@@ -839,7 +849,7 @@ export const MobilePreview = ({
             <ProfileHeader
               data={profileHeaderData}
               avatarSrc={avatarSrc}
-              heroHeaderSrc={heroHeaderSrc}
+              heroHeaderSrc={headerLayout === "hero" ? heroHeaderSrc : ""}
               flushToTop={false}
               onAvatarError={() => {
                 if (avatarSrc === AVATAR_HEADER_FALLBACK_SRC || brokenAvatarSources[avatarRequestSrc]) {
@@ -851,6 +861,9 @@ export const MobilePreview = ({
                 }));
               }}
               onHeroImageError={() => {
+                if (headerLayout !== "hero") {
+                  return;
+                }
                 if (brokenHeroKeys[heroHeaderKey]) {
                   return;
                 }

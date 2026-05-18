@@ -13,9 +13,45 @@ import { SectionCard } from "@/components/admin/section-card";
 import { headerSchema } from "@/features/builder/schema";
 import { useBuilderStore } from "@/features/builder/store/use-builder-store";
 import { useI18n } from "@/i18n/use-i18n";
+import { splitPublicPagePath } from "@/lib/public-pages/paths";
 
 type HeaderSectionProps = {
   slugCollisionWarning?: string | null;
+};
+type HeaderLayout = "classic" | "hero" | "none";
+
+const CONTROLLED_HEADER_FIELDS = [
+  "layout",
+  "titleMode",
+  "heroTextAlign",
+  "heroOverlay",
+  "heroOverlayStrength",
+  "matchThemeToHero",
+] as const;
+
+const PUBLIC_HANDLE_PATTERN = /^[a-z0-9._-]{3,119}$/i;
+
+const getLastPublicPathSegment = (value: string): string => {
+  const parts = value.split("/").filter(Boolean);
+  return parts[parts.length - 1] ?? "";
+};
+
+const normalizePublicHandleDefault = (
+  publicPath: string,
+  ...candidates: Array<string | null | undefined>
+): string => {
+  const { pageSlug } = splitPublicPagePath(publicPath);
+  const pageHandle = getLastPublicPathSegment(pageSlug);
+  for (const candidate of [...candidates, pageHandle]) {
+    if (typeof candidate !== "string") {
+      continue;
+    }
+    const value = candidate.trim();
+    if (PUBLIC_HANDLE_PATTERN.test(value) && !value.includes("/")) {
+      return value;
+    }
+  }
+  return "page";
 };
 
 export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
@@ -31,7 +67,12 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
     mode: "onChange",
     defaultValues: {
       username: header.username,
-      publicHandle: header.publicHandle ?? header.publicUsername ?? header.username,
+      publicHandle: normalizePublicHandleDefault(
+        header.username,
+        header.publicHandle,
+        header.publicUsername,
+        header.username,
+      ),
       displayName: header.displayName,
       tagline: header.tagline,
       shareTitle: header.shareTitle ?? "",
@@ -64,11 +105,32 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
   const heroImageError = form.formState.errors.heroImageUrl?.message;
 
   useEffect(() => {
+    CONTROLLED_HEADER_FIELDS.forEach((field) => {
+      form.register(field);
+    });
+  }, [form]);
+
+  useEffect(() => {
     const parsed = headerSchema.safeParse(values);
     if (parsed.success) {
       updateHeader(parsed.data);
     }
   }, [updateHeader, values]);
+
+  useEffect(() => {
+    if ((layout === "classic" || layout === "hero" || layout === "none") && header.layout !== layout) {
+      updateHeader({ layout });
+    }
+  }, [header.layout, layout, updateHeader]);
+
+  const setHeaderLayout = (nextLayout: HeaderLayout) => {
+    form.setValue("layout", nextLayout, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+    updateHeader({ layout: nextLayout });
+  };
 
   useEffect(() => {
     if (
@@ -155,7 +217,7 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
       description={t("header_desc")}
     >
       <div className="space-y-2">
-        <Label htmlFor="workspaceSlug">{t("saved_manager_create_slug")}</Label>
+        <Label htmlFor="workspaceSlug">{t("header_public_path")}</Label>
         <Input
           id="workspaceSlug"
           value={header.username}
@@ -221,25 +283,26 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
       ) : null}
       <div className="space-y-2">
         <Label>{t("header_layout_mode")}</Label>
+        <input type="hidden" {...form.register("layout")} />
         <div className="grid grid-cols-3 gap-2">
           <button
             type="button"
             className={`rounded-md border px-3 py-2 text-sm ${layout === "classic" ? "bg-muted font-medium ring-1 ring-primary/30" : ""}`}
-            onClick={() => form.setValue("layout", "classic", { shouldDirty: true, shouldValidate: true })}
+            onClick={() => setHeaderLayout("classic")}
           >
             {t("header_layout_classic")}
           </button>
           <button
             type="button"
             className={`rounded-md border px-3 py-2 text-sm ${layout === "hero" ? "bg-muted font-medium ring-1 ring-primary/30" : ""}`}
-            onClick={() => form.setValue("layout", "hero", { shouldDirty: true, shouldValidate: true })}
+            onClick={() => setHeaderLayout("hero")}
           >
             {t("header_layout_hero")}
           </button>
           <button
             type="button"
             className={`rounded-md border px-3 py-2 text-sm ${layout === "none" ? "bg-muted font-medium ring-1 ring-primary/30" : ""}`}
-            onClick={() => form.setValue("layout", "none", { shouldDirty: true, shouldValidate: true })}
+            onClick={() => setHeaderLayout("none")}
           >
             {t("header_layout_none")}
           </button>
@@ -290,6 +353,7 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
       ) : null}
       <div className="space-y-2">
         <Label>{t("header_title_mode")}</Label>
+        <input type="hidden" {...form.register("titleMode")} />
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -321,6 +385,7 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
         <>
           <div className="space-y-2">
             <Label>{t("header_hero_text_align")}</Label>
+            <input type="hidden" {...form.register("heroTextAlign")} />
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"

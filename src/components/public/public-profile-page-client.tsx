@@ -6,7 +6,7 @@ import { PublicProfile } from "@/components/public/public-profile";
 import { BuilderData } from "@/features/builder/types";
 import { getHeaderLayout } from "@/features/builder/utils/header-media";
 import { useI18n } from "@/i18n/use-i18n";
-import { getPublicPageApiPath } from "@/lib/public-pages/paths";
+import { getPublicPageApiPath, splitPublicPagePath } from "@/lib/public-pages/paths";
 import {
   getClickSummary,
   recordCodeCopy,
@@ -22,6 +22,7 @@ type PublicProfilePageClientProps = {
   initialProfile?: BuilderData | null;
   initialProfileResolved?: boolean;
 };
+type HeaderLayout = NonNullable<BuilderData["header"]["layout"]>;
 
 const EMPTY_SUMMARY: ClickSummary = {
   totalClicks: 0,
@@ -33,20 +34,59 @@ const EMPTY_SUMMARY: ClickSummary = {
   totalCodeCopies: 0,
 };
 
-const normalizeHeaderForSlug = (slug: string, profile: BuilderData): BuilderData => ({
-  ...profile,
-  header: {
-    ...profile.header,
-    layout: getHeaderLayout(profile.header),
-    username: slug,
-    publicHandle:
-      typeof profile.header.publicHandle === "string" && profile.header.publicHandle.trim()
-        ? profile.header.publicHandle.trim()
-        : typeof profile.header.publicUsername === "string" && profile.header.publicUsername.trim()
-          ? profile.header.publicUsername.trim()
-          : profile.header.username,
-  },
-});
+const PUBLIC_HANDLE_PATTERN = /^[a-z0-9._-]{3,119}$/i;
+
+const getLastPublicPathSegment = (value: string): string => {
+  const parts = value.split("/").filter(Boolean);
+  return parts[parts.length - 1] ?? "";
+};
+
+const normalizePublicHandle = (
+  publicPath: string,
+  ...candidates: Array<string | null | undefined>
+): string => {
+  const pageSlug = splitPublicPagePath(publicPath).pageSlug;
+  const pageHandle = getLastPublicPathSegment(pageSlug);
+  for (const candidate of [...candidates, pageHandle]) {
+    if (typeof candidate !== "string") {
+      continue;
+    }
+    const value = candidate.trim();
+    if (PUBLIC_HANDLE_PATTERN.test(value) && !value.includes("/")) {
+      return value;
+    }
+  }
+  return "page";
+};
+
+const isExplicitHeaderLayout = (
+  value: BuilderData["header"]["layout"],
+): value is HeaderLayout =>
+  value === "classic" || value === "hero" || value === "none";
+
+const getSelectedHeaderLayout = (profile: BuilderData): HeaderLayout =>
+  isExplicitHeaderLayout(profile.header.layout)
+    ? profile.header.layout
+    : getHeaderLayout(profile.header);
+
+const normalizeHeaderForSlug = (slug: string, profile: BuilderData): BuilderData => {
+  const pageSlug = splitPublicPagePath(slug).pageSlug || slug;
+  const layout = getSelectedHeaderLayout(profile);
+  return {
+    ...profile,
+    header: {
+      ...profile.header,
+      layout,
+      username: pageSlug,
+      publicHandle: normalizePublicHandle(
+        slug,
+        profile.header.publicHandle,
+        profile.header.publicUsername,
+        profile.header.username,
+      ),
+    },
+  };
+};
 
 export const PublicProfilePageClient = ({
   username,
