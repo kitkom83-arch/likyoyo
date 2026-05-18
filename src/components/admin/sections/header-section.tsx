@@ -217,7 +217,7 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
       description={t("header_desc")}
     >
       <div className="space-y-2">
-        <Label htmlFor="workspaceSlug">{t("header_public_path")}</Label>
+        <Label htmlFor="workspaceSlug">{t("saved_manager_create_slug")}</Label>
         <Input
           id="workspaceSlug"
           value={header.username}
