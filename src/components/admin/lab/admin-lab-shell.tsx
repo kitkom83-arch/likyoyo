@@ -1,6 +1,6 @@
 import { mockBuilderData } from "@/features/builder/mock-data";
 import { featureFlagMetadata, featureFlags } from "@/lib/feature-flags";
-import { PublicResponsiveLabPreview } from "@/components/admin/lab/public-responsive-lab-preview";
+import { LabWorkspaceTabs } from "@/components/admin/lab/lab-workspace-tabs";
 
 const flagRows = featureFlagMetadata.map((flag) => ({
   ...flag,
@@ -29,64 +29,30 @@ export const AdminLabShell = () => {
   return (
     <main className="min-h-screen bg-muted/40 px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-6xl gap-5">
-        <section className="rounded-2xl border bg-background p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            UI/UX Lab
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold">Safe lab workspace</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-            This page uses mock builder data only. It does not save changes, call Supabase,
-            or modify public_pages.
-          </p>
+        <section className="rounded-xl border bg-background p-6 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                UI/UX Lab
+              </p>
+              <h1 className="mt-2 text-2xl font-semibold">Safe experiment workspace</h1>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+                This page is the mock-only home for future UI and workflow ideas. It does
+                not save changes, call Supabase, call Google Sheets, or modify production
+                admin and public pages.
+              </p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+              <p className="font-medium">Mock profile source</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                @{mockBuilderData.header.username} · {mockBuilderData.header.displayName} ·{" "}
+                {mockBuilderData.header.layout}
+              </p>
+            </div>
+          </div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <PublicResponsiveLabPreview />
-
-          <aside className="rounded-2xl border bg-background p-5 shadow-sm">
-            <h2 className="text-lg font-semibold">Current flags</h2>
-            <div className="mt-4 grid gap-3">
-              {flagRows.map((flag) => (
-                <div key={flag.envName} className="rounded-xl border p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium">{flag.label}</p>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        flag.enabled
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {flag.enabled ? "on" : "off"}
-                    </span>
-                  </div>
-                  <p className="mt-1 break-all text-xs text-muted-foreground">{flag.envName}</p>
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                    {flag.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </aside>
-        </section>
-
-        <section className="rounded-2xl border bg-background p-5 shadow-sm">
-          <h2 className="text-lg font-semibold">Mock profile source</h2>
-          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-            <div className="rounded-xl border p-3">
-              <dt className="text-xs text-muted-foreground">Slug</dt>
-              <dd className="mt-1 font-medium">{mockBuilderData.header.username}</dd>
-            </div>
-            <div className="rounded-xl border p-3">
-              <dt className="text-xs text-muted-foreground">Display name</dt>
-              <dd className="mt-1 font-medium">{mockBuilderData.header.displayName}</dd>
-            </div>
-            <div className="rounded-xl border p-3">
-              <dt className="text-xs text-muted-foreground">Header layout</dt>
-              <dd className="mt-1 font-medium">{mockBuilderData.header.layout}</dd>
-            </div>
-          </dl>
-        </section>
+        <LabWorkspaceTabs flagRows={flagRows} />
       </div>
     </main>
   );
