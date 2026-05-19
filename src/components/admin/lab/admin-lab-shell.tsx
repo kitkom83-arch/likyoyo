@@ -1,5 +1,6 @@
 import { mockBuilderData } from "@/features/builder/mock-data";
 import { featureFlagMetadata, featureFlags } from "@/lib/feature-flags";
+import { PublicResponsiveLabPreview } from "@/components/admin/lab/public-responsive-lab-preview";
 
 const flagRows = featureFlagMetadata.map((flag) => ({
   ...flag,
@@ -40,17 +41,7 @@ export const AdminLabShell = () => {
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="rounded-2xl border bg-background p-5 shadow-sm">
-            <h2 className="text-lg font-semibold">Future preview testing</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">
-                Phone preview placeholder
-              </div>
-              <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">
-                PC preview placeholder
-              </div>
-            </div>
-          </div>
+          <PublicResponsiveLabPreview />
 
           <aside className="rounded-2xl border bg-background p-5 shadow-sm">
             <h2 className="text-lg font-semibold">Current flags</h2>
