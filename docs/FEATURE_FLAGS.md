@@ -12,6 +12,7 @@ switches for isolated experiments.
 | `NEXT_PUBLIC_ENABLE_ADMIN_UI_V2` | `false` | Future admin interface experiments. |
 | `NEXT_PUBLIC_ENABLE_FORM_ENGINE_V1` | `false` | Future form renderer and workflow experiments. |
 | `NEXT_PUBLIC_ENABLE_UI_LAB_MODE` | `false` | Enables the protected `/admin/lab` UI/UX lab page. |
+| `ENABLE_LOCAL_LAB_ACCESS` | `false` | Allows `/admin/lab` to bypass admin login on `localhost` or `127.0.0.1` in `next dev` only. |
 
 Accepted enabled values are `1`, `true`, `yes`, and `on`, case-insensitive.
 Any missing or different value is treated as `false`.
@@ -21,8 +22,13 @@ Any missing or different value is treated as `false`.
 Add the flag to `.env.local`, then restart the Next.js dev server:
 
 ```env
+ENABLE_LOCAL_LAB_ACCESS=true
 NEXT_PUBLIC_ENABLE_UI_LAB_MODE=true
 ```
+
+`ENABLE_LOCAL_LAB_ACCESS` is only honored when `NODE_ENV` is `development`, the
+request host is `localhost` or `127.0.0.1`, and the path is `/admin/lab`. It does
+not create an admin session and does not bypass `/admin` or `/admin/owner`.
 
 ## Enable In Vercel Preview
 
