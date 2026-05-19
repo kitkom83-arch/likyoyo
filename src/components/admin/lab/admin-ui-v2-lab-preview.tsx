@@ -1,3 +1,5 @@
+"use client";
+
 import {
   BarChart3,
   Blocks,
@@ -11,8 +13,31 @@ import {
   ShieldCheck,
   Smartphone,
 } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+type DeviceMode = "phone" | "desktop";
+
+type MockPage = {
+  route: string;
+  title: string;
+  status: "active" | "draft" | "mock";
+  detail: string;
+  headline: string;
+  previewNote: string;
+};
+
+type MockBlock = {
+  id: string;
+  label: string;
+  state: "enabled" | "disabled";
+  detail: string;
+  previewTitle: string;
+  previewBody: string;
+  controls: string[];
+};
 
 const adminNavItems = [
   { label: "Pages", icon: FileText, active: true },
@@ -23,27 +48,93 @@ const adminNavItems = [
   { label: "Settings", icon: Settings, active: false },
 ];
 
-const mockPages = [
-  { route: "/bn9/main", title: "Main landing", status: "active", detail: "Hero, offers, contact" },
-  { route: "/bn9/promo", title: "Promo page", status: "draft", detail: "Seasonal campaign" },
-  { route: "/bn9/support", title: "Support page", status: "mock", detail: "Static support concept" },
+const mockPages: MockPage[] = [
+  {
+    route: "/bn9/main",
+    title: "Main landing",
+    status: "active",
+    detail: "Hero, offers, contact",
+    headline: "Northfield Studio main experience",
+    previewNote: "Primary public landing concept with hero and high-intent CTAs.",
+  },
+  {
+    route: "/bn9/promo",
+    title: "Promo page",
+    status: "draft",
+    detail: "Seasonal campaign",
+    headline: "Limited campaign page",
+    previewNote: "Focused promo flow with image-forward offers and urgency blocks.",
+  },
+  {
+    route: "/bn9/support",
+    title: "Support page",
+    status: "mock",
+    detail: "Static support concept",
+    headline: "Support request hub",
+    previewNote: "Mock support layout only; no deposit, withdraw, or ticket routes.",
+  },
 ];
 
-const mockBlocks = [
-  { label: "Hero Header", state: "enabled", detail: "Brand intro and avatar" },
-  { label: "Button Group", state: "enabled", detail: "Primary links and CTAs" },
-  { label: "Form Block", state: "disabled", detail: "No endpoint wiring" },
-  { label: "Embed Post", state: "enabled", detail: "Static content preview" },
-  { label: "Analytics Card", state: "disabled", detail: "Mock metrics only" },
+const mockBlocks: MockBlock[] = [
+  {
+    id: "hero",
+    label: "Hero Header",
+    state: "enabled",
+    detail: "Brand intro and avatar",
+    previewTitle: "Hero Header",
+    previewBody: "Brand avatar, page headline, short intro, and primary action area.",
+    controls: ["Avatar style", "Headline size", "Hero media", "Intro alignment"],
+  },
+  {
+    id: "buttons",
+    label: "Button Group",
+    state: "enabled",
+    detail: "Primary links and CTAs",
+    previewTitle: "Button Group",
+    previewBody: "Stacked action buttons with icon, image, and text variants.",
+    controls: ["Button density", "Icon placement", "Priority order", "Corner radius"],
+  },
+  {
+    id: "form",
+    label: "Form Block",
+    state: "disabled",
+    detail: "No endpoint wiring",
+    previewTitle: "Form Block",
+    previewBody: "Static form layout preview without submissions or API calls.",
+    controls: ["Field spacing", "Required labels", "Submit copy", "Success state"],
+  },
+  {
+    id: "embed",
+    label: "Embed Post",
+    state: "enabled",
+    detail: "Static content preview",
+    previewTitle: "Embed Post",
+    previewBody: "Rich content slot for visual posts, announcements, or video embeds.",
+    controls: ["Aspect ratio", "Caption style", "Media frame", "Content source"],
+  },
+  {
+    id: "analytics",
+    label: "Analytics Card",
+    state: "disabled",
+    detail: "Mock metrics only",
+    previewTitle: "Analytics Card",
+    previewBody: "Future private insight card with sample views, clicks, and CTR.",
+    controls: ["Metric set", "Chart style", "Date range", "Privacy mode"],
+  },
 ];
 
-const styleControls = ["Theme", "Button shape", "Card surface", "Accent color"];
+const safeLabels = ["local mock state only", "no save", "no publish", "no route loading", "no schema update"];
 const spacingControls = ["Section gap", "Block padding", "Mobile density"];
-const devicePreviewBars = ["Hero", "Links", "Form", "Embed"];
+
+const getStatusLabel = (value: string) => {
+  if (value === "active") return "active";
+  if (value === "enabled") return "enabled";
+  return value;
+};
 
 function StatusBadge({ value }: { value: string }) {
   if (value === "active" || value === "enabled") {
-    return <Badge>enabled</Badge>;
+    return <Badge>{getStatusLabel(value)}</Badge>;
   }
 
   if (value === "draft") {
@@ -53,7 +144,27 @@ function StatusBadge({ value }: { value: string }) {
   return <Badge variant="secondary">{value}</Badge>;
 }
 
-function MockTopBar() {
+function SafetyLabelRow() {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {safeLabels.map((label) => (
+        <Badge key={label} variant="outline">
+          {label}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
+function MockTopBar({
+  selectedPage,
+  deviceMode,
+}: {
+  selectedPage: MockPage;
+  deviceMode: DeviceMode;
+}) {
+  const DeviceIcon = deviceMode === "phone" ? Smartphone : Monitor;
+
   return (
     <header className="border-b bg-background px-4 py-3">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -62,16 +173,16 @@ function MockTopBar() {
             Current mock page route
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-semibold leading-tight">/bn9/main</h3>
+            <h3 className="text-lg font-semibold leading-tight">{selectedPage.route}</h3>
             <Badge variant="outline">no real route loading</Badge>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">Mock saved 2 min ago</Badge>
+          <Badge variant="secondary">Mock save status: idle</Badge>
           <Badge variant="outline">
-            <Monitor data-icon="inline-start" />
-            Desktop mode
+            <DeviceIcon data-icon="inline-start" />
+            {deviceMode === "phone" ? "Phone mode" : "Desktop mode"}
           </Badge>
           <Badge variant="outline">
             <ShieldCheck data-icon="inline-start" />
@@ -97,9 +208,10 @@ function MockSidebar() {
           return (
             <div
               key={item.label}
-              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
                 item.active ? "bg-foreground text-background" : "bg-muted/50 text-foreground"
-              }`}
+              )}
             >
               <Icon className="size-4" />
               {item.label}
@@ -112,14 +224,21 @@ function MockSidebar() {
           Guardrails
         </p>
         <p className="mt-2 text-xs leading-5 text-muted-foreground">
-          Visual-only lab shell. No save, publish, schema, route, or store updates.
+          Visual-only lab shell with local mock state. No save, publish, schema, route, or
+          store updates.
         </p>
       </div>
     </aside>
   );
 }
 
-function MockPagesArea() {
+function MockPagesArea({
+  selectedPage,
+  onSelectPage,
+}: {
+  selectedPage: MockPage;
+  onSelectPage: (page: MockPage) => void;
+}) {
   return (
     <section className="rounded-xl border bg-background p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -132,24 +251,47 @@ function MockPagesArea() {
         <Badge variant="secondary">static routes</Badge>
       </div>
       <div className="mt-4 grid gap-3">
-        {mockPages.map((page) => (
-          <article key={page.route} className="rounded-lg border bg-muted/30 p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">{page.route}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{page.title}</p>
+        {mockPages.map((page) => {
+          const selected = selectedPage.route === page.route;
+
+          return (
+            <button
+              key={page.route}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onSelectPage(page)}
+              className={cn(
+                "rounded-lg border p-3 text-left transition-colors",
+                selected ? "border-foreground bg-foreground text-background" : "bg-muted/30 hover:bg-muted/60"
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{page.route}</p>
+                  <p className={cn("mt-1 text-xs", selected ? "text-background/75" : "text-muted-foreground")}>
+                    {page.title}
+                  </p>
+                </div>
+                <StatusBadge value={page.status} />
               </div>
-              <StatusBadge value={page.status} />
-            </div>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">{page.detail}</p>
-          </article>
-        ))}
+              <p className={cn("mt-2 text-xs leading-5", selected ? "text-background/75" : "text-muted-foreground")}>
+                {page.detail}
+              </p>
+            </button>
+          );
+        })}
       </div>
     </section>
   );
 }
 
-function MockBlockManager() {
+function MockBlockManager({
+  selectedBlock,
+  onSelectBlock,
+}: {
+  selectedBlock: MockBlock;
+  onSelectBlock: (block: MockBlock) => void;
+}) {
   return (
     <section className="rounded-xl border bg-background p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -162,28 +304,32 @@ function MockBlockManager() {
         <Badge variant="outline">no schema changes</Badge>
       </div>
       <div className="mt-4 grid gap-3">
-        {mockBlocks.map((block, index) => (
-          <article
-            key={block.label}
-            className={`rounded-lg border p-3 ${
-              index === 0 ? "bg-foreground text-background" : "bg-muted/30"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold">{block.label}</p>
-                <p
-                  className={`mt-1 text-xs leading-5 ${
-                    index === 0 ? "text-background/75" : "text-muted-foreground"
-                  }`}
-                >
-                  {block.detail}
-                </p>
+        {mockBlocks.map((block) => {
+          const selected = selectedBlock.id === block.id;
+
+          return (
+            <button
+              key={block.id}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onSelectBlock(block)}
+              className={cn(
+                "rounded-lg border p-3 text-left transition-colors",
+                selected ? "border-foreground bg-foreground text-background" : "bg-muted/30 hover:bg-muted/60"
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">{block.label}</p>
+                  <p className={cn("mt-1 text-xs leading-5", selected ? "text-background/75" : "text-muted-foreground")}>
+                    {block.detail}
+                  </p>
+                </div>
+                <StatusBadge value={block.state} />
               </div>
-              <StatusBadge value={block.state} />
-            </div>
-          </article>
-        ))}
+            </button>
+          );
+        })}
       </div>
     </section>
   );
@@ -202,9 +348,10 @@ function StaticField({
     <div>
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <div
-        className={`mt-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm ${
+        className={cn(
+          "mt-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm",
           tall ? "min-h-20 leading-6" : ""
-        }`}
+        )}
       >
         {value}
       </div>
@@ -212,7 +359,13 @@ function StaticField({
   );
 }
 
-function MockEditorArea() {
+function MockEditorArea({
+  selectedPage,
+  selectedBlock,
+}: {
+  selectedPage: MockPage;
+  selectedBlock: MockBlock;
+}) {
   return (
     <section className="rounded-xl border bg-background p-4 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -222,10 +375,10 @@ function MockEditorArea() {
           </p>
           <h3 className="mt-1 text-base font-semibold">Selected block preview</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Hero Header is selected. Controls below are static mock UI only.
+            {selectedBlock.label} is selected on {selectedPage.route}. Controls below are static mock UI only.
           </p>
         </div>
-        <Badge variant="outline">read-only controls</Badge>
+        <Badge variant="outline">no form state save</Badge>
       </div>
 
       <div className="mt-4 overflow-hidden rounded-xl border bg-muted/30">
@@ -234,26 +387,25 @@ function MockEditorArea() {
             <div className="mx-auto size-20 rounded-full bg-muted" />
             <div className="mt-4 h-2 rounded bg-muted" />
             <div className="mt-2 h-2 w-2/3 rounded bg-muted" />
+            <div className="mt-5 h-8 rounded-lg bg-foreground" />
           </div>
           <div className="grid content-center gap-3">
-            <Badge variant="secondary">Hero Header</Badge>
-            <h4 className="text-2xl font-semibold leading-tight">Northfield Studio</h4>
+            <Badge variant="secondary">{selectedBlock.previewTitle}</Badge>
+            <h4 className="text-2xl font-semibold leading-tight">{selectedPage.headline}</h4>
             <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-              Future public-page hero concept with brand intro, CTA, and responsive spacing.
+              {selectedBlock.previewBody}
             </p>
           </div>
         </div>
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <StaticField label="Display name" value="Northfield Studio" />
-        <StaticField label="Primary CTA label" value="Book a consultation" />
-        <StaticField
-          label="Intro text"
-          value="Static field preview for layout planning. No input submission is wired."
-          tall
-        />
-        <StaticField label="Selected route" value="/bn9/main" />
+        <StaticField label="Selected route" value={selectedPage.route} />
+        <StaticField label="Selected block" value={selectedBlock.label} />
+        <StaticField label="Editor headline" value={selectedPage.headline} />
+        <StaticField label="Mock state boundary" value="Local component state only" />
+        <StaticField label="Planning note" value={selectedPage.previewNote} tall />
+        <StaticField label="Block behavior" value={selectedBlock.previewBody} tall />
       </div>
     </section>
   );
@@ -264,9 +416,10 @@ function MockToggle({ label, checked = false }: { label: string; checked?: boole
     <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
       <p className="text-sm font-medium">{label}</p>
       <div
-        className={`flex h-6 w-11 items-center rounded-full p-1 ${
+        className={cn(
+          "flex h-6 w-11 items-center rounded-full p-1",
           checked ? "justify-end bg-foreground" : "justify-start bg-muted"
-        }`}
+        )}
       >
         <span className="size-4 rounded-full bg-background shadow-sm" />
       </div>
@@ -274,7 +427,7 @@ function MockToggle({ label, checked = false }: { label: string; checked?: boole
   );
 }
 
-function MockPropertyInspector() {
+function MockPropertyInspector({ selectedBlock }: { selectedBlock: MockBlock }) {
   return (
     <section className="rounded-xl border bg-background p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
@@ -282,7 +435,7 @@ function MockPropertyInspector() {
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             Property Inspector
           </p>
-          <h3 className="mt-1 text-base font-semibold">Hero Header</h3>
+          <h3 className="mt-1 text-base font-semibold">{selectedBlock.label}</h3>
         </div>
         <PanelRight className="size-4 text-muted-foreground" />
       </div>
@@ -290,10 +443,10 @@ function MockPropertyInspector() {
       <div className="mt-4 grid gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            Style controls
+            Relevant mock controls
           </p>
           <div className="mt-3 grid gap-2">
-            {styleControls.map((control) => (
+            {selectedBlock.controls.map((control) => (
               <div key={control} className="rounded-lg border bg-muted/30 px-3 py-2">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-medium">{control}</p>
@@ -323,7 +476,7 @@ function MockPropertyInspector() {
           </div>
         </div>
 
-        <MockToggle label="Visibility" checked />
+        <MockToggle label="Visibility" checked={selectedBlock.state === "enabled"} />
         <MockToggle label="Show on phone" checked />
         <MockToggle label="Show on desktop" checked />
         <MockToggle label="Hide in production" />
@@ -332,61 +485,139 @@ function MockPropertyInspector() {
   );
 }
 
-function MockDevicePreview() {
+function DeviceModeToggle({
+  deviceMode,
+  onSelectMode,
+}: {
+  deviceMode: DeviceMode;
+  onSelectMode: (mode: DeviceMode) => void;
+}) {
+  const modes: Array<{ mode: DeviceMode; label: string; icon: typeof Smartphone }> = [
+    { mode: "phone", label: "Phone", icon: Smartphone },
+    { mode: "desktop", label: "Desktop", icon: Monitor },
+  ];
+
+  return (
+    <div className="inline-flex rounded-lg border bg-muted/40 p-1">
+      {modes.map((item) => {
+        const Icon = item.icon;
+        const selected = deviceMode === item.mode;
+
+        return (
+          <button
+            key={item.mode}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onSelectMode(item.mode)}
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors",
+              selected ? "bg-foreground text-background shadow-sm" : "text-foreground hover:bg-background"
+            )}
+          >
+            <Icon className="size-4" />
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MockDevicePreview({
+  selectedPage,
+  selectedBlock,
+  deviceMode,
+  onSelectMode,
+}: {
+  selectedPage: MockPage;
+  selectedBlock: MockBlock;
+  deviceMode: DeviceMode;
+  onSelectMode: (mode: DeviceMode) => void;
+}) {
+  const isPhone = deviceMode === "phone";
+
   return (
     <section className="rounded-xl border bg-background p-4 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             Device Preview
           </p>
           <h3 className="mt-1 text-base font-semibold">Visual only</h3>
         </div>
-        <Eye className="size-4 text-muted-foreground" />
+        <DeviceModeToggle deviceMode={deviceMode} onSelectMode={onSelectMode} />
       </div>
 
-      <div className="mt-4 grid gap-4">
-        <div className="rounded-lg border bg-muted/30 p-3">
+      <div className="mt-4 rounded-lg border bg-muted/30 p-3">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <Smartphone className="size-4" />
-            Compact phone card
+            {isPhone ? <Smartphone className="size-4" /> : <Monitor className="size-4" />}
+            {isPhone ? "Phone mock preview" : "Desktop mock preview"}
           </div>
-          <div className="mx-auto mt-3 w-32 rounded-2xl border bg-background p-2">
-            <div className="h-16 rounded-xl bg-muted" />
-            <div className="mx-auto mt-2 size-8 rounded-full bg-muted" />
-            <div className="mt-3 grid gap-1.5">
-              {devicePreviewBars.map((bar) => (
-                <div key={bar} className="h-5 rounded bg-muted/70" />
-              ))}
-            </div>
-          </div>
+          <Eye className="size-4 text-muted-foreground" />
         </div>
 
-        <div className="rounded-lg border bg-muted/30 p-3">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Monitor className="size-4" />
-            Desktop mini preview
+        {isPhone ? (
+          <div className="mx-auto mt-4 w-40 rounded-3xl border bg-background p-2 shadow-sm">
+            <div className="rounded-2xl bg-muted/40 p-3">
+              <div className="h-16 rounded-xl bg-muted" />
+              <p className="mt-3 truncate text-center text-xs font-semibold">{selectedPage.title}</p>
+              <div className="mt-3 grid gap-1.5">
+                {mockBlocks.slice(0, 4).map((block) => (
+                  <div
+                    key={block.id}
+                    className={cn(
+                      "h-5 rounded",
+                      block.id === selectedBlock.id ? "bg-foreground" : "bg-muted"
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="mt-3 rounded-lg border bg-background p-3">
+        ) : (
+          <div className="mt-4 rounded-lg border bg-background p-3 shadow-sm">
             <div className="grid gap-2 sm:grid-cols-[0.8fr_1.2fr]">
-              <div className="h-28 rounded bg-muted" />
+              <div className="h-32 rounded bg-muted" />
               <div className="grid gap-2">
-                <div className="h-8 rounded bg-muted" />
+                <div className="rounded bg-muted/50 p-2">
+                  <p className="truncate text-xs font-semibold">{selectedPage.headline}</p>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="h-16 rounded bg-muted/70" />
-                  <div className="h-16 rounded bg-muted/70" />
+                  {mockBlocks.slice(0, 4).map((block) => (
+                    <div
+                      key={block.id}
+                      className={cn(
+                        "h-16 rounded",
+                        block.id === selectedBlock.id ? "bg-foreground" : "bg-muted/70"
+                      )}
+                    />
+                  ))}
                 </div>
                 <div className="h-12 rounded bg-muted/70" />
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </section>
   );
 }
 
 export function AdminUiV2LabPreview() {
+  const [selectedPageRoute, setSelectedPageRoute] = useState(mockPages[0].route);
+  const [selectedBlockId, setSelectedBlockId] = useState(mockBlocks[0].id);
+  const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
+
+  const selectedPage = useMemo(
+    () => mockPages.find((page) => page.route === selectedPageRoute) ?? mockPages[0],
+    [selectedPageRoute]
+  );
+  const selectedBlock = useMemo(
+    () => mockBlocks.find((block) => block.id === selectedBlockId) ?? mockBlocks[0],
+    [selectedBlockId]
+  );
+
   return (
     <section className="rounded-xl border bg-background p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -394,33 +625,48 @@ export function AdminUiV2LabPreview() {
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             Admin UI V2
           </p>
-          <h2 className="mt-2 text-lg font-semibold">Modern mock backoffice/editor</h2>
+          <h2 className="mt-2 text-lg font-semibold">Clickable mock backoffice/editor</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Static lab concept for a future admin workspace. It does not import real editor
-            components, save data, publish pages, call APIs, or update production stores.
+            Local-state prototype for a future admin workspace. It does not import real
+            editor components, save data, publish pages, call APIs, or update production stores.
           </p>
         </div>
         <Badge variant="secondary">mock only</Badge>
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-xl border bg-muted/30">
-        <MockTopBar />
+      <div className="mt-4 rounded-xl border bg-muted/30 p-3">
+        <SafetyLabelRow />
+      </div>
 
-        <div className="grid min-h-[760px] lg:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="mt-5 overflow-hidden rounded-xl border bg-muted/30">
+        <MockTopBar selectedPage={selectedPage} deviceMode={deviceMode} />
+
+        <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
           <MockSidebar />
 
-          <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <main className="grid content-start gap-4">
-              <div className="grid gap-4 xl:grid-cols-[minmax(260px,0.85fr)_minmax(300px,1fr)]">
-                <MockPagesArea />
-                <MockBlockManager />
+          <div className="grid gap-4 p-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
+            <main className="grid min-w-0 content-start gap-4">
+              <div className="grid gap-4 xl:grid-cols-2">
+                <MockPagesArea
+                  selectedPage={selectedPage}
+                  onSelectPage={(page) => setSelectedPageRoute(page.route)}
+                />
+                <MockBlockManager
+                  selectedBlock={selectedBlock}
+                  onSelectBlock={(block) => setSelectedBlockId(block.id)}
+                />
               </div>
-              <MockEditorArea />
+              <MockEditorArea selectedPage={selectedPage} selectedBlock={selectedBlock} />
             </main>
 
-            <aside className="grid content-start gap-4">
-              <MockPropertyInspector />
-              <MockDevicePreview />
+            <aside className="grid min-w-0 content-start gap-4 xl:grid-cols-2 2xl:grid-cols-1">
+              <MockPropertyInspector selectedBlock={selectedBlock} />
+              <MockDevicePreview
+                selectedPage={selectedPage}
+                selectedBlock={selectedBlock}
+                deviceMode={deviceMode}
+                onSelectMode={setDeviceMode}
+              />
             </aside>
           </div>
         </div>
