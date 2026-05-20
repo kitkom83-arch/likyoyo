@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 
-import { BuilderData, FormField, SocialLink } from "@/features/builder/types";
+import { BuilderData, FormField, LinkButtonStyle, SocialLink } from "@/features/builder/types";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import {
   getContentType,
@@ -42,6 +42,7 @@ import {
   hydrateBuilderDataWithIndexedDbImages,
 } from "@/lib/local-storage/image-storage";
 import { useI18n } from "@/i18n/use-i18n";
+import { featureFlags } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
 
 type MobilePreviewProps = {
@@ -96,6 +97,16 @@ const WEB_EXTERNAL_HREF_PROTOCOLS = new Set(["http:", "https:"]);
 const TIME_SEGMENT_OPTIONS = Array.from({ length: 60 }, (_, index) =>
   String(index).padStart(2, "0"),
 );
+const BUTTON_MENU_V2_STYLES = new Set<LinkButtonStyle>([
+  "icon-left",
+  "image-full",
+  "text-only",
+  "card-left-image",
+  "text-panel",
+]);
+
+const isButtonMenuV2Style = (value: unknown): value is LinkButtonStyle =>
+  typeof value === "string" && BUTTON_MENU_V2_STYLES.has(value as LinkButtonStyle);
 
 const normalizeImageSrc = (
   value: string | null | undefined,
@@ -467,6 +478,7 @@ export const MobilePreview = ({
   onPublicLinkClick,
 }: MobilePreviewProps) => {
   const isAdminPreview = mode === "admin";
+  const isButtonMenuV2PreviewEnabled = isAdminPreview && featureFlags.buttonMenuV2Preview;
   const { t } = useI18n();
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
   const [resolvedImageRefs, setResolvedImageRefs] = useState<Record<string, string>>({});
@@ -1026,6 +1038,11 @@ export const MobilePreview = ({
               const backgroundImageSrc =
                 normalizeImageSrc(displaySettings.backgroundImageUrl, styleImageSrc) ?? styleImageSrc;
               const activeStyle = displaySettings.style ?? "icon_left";
+              const rawButtonMenuV2Style = link.settings.buttonStyle ?? link.buttonStyle;
+              const buttonMenuV2Style =
+                isButtonMenuV2PreviewEnabled && isButtonMenuV2Style(rawButtonMenuV2Style)
+                  ? rawButtonMenuV2Style
+                  : null;
               const openInNewTab = displaySettings.openInNewTab ?? true;
               const imageBrightness = normalizeImageTuningValue(displaySettings.imageBrightness, 100, 200);
               const imageContrast = normalizeImageTuningValue(displaySettings.imageContrast, 100, 200);
@@ -1034,7 +1051,11 @@ export const MobilePreview = ({
               const imageFilterStyle = {
                 filter: `brightness(${imageBrightness}%) contrast(${imageContrast}%) saturate(${imageSaturation}%)`,
               } as const;
-              const baseImageOverlayOpacity = activeStyle === "image_banner" ? 35 : 0;
+              const baseImageOverlayOpacity =
+                buttonMenuV2Style === "image-full" ||
+                (!buttonMenuV2Style && activeStyle === "image_banner")
+                  ? 35
+                  : 0;
               const resolvedImageOverlayOpacity =
                 Math.min(100, Math.max(0, baseImageOverlayOpacity + imageOverlayExtraOpacity)) / 100;
               const styleImageKey = `${link.id}::style::${styleImageSrc}`;
@@ -1049,14 +1070,35 @@ export const MobilePreview = ({
               const safeBackgroundImageSrc = brokenThumbnailKeys[backgroundImageKey]
                 ? THUMBNAIL_FALLBACK_SRC
                 : backgroundImageSrc;
+              const buttonMenuV2ImageSrc = normalizeImageSrc(displaySettings.imageUrl);
+              const buttonMenuV2BackgroundImageSrc =
+                normalizeImageSrc(displaySettings.backgroundImageUrl) ?? buttonMenuV2ImageSrc;
+              const buttonMenuV2ImageKey = buttonMenuV2ImageSrc
+                ? `${link.id}::v2-image::${buttonMenuV2ImageSrc}`
+                : null;
+              const buttonMenuV2BackgroundImageKey = buttonMenuV2BackgroundImageSrc
+                ? `${link.id}::v2-background::${buttonMenuV2BackgroundImageSrc}`
+                : null;
+              const safeButtonMenuV2ImageSrc =
+                buttonMenuV2ImageKey && !brokenThumbnailKeys[buttonMenuV2ImageKey]
+                  ? buttonMenuV2ImageSrc
+                  : null;
+              const safeButtonMenuV2BackgroundImageSrc =
+                buttonMenuV2BackgroundImageKey && !brokenThumbnailKeys[buttonMenuV2BackgroundImageKey]
+                  ? buttonMenuV2BackgroundImageSrc
+                  : null;
               const textAlignClass =
                 displaySettings.textAlign === "center"
                   ? "text-center items-center"
                   : displaySettings.textAlign === "right"
                     ? "text-right items-end"
                     : "text-left items-start";
-              const isImageFullStyle = activeStyle === "image_banner";
-              const isTextPanelStyle = activeStyle === "text_panel";
+              const isImageFullStyle = buttonMenuV2Style
+                ? buttonMenuV2Style === "image-full"
+                : activeStyle === "image_banner";
+              const isTextPanelStyle = buttonMenuV2Style
+                ? buttonMenuV2Style === "text-panel"
+                : activeStyle === "text_panel";
               const className = cn(
                 "w-full border font-semibold backdrop-blur-sm transition hover:brightness-105",
                 isImageFullStyle
@@ -1116,6 +1158,167 @@ export const MobilePreview = ({
                 description?: string;
                 panelText?: string;
               }) => {
+                if (buttonMenuV2Style) {
+                  const bodyText = panelText || description || "";
+
+                  if (buttonMenuV2Style === "text-only") {
+                    return (
+                      <div className={cn("flex w-full flex-col gap-1", textAlignClass)}>
+                        {title ? (
+                          <p className="w-full text-sm font-semibold sm:text-base">{title}</p>
+                        ) : null}
+                        {lockBadge}
+                      </div>
+                    );
+                  }
+
+                  if (buttonMenuV2Style === "image-full") {
+                    return (
+                      <div
+                        className={cn(
+                          "relative w-full overflow-hidden bg-black/10",
+                          displaySettings.imageAspect === "2:1" ? "aspect-[2/1]" : "aspect-[3/1]",
+                        )}
+                      >
+                        {safeButtonMenuV2BackgroundImageSrc ? (
+                          <div className="absolute inset-0" style={imageFilterStyle}>
+                            <SafeImage
+                              src={safeButtonMenuV2BackgroundImageSrc}
+                              alt=""
+                              width={720}
+                              height={360}
+                              className="absolute inset-0 h-full w-full object-cover"
+                              onError={() => {
+                                if (!buttonMenuV2BackgroundImageKey) {
+                                  return;
+                                }
+                                setBrokenThumbnailKeys((current) => ({
+                                  ...current,
+                                  [buttonMenuV2BackgroundImageKey]: true,
+                                }));
+                              }}
+                            />
+                          </div>
+                        ) : null}
+                        <div
+                          className="absolute inset-0"
+                          style={{ backgroundColor: `rgba(0,0,0,${resolvedImageOverlayOpacity})` }}
+                        />
+                        <div className={cn("relative z-[1] flex h-full w-full flex-col justify-center gap-1 px-4 py-3 text-white sm:px-5", textAlignClass)}>
+                          {title ? (
+                            <p
+                              className={cn(
+                                "w-full font-semibold",
+                                displaySettings.titleSize ? "" : "text-base sm:text-lg",
+                              )}
+                              style={displaySettings.titleSize ? { fontSize: `${displaySettings.titleSize}px` } : undefined}
+                            >
+                              {title}
+                            </p>
+                          ) : null}
+                          {bodyText ? (
+                            <p className="line-clamp-2 w-full text-xs opacity-90 sm:text-sm">
+                              {bodyText}
+                            </p>
+                          ) : null}
+                          {lockBadge}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (buttonMenuV2Style === "card-left-image") {
+                    return (
+                      <div className="flex w-full items-center gap-3">
+                        {safeButtonMenuV2ImageSrc ? (
+                          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-black/10" style={imageFilterStyle}>
+                            <SafeImage
+                              src={safeButtonMenuV2ImageSrc}
+                              alt=""
+                              className="h-20 w-20 object-cover"
+                              width={80}
+                              height={80}
+                              onError={() => {
+                                if (!buttonMenuV2ImageKey) {
+                                  return;
+                                }
+                                setBrokenThumbnailKeys((current) => ({
+                                  ...current,
+                                  [buttonMenuV2ImageKey]: true,
+                                }));
+                              }}
+                            />
+                            {imageOverlayExtraOpacity > 0 ? (
+                              <div
+                                className="pointer-events-none absolute inset-0"
+                                style={{ backgroundColor: `rgba(0,0,0,${imageOverlayExtraOpacity / 100})` }}
+                              />
+                            ) : null}
+                          </div>
+                        ) : null}
+                        <div className={cn("min-w-0 flex-1", textAlignClass)}>
+                          {title ? <p className="w-full text-lg font-semibold leading-tight">{title}</p> : null}
+                          {bodyText ? (
+                            <p className="mt-1 w-full whitespace-pre-wrap text-xs leading-relaxed opacity-80 sm:text-sm">
+                              {bodyText}
+                            </p>
+                          ) : null}
+                          {lockBadge ? <div className="mt-2">{lockBadge}</div> : null}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (buttonMenuV2Style === "text-panel") {
+                    return (
+                      <div className={cn("flex w-full flex-col gap-2", textAlignClass)}>
+                        {title ? <p className="w-full text-base font-semibold sm:text-lg">{title}</p> : null}
+                        {bodyText ? (
+                          <p
+                            className={cn(
+                              "w-full text-sm leading-relaxed opacity-90 sm:text-base",
+                              displaySettings.preserveLineBreaks === false ? "whitespace-normal" : "whitespace-pre-wrap",
+                            )}
+                          >
+                            {bodyText}
+                          </p>
+                        ) : null}
+                        {lockBadge}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {safeButtonMenuV2ImageSrc ? (
+                        <SafeImage
+                          src={safeButtonMenuV2ImageSrc}
+                          alt=""
+                          className="size-10 rounded-full border border-black/10 object-cover"
+                          width={40}
+                          height={40}
+                          onError={() => {
+                            if (!buttonMenuV2ImageKey) {
+                              return;
+                            }
+                            setBrokenThumbnailKeys((current) => ({
+                              ...current,
+                              [buttonMenuV2ImageKey]: true,
+                            }));
+                          }}
+                        />
+                      ) : null}
+                      <div className={cn("min-w-0 flex-1", textAlignClass)}>
+                        {title ? <p className="truncate text-sm font-semibold sm:text-base">{title}</p> : null}
+                        {bodyText ? (
+                          <p className="truncate text-xs leading-relaxed opacity-80 sm:text-sm">{bodyText}</p>
+                        ) : null}
+                      </div>
+                      {lockBadge}
+                    </>
+                  );
+                }
+
                 if (activeStyle === "text_only") {
                   return (
                     <div className={cn("flex w-full flex-col gap-1", textAlignClass)}>

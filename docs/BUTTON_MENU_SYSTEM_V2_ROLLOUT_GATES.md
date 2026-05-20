@@ -171,3 +171,57 @@ Rollback is to disable `NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_ADMIN` and redeploy.
 No data migration, SQL rollback, public renderer rollback, API rollback,
 Supabase rollback, support form rollback, or Google Sheets rollback is required
 for D3-B.
+
+## D3-C - MobilePreview Rendering Gate
+
+D3-C may render Button/Menu System V2 styles in the authenticated admin
+`MobilePreview`, but only behind the default-off
+`NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PREVIEW` flag.
+
+### D3-C Allowed Files
+
+D3-C passes this gate only when changed files are limited to:
+
+- `src/components/preview/mobile-preview.tsx`
+- `src/lib/feature-flags.ts`
+- `docs/FEATURE_FLAGS.md`
+- `docs/BUTTON_MENU_SYSTEM_V2_ROLLOUT_GATES.md`
+
+### D3-C Behavior Boundary
+
+When `NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PREVIEW` is missing or false:
+
+- Existing `MobilePreview` behavior must remain unchanged.
+- Existing links must keep the pre-D3-C preview renderer.
+- No Button/Menu System V2 preview rendering should appear.
+
+When `NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PREVIEW` is enabled:
+
+- The authenticated admin `MobilePreview` may render the five V2 styles:
+  `icon-left`, `image-full`, `text-only`, `card-left-image`, and `text-panel`.
+- Public rendering must remain unchanged.
+- Missing or unknown V2 styles must fall back to the existing preview renderer.
+- Empty or invalid image URLs must be treated as absent and must not break the
+  mobile preview layout.
+
+### D3-C Forbidden Files And Areas
+
+D3-C fails if any of these files or areas change:
+
+- `src/components/admin/sections/links-section.tsx`
+- `src/components/public/**`
+- `src/app/api/**`
+- `src/lib/server/**`
+- `supabase/migrations/**`
+- support forms
+- Google Sheets logic
+- admin auth
+- owner reset logic
+- Save/Load plumbing
+
+### D3-C Rollback
+
+Rollback is to disable `NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PREVIEW` and redeploy.
+No data migration, SQL rollback, public renderer rollback, API rollback,
+Supabase rollback, support form rollback, or Google Sheets rollback is required
+for D3-C.
