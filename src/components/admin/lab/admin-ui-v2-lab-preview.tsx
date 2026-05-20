@@ -53,6 +53,21 @@ type MockPage = {
 type PageStatus = "Draft" | "Published" | "Scheduled";
 type PageVisibility = "Public" | "Hidden" | "Password protected";
 type PageLanguage = "Thai" | "English";
+type FormFieldType =
+  | "text"
+  | "textarea"
+  | "email"
+  | "phone"
+  | "select"
+  | "radio"
+  | "checkbox"
+  | "date"
+  | "file URL";
+type SubmissionDestination =
+  | "Mock inbox"
+  | "Email notification mock"
+  | "Google Sheets mock"
+  | "Webhook mock";
 
 type PageSettings = {
   pageTitle: string;
@@ -102,6 +117,35 @@ type MockLinkItem = {
   ctr: string;
 };
 
+type MockFormTemplate = {
+  id: string;
+  title: string;
+  description: string;
+  destinationLabel: SubmissionDestination;
+  enabled: boolean;
+  privacyNote: string;
+};
+
+type MockFormField = {
+  id: string;
+  label: string;
+  placeholder: string;
+  type: FormFieldType;
+  required: boolean;
+  enabled: boolean;
+  helpText: string;
+  options: string;
+  validationHint: string;
+};
+
+type MockSubmissionRouting = {
+  destination: SubmissionDestination | "";
+  mockInbox: boolean;
+  emailNotification: boolean;
+  googleSheets: boolean;
+  webhook: boolean;
+};
+
 type DesignSettings = {
   theme: string;
   buttonStyle: ButtonStyle;
@@ -136,6 +180,16 @@ type UpdateSelectedLink = <K extends keyof MockLinkItem>(
 type UpdatePageSetting = <K extends keyof PageSettings>(
   key: K,
   value: PageSettings[K]
+) => void;
+
+type UpdateFormField = <K extends keyof MockFormField>(
+  key: K,
+  value: MockFormField[K]
+) => void;
+
+type UpdateSubmissionRouting = <K extends keyof MockSubmissionRouting>(
+  key: K,
+  value: MockSubmissionRouting[K]
 ) => void;
 
 const adminNavItems = [
@@ -381,6 +435,276 @@ const initialMockLinks: MockLinkItem[] = [
   },
 ];
 
+const mockFormTemplates: MockFormTemplate[] = [
+  {
+    id: "contact-form",
+    title: "Contact Form",
+    description: "General visitor message capture with name, email, and topic fields.",
+    destinationLabel: "Mock inbox",
+    enabled: true,
+    privacyNote: "Visitor details stay inside this local lab preview.",
+  },
+  {
+    id: "booking-form",
+    title: "Booking Form",
+    description: "Appointment request concept with date, phone, and preferred service.",
+    destinationLabel: "Email notification mock",
+    enabled: true,
+    privacyNote: "Booking requests are visual-only and do not reserve time.",
+  },
+  {
+    id: "support-form",
+    title: "Support Form",
+    description: "Safe support intake mock without deposit, withdraw, ticket, or API wiring.",
+    destinationLabel: "Mock inbox",
+    enabled: false,
+    privacyNote: "No support request is sent from this lab form.",
+  },
+  {
+    id: "lead-form",
+    title: "Lead Form",
+    description: "Lightweight lead qualification flow for campaigns and follow-up.",
+    destinationLabel: "Google Sheets mock",
+    enabled: true,
+    privacyNote: "Sheet destination is a label only; no spreadsheet is contacted.",
+  },
+  {
+    id: "custom-form",
+    title: "Custom Form",
+    description: "Flexible scratch form for future page-specific field combinations.",
+    destinationLabel: "Webhook mock",
+    enabled: true,
+    privacyNote: "Webhook destination is visual-only and never called.",
+  },
+];
+
+const initialMockFormFieldsByForm: Record<string, MockFormField[]> = {
+  "contact-form": [
+    {
+      id: "contact-name",
+      label: "Name",
+      placeholder: "Your name",
+      type: "text",
+      required: true,
+      enabled: true,
+      helpText: "Use a display name visitors recognize.",
+      options: "",
+      validationHint: "Name should not be empty.",
+    },
+    {
+      id: "contact-email",
+      label: "Email",
+      placeholder: "you@example.com",
+      type: "email",
+      required: true,
+      enabled: true,
+      helpText: "Reply address for a future inbox workflow.",
+      options: "",
+      validationHint: "Must look like an email address.",
+    },
+    {
+      id: "contact-topic",
+      label: "Topic",
+      placeholder: "Choose a topic",
+      type: "select",
+      required: false,
+      enabled: true,
+      helpText: "Options are mock-only.",
+      options: "Consultation\nPartnership\nSupport",
+      validationHint: "Optional select field.",
+    },
+    {
+      id: "contact-message",
+      label: "Message",
+      placeholder: "How can we help?",
+      type: "textarea",
+      required: true,
+      enabled: true,
+      helpText: "Long text preview only.",
+      options: "",
+      validationHint: "Message should include context.",
+    },
+  ],
+  "booking-form": [
+    {
+      id: "booking-name",
+      label: "Full name",
+      placeholder: "Customer name",
+      type: "text",
+      required: true,
+      enabled: true,
+      helpText: "Shown in the mock booking card.",
+      options: "",
+      validationHint: "Required booking name.",
+    },
+    {
+      id: "booking-phone",
+      label: "Phone",
+      placeholder: "Preferred phone number",
+      type: "phone",
+      required: true,
+      enabled: true,
+      helpText: "No SMS or call is triggered.",
+      options: "",
+      validationHint: "Phone format hint only.",
+    },
+    {
+      id: "booking-date",
+      label: "Preferred date",
+      placeholder: "Select a date",
+      type: "date",
+      required: false,
+      enabled: true,
+      helpText: "Calendar is visual-only.",
+      options: "",
+      validationHint: "Date should be in the future.",
+    },
+    {
+      id: "booking-service",
+      label: "Service",
+      placeholder: "Choose service",
+      type: "radio",
+      required: true,
+      enabled: true,
+      helpText: "Radio options stay local.",
+      options: "Consultation\nVIP setup\nSupport session",
+      validationHint: "One mock service should be selected.",
+    },
+  ],
+  "support-form": [
+    {
+      id: "support-email",
+      label: "Account email",
+      placeholder: "account@example.com",
+      type: "email",
+      required: true,
+      enabled: true,
+      helpText: "No support account lookup is performed.",
+      options: "",
+      validationHint: "Email hint only.",
+    },
+    {
+      id: "support-category",
+      label: "Support category",
+      placeholder: "Choose a category",
+      type: "select",
+      required: true,
+      enabled: true,
+      helpText: "No deposit or withdraw routes are connected.",
+      options: "Account\nPage access\nGeneral question",
+      validationHint: "Category is required in the mock.",
+    },
+    {
+      id: "support-attachment",
+      label: "Attachment link",
+      placeholder: "https://example.com/file",
+      type: "file URL",
+      required: false,
+      enabled: true,
+      helpText: "Paste a URL only; no upload is performed.",
+      options: "",
+      validationHint: "File URL helper only.",
+    },
+  ],
+  "lead-form": [
+    {
+      id: "lead-name",
+      label: "Lead name",
+      placeholder: "Name",
+      type: "text",
+      required: true,
+      enabled: true,
+      helpText: "Used in the fake submission preview.",
+      options: "",
+      validationHint: "Lead name should be present.",
+    },
+    {
+      id: "lead-email",
+      label: "Lead email",
+      placeholder: "lead@example.com",
+      type: "email",
+      required: true,
+      enabled: true,
+      helpText: "No email service is contacted.",
+      options: "",
+      validationHint: "Email hint only.",
+    },
+    {
+      id: "lead-interest",
+      label: "Interest level",
+      placeholder: "Select interest",
+      type: "checkbox",
+      required: false,
+      enabled: true,
+      helpText: "Checkbox options are local text.",
+      options: "Pricing\nDemo\nSupport",
+      validationHint: "Optional choices.",
+    },
+  ],
+  "custom-form": [
+    {
+      id: "custom-empty-label",
+      label: "",
+      placeholder: "Untitled field",
+      type: "text",
+      required: true,
+      enabled: true,
+      helpText: "Intentional empty label to show validation hint.",
+      options: "",
+      validationHint: "empty field label",
+    },
+    {
+      id: "custom-notes",
+      label: "Notes",
+      placeholder: "Custom notes",
+      type: "textarea",
+      required: false,
+      enabled: true,
+      helpText: "Scratch textarea for the prototype.",
+      options: "",
+      validationHint: "Optional notes.",
+    },
+  ],
+};
+
+const initialMockSubmissionRoutingByForm: Record<string, MockSubmissionRouting> = {
+  "contact-form": {
+    destination: "Mock inbox",
+    mockInbox: true,
+    emailNotification: false,
+    googleSheets: false,
+    webhook: false,
+  },
+  "booking-form": {
+    destination: "Email notification mock",
+    mockInbox: true,
+    emailNotification: true,
+    googleSheets: false,
+    webhook: false,
+  },
+  "support-form": {
+    destination: "Mock inbox",
+    mockInbox: true,
+    emailNotification: false,
+    googleSheets: false,
+    webhook: false,
+  },
+  "lead-form": {
+    destination: "Google Sheets mock",
+    mockInbox: true,
+    emailNotification: false,
+    googleSheets: true,
+    webhook: false,
+  },
+  "custom-form": {
+    destination: "Webhook mock",
+    mockInbox: false,
+    emailNotification: false,
+    googleSheets: false,
+    webhook: true,
+  },
+};
+
 const buttonStyles: Array<{
   id: ButtonStyle;
   label: string;
@@ -416,6 +740,8 @@ const defaultDesignSettings: DesignSettings = {
 
 const safeLabels = [
   "local mock state only",
+  "no submission",
+  "no Google Sheets",
   "no save",
   "no publish",
   "no schema update",
@@ -428,6 +754,23 @@ const lockTypeOptions: LockType[] = ["none", "code", "age", "sensitive"];
 const pageStatusOptions: PageStatus[] = ["Draft", "Published", "Scheduled"];
 const pageVisibilityOptions: PageVisibility[] = ["Public", "Hidden", "Password protected"];
 const pageLanguageOptions: PageLanguage[] = ["Thai", "English"];
+const formFieldTypeOptions: FormFieldType[] = [
+  "text",
+  "textarea",
+  "email",
+  "phone",
+  "select",
+  "radio",
+  "checkbox",
+  "date",
+  "file URL",
+];
+const submissionDestinationOptions: SubmissionDestination[] = [
+  "Mock inbox",
+  "Email notification mock",
+  "Google Sheets mock",
+  "Webhook mock",
+];
 const mockToday = "2026-05-20";
 const productionOrigin = "https://support.bn9.one";
 
@@ -538,6 +881,79 @@ const getPageValidationItems = (settings: PageSettings, links: MockLinkItem[]) =
     },
   ];
 };
+
+const getFormStatusLabel = (form: MockFormTemplate) => (form.enabled ? "enabled" : "disabled");
+
+const requiresOptions = (type: FormFieldType) =>
+  type === "select" || type === "radio" || type === "checkbox";
+
+const getFormValidationHints = (
+  form: MockFormTemplate,
+  fields: MockFormField[],
+  routing: MockSubmissionRouting
+) => {
+  const hints: string[] = [];
+  const enabledFields = fields.filter((field) => field.enabled);
+
+  if (enabledFields.some((field) => !field.label.trim())) {
+    hints.push("empty field label");
+  }
+
+  if (!enabledFields.length) {
+    hints.push("no enabled fields");
+  }
+
+  if (!routing.destination) {
+    hints.push("missing destination");
+  }
+
+  if (!form.enabled) {
+    hints.push("disabled form");
+  }
+
+  return hints;
+};
+
+const getFormValidationItems = (
+  form: MockFormTemplate,
+  fields: MockFormField[],
+  routing: MockSubmissionRouting
+) => {
+  const enabledFields = fields.filter((field) => field.enabled);
+  const requiredFields = fields.filter((field) => field.required);
+  const requiredFieldsHaveLabels = requiredFields.every((field) => field.label.trim());
+
+  return [
+    {
+      label: "Form title exists",
+      ready: Boolean(form.title.trim()),
+      detail: form.title.trim() ? form.title : "form title missing",
+    },
+    {
+      label: "At least one enabled field",
+      ready: enabledFields.length > 0,
+      detail: `${enabledFields.length} enabled mock fields`,
+    },
+    {
+      label: "Required fields have labels",
+      ready: requiredFieldsHaveLabels,
+      detail: requiredFieldsHaveLabels ? `${requiredFields.length} required fields named` : "empty field label",
+    },
+    {
+      label: "Destination selected",
+      ready: Boolean(routing.destination),
+      detail: routing.destination || "missing destination",
+    },
+    {
+      label: "Privacy note exists",
+      ready: Boolean(form.privacyNote.trim()),
+      detail: form.privacyNote.trim() ? "Privacy note present" : "privacy note missing",
+    },
+  ];
+};
+
+const getMockSubmissionStatus = (form: MockFormTemplate) =>
+  form.enabled ? "received mock" : "paused mock";
 
 const getValidationHints = (link: MockLinkItem) => {
   const hints: string[] = [];
@@ -1575,6 +1991,490 @@ function MockPageValidationChecklist({
   );
 }
 
+function MockFormBuilderArea({
+  forms,
+  fieldsByForm,
+  selectedForm,
+  selectedFields,
+  routing,
+  onSelectForm,
+}: {
+  forms: MockFormTemplate[];
+  fieldsByForm: Record<string, MockFormField[]>;
+  selectedForm: MockFormTemplate;
+  selectedFields: MockFormField[];
+  routing: MockSubmissionRouting;
+  onSelectForm: (formId: string) => void;
+}) {
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Form Builder
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Mock form templates</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Visual form-building state only. No support form, Google Sheets, webhook, or API
+            wiring is connected.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">{selectedForm.title}</Badge>
+          <Badge variant="outline">{routing.destination || "missing destination"}</Badge>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-5">
+        {forms.map((form) => {
+          const selected = selectedForm.id === form.id;
+          const fieldCount = fieldsByForm[form.id]?.length ?? 0;
+
+          return (
+            <button
+              key={form.id}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onSelectForm(form.id)}
+              className={cn(
+                "min-w-0 rounded-lg border p-3 text-left transition-colors",
+                selected
+                  ? "border-foreground bg-foreground text-background"
+                  : "bg-muted/30 hover:bg-muted/60"
+              )}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 truncate text-sm font-semibold">{form.title}</p>
+                <StatusBadge value={getFormStatusLabel(form)} />
+              </div>
+              <p
+                className={cn(
+                  "mt-2 line-clamp-3 text-xs leading-5",
+                  selected ? "text-background/75" : "text-muted-foreground"
+                )}
+              >
+                {form.description}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge variant={selected ? "secondary" : "outline"}>{fieldCount} fields</Badge>
+                <Badge variant={selected ? "secondary" : "outline"}>{form.destinationLabel}</Badge>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="rounded-xl border bg-muted/30 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Active form card
+              </p>
+              <h4 className="mt-1 truncate text-lg font-semibold">{selectedForm.title}</h4>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <StatusBadge value={getFormStatusLabel(selectedForm)} />
+              <Badge variant="outline">{selectedForm.destinationLabel}</Badge>
+            </div>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {selectedForm.description}
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {selectedFields.slice(0, 4).map((field) => (
+              <div key={field.id} className="min-w-0 rounded-lg border bg-background px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm font-medium">{field.label || "Untitled field"}</p>
+                  <Badge variant="outline">{field.type}</Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-muted/30 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Submission destination
+          </p>
+          <p className="mt-2 text-sm font-semibold">{routing.destination || "Missing destination"}</p>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            Destination labels are visual-only. No submission is sent and no external service is
+            contacted.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge variant="outline">no submission</Badge>
+            <Badge variant="outline">no Google Sheets</Badge>
+            <Badge variant="outline">no API calls</Badge>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MockFieldBuilder({
+  fields,
+  selectedField,
+  onSelectField,
+  onMoveField,
+}: {
+  fields: MockFormField[];
+  selectedField: MockFormField;
+  onSelectField: (fieldId: string) => void;
+  onMoveField: (fieldId: string, direction: -1 | 1) => void;
+}) {
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Field Builder
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Selected form fields</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Reorder and select fields locally. No real form schema is generated.
+          </p>
+        </div>
+        <Badge variant="outline">{fields.length} local fields</Badge>
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        {fields.map((field, index) => {
+          const selected = selectedField.id === field.id;
+          const first = index === 0;
+          const last = index === fields.length - 1;
+
+          return (
+            <div
+              key={field.id}
+              className={cn(
+                "flex min-w-0 gap-2 rounded-lg border p-2 transition-colors",
+                selected
+                  ? "border-foreground bg-foreground text-background"
+                  : "bg-muted/30 hover:bg-muted/60"
+              )}
+            >
+              <button
+                type="button"
+                aria-pressed={selected}
+                onClick={() => onSelectField(field.id)}
+                className="min-w-0 flex-1 rounded-md p-1 text-left"
+              >
+                <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">
+                      {field.label || "Untitled field"}
+                    </p>
+                    <p
+                      className={cn(
+                        "mt-1 truncate text-xs",
+                        selected ? "text-background/75" : "text-muted-foreground"
+                      )}
+                    >
+                      {field.placeholder || "No placeholder"}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <Badge variant={selected ? "secondary" : "outline"}>{field.type}</Badge>
+                    {field.required ? (
+                      <Badge variant={selected ? "secondary" : "outline"}>required</Badge>
+                    ) : null}
+                    <StatusBadge value={field.enabled ? "enabled" : "disabled"} />
+                  </div>
+                </div>
+              </button>
+
+              <div className="grid shrink-0 grid-cols-2 gap-1 sm:grid-cols-1">
+                <button
+                  type="button"
+                  onClick={() => onMoveField(field.id, -1)}
+                  disabled={first}
+                  title="Move field up"
+                  className="grid size-8 place-items-center rounded-md border bg-background/80 text-foreground transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ArrowUp className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onMoveField(field.id, 1)}
+                  disabled={last}
+                  title="Move field down"
+                  className="grid size-8 place-items-center rounded-md border bg-background/80 text-foreground transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ArrowDown className="size-4" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function MockFieldSettingsPanel({
+  field,
+  onFieldChange,
+}: {
+  field: MockFormField;
+  onFieldChange: UpdateFormField;
+}) {
+  return (
+    <div className="grid gap-4">
+      <div className="rounded-lg border bg-muted/30 p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Field Settings
+        </p>
+        <p className="mt-1 text-sm font-semibold">{field.label || "Untitled field"}</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          Local visual controls only. No real form engine or schema update is created.
+        </p>
+      </div>
+
+      <MockInput
+        label="Label"
+        value={field.label}
+        onChange={(value) => onFieldChange("label", value)}
+      />
+      <MockInput
+        label="Placeholder"
+        value={field.placeholder}
+        onChange={(value) => onFieldChange("placeholder", value)}
+      />
+      <ChoiceGroup
+        label="Type"
+        options={formFieldTypeOptions}
+        value={field.type}
+        onChange={(value) => onFieldChange("type", value as FormFieldType)}
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <MockToggle
+          label="Required"
+          checked={field.required}
+          onToggle={() => onFieldChange("required", !field.required)}
+        />
+        <MockToggle
+          label="Enabled"
+          checked={field.enabled}
+          onToggle={() => onFieldChange("enabled", !field.enabled)}
+        />
+      </div>
+      <MockTextarea
+        label="Help text"
+        value={field.helpText}
+        onChange={(value) => onFieldChange("helpText", value)}
+      />
+      {requiresOptions(field.type) ? (
+        <MockTextarea
+          label="Options textarea"
+          value={field.options}
+          onChange={(value) => onFieldChange("options", value)}
+        />
+      ) : null}
+      <MockInput
+        label="Validation hint"
+        value={field.validationHint}
+        onChange={(value) => onFieldChange("validationHint", value)}
+      />
+      {field.type === "file URL" ? (
+        <div className="rounded-lg border bg-muted/30 p-3">
+          <div className="flex items-start gap-2">
+            <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-semibold">File URL helper</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                This mock accepts a URL label only. No upload, storage, support file route, or API
+                call is connected.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MockSubmissionRoutingPanel({
+  routing,
+  onRoutingChange,
+}: {
+  routing: MockSubmissionRouting;
+  onRoutingChange: UpdateSubmissionRouting;
+}) {
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Submission Routing
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Visual-only destinations</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Routing controls are local labels. They do not call Google Sheets, webhooks, APIs, or
+            Supabase.
+          </p>
+        </div>
+        <Badge variant="outline">no submission</Badge>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.7fr)]">
+        <ChoiceGroup
+          label="Selected destination"
+          options={submissionDestinationOptions}
+          value={routing.destination}
+          onChange={(value) => onRoutingChange("destination", value as SubmissionDestination)}
+        />
+
+        <div className="grid gap-3">
+          <MockToggle
+            label="Mock inbox"
+            checked={routing.mockInbox}
+            onToggle={() => onRoutingChange("mockInbox", !routing.mockInbox)}
+          />
+          <MockToggle
+            label="Email notification mock"
+            checked={routing.emailNotification}
+            onToggle={() => onRoutingChange("emailNotification", !routing.emailNotification)}
+          />
+          <MockToggle
+            label="Google Sheets mock"
+            checked={routing.googleSheets}
+            onToggle={() => onRoutingChange("googleSheets", !routing.googleSheets)}
+          />
+          <MockToggle
+            label="Webhook mock"
+            checked={routing.webhook}
+            onToggle={() => onRoutingChange("webhook", !routing.webhook)}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MockSubmissionPreview({
+  selectedForm,
+  selectedField,
+  routing,
+}: {
+  selectedForm: MockFormTemplate;
+  selectedField: MockFormField;
+  routing: MockSubmissionRouting;
+}) {
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Submission Preview
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Latest fake submission</h3>
+        </div>
+        <Badge variant="outline">No real submission sent</Badge>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-xl border bg-muted/30">
+        <div className="grid gap-3 p-4 md:grid-cols-5">
+          <StaticField label="Latest time" value="2026-05-20 14:35 ICT" />
+          <StaticField label="Submitted name" value="Narin Mock" />
+          <StaticField label="Submitted email" value="narin@example.test" />
+          <StaticField label="Selected form" value={selectedForm.title} />
+          <StaticField label="Selected field" value={selectedField.label || "Untitled field"} />
+        </div>
+        <div className="border-t bg-background p-4">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">{getMockSubmissionStatus(selectedForm)}</Badge>
+            <Badge variant="outline">{routing.destination || "missing destination"}</Badge>
+            <Badge variant="outline">No real submission sent</Badge>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MockFormValidationChecklist({
+  selectedForm,
+  fields,
+  routing,
+  validationHints,
+}: {
+  selectedForm: MockFormTemplate;
+  fields: MockFormField[];
+  routing: MockSubmissionRouting;
+  validationHints: string[];
+}) {
+  const validationItems = getFormValidationItems(selectedForm, fields, routing);
+  const sampleHints = [
+    "empty field label",
+    "no enabled fields",
+    "missing destination",
+    "disabled form",
+  ];
+
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Form Checklist
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Mock validation only</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Hints are visual-only and do not block selection, routing, or field reorder actions.
+          </p>
+        </div>
+        <Badge variant="outline">no real validation blocking</Badge>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        {validationItems.map((item) => (
+          <div key={item.label} className="rounded-lg border bg-muted/30 p-3">
+            <div className="flex items-start gap-2">
+              {item.ready ? (
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+              ) : (
+                <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-semibold leading-5">{item.label}</p>
+                <p className="mt-1 break-words text-xs leading-5 text-muted-foreground">
+                  {item.detail}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.6fr)]">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Active form hints
+          </p>
+          <div className="mt-2">
+            <MockValidationHints hints={validationHints} />
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Hint examples
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {sampleHints.map((hint) => (
+              <Badge key={hint} variant="outline">
+                <TriangleAlert data-icon="inline-start" />
+                {hint}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function PerLinkSettingsPanel({
   link,
   settings,
@@ -2167,12 +3067,18 @@ function MockEditorArea({
   selectedPage,
   selectedBlock,
   selectedLink,
+  selectedForm,
+  selectedFormFields,
+  routing,
   settings,
   validationHints,
 }: {
   selectedPage: MockPage;
   selectedBlock: MockBlock;
   selectedLink: MockLinkItem;
+  selectedForm: MockFormTemplate;
+  selectedFormFields: MockFormField[];
+  routing: MockSubmissionRouting;
   settings: DesignSettings;
   validationHints: string[];
 }) {
@@ -2186,11 +3092,12 @@ function MockEditorArea({
           <h3 className="mt-1 text-base font-semibold">Selected link workspace</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             {selectedLink.title} is selected inside {selectedBlock.label} on {selectedPage.route}.
-            Controls below are local mock UI only.
+            {selectedForm.title} is the active mock form block. Controls below are local mock UI only.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline">no form state save</Badge>
+          <Badge variant="outline">no submission</Badge>
           <Badge variant="secondary">{settings.buttonStyle}</Badge>
           {selectedLink.prioritized ? (
             <Badge>
@@ -2222,6 +3129,25 @@ function MockEditorArea({
             <MockValidationHints hints={validationHints} />
             <div className="max-w-xl">
               <StylePreview settings={settings} />
+            </div>
+            <div className="max-w-xl rounded-xl border bg-background p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">{selectedForm.title}</Badge>
+                <Badge variant="outline">{routing.destination || "missing destination"}</Badge>
+                <Badge variant="outline">no real submit</Badge>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {selectedFormFields.slice(0, 3).map((field) => (
+                  <div key={field.id} className="rounded-lg border bg-muted/30 px-3 py-2">
+                    <p className="truncate text-xs font-semibold">
+                      {field.label || "Untitled field"}
+                    </p>
+                    <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                      {field.placeholder || field.type}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -2265,10 +3191,45 @@ function MockEditorArea({
         <MockStatsGrid link={selectedLink} />
       </div>
 
+      <div className="mt-4 rounded-xl border bg-muted/30 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Active form block
+            </p>
+            <h4 className="mt-1 truncate text-lg font-semibold">{selectedForm.title}</h4>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <StatusBadge value={getFormStatusLabel(selectedForm)} />
+            <Badge variant="outline">{routing.destination || "missing destination"}</Badge>
+          </div>
+        </div>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {selectedForm.description}
+        </p>
+        <div className="mt-3 grid gap-2 md:grid-cols-3">
+          {selectedFormFields.slice(0, 6).map((field) => (
+            <div key={field.id} className="rounded-lg border bg-background p-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 truncate text-sm font-medium">
+                  {field.label || "Untitled field"}
+                </p>
+                <Badge variant="outline">{field.type}</Badge>
+              </div>
+              <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                {field.helpText || field.placeholder || "Local mock field"}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <StaticField label="Selected route" value={selectedPage.route} />
         <StaticField label="Selected block" value={selectedBlock.label} />
         <StaticField label="Selected link" value={selectedLink.title} />
+        <StaticField label="Selected form" value={selectedForm.title} />
+        <StaticField label="Mock destination" value={routing.destination || "missing destination"} />
         <StaticField label="Selected style" value={selectedLink.buttonStyle} />
         <StaticField label="Mock URL/action" value={getLinkActionLabel(selectedLink)} />
         <StaticField label="Mock state boundary" value="Local component state only" />
@@ -2282,19 +3243,27 @@ function MockEditorArea({
 function MockPropertyInspector({
   selectedBlock,
   selectedLink,
+  selectedForm,
+  selectedField,
   settings,
   onChange,
   onLinkChange,
+  onFieldChange,
   onTogglePrioritized,
   validationHints,
+  formValidationHints,
 }: {
   selectedBlock: MockBlock;
   selectedLink: MockLinkItem;
+  selectedForm: MockFormTemplate;
+  selectedField: MockFormField;
   settings: DesignSettings;
   onChange: UpdateDesignSetting;
   onLinkChange: UpdateSelectedLink;
+  onFieldChange: UpdateFormField;
   onTogglePrioritized: () => void;
   validationHints: string[];
+  formValidationHints: string[];
 }) {
   return (
     <section className="rounded-xl border bg-background p-4 shadow-sm">
@@ -2304,8 +3273,11 @@ function MockPropertyInspector({
             Property Inspector
           </p>
           <h3 className="mt-1 text-base font-semibold">
-            {selectedLink.title} / {getStyleLabel(settings.buttonStyle)}
+            {selectedForm.title} / {selectedField.label || "Untitled field"}
           </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Link context: {selectedLink.title} / {getStyleLabel(settings.buttonStyle)}
+          </p>
         </div>
         <PanelRight className="size-4 text-muted-foreground" />
       </div>
@@ -2315,6 +3287,17 @@ function MockPropertyInspector({
       </div>
 
       <div className="mt-4 grid gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Form validation hints
+          </p>
+          <div className="mt-2">
+            <MockValidationHints hints={formValidationHints} />
+          </div>
+        </div>
+
+        <MockFieldSettingsPanel field={selectedField} onFieldChange={onFieldChange} />
+
         <PerLinkSettingsPanel
           link={selectedLink}
           settings={settings}
@@ -2390,6 +3373,9 @@ function DeviceModeToggle({
 function MockDevicePreview({
   selectedPage,
   selectedLink,
+  selectedForm,
+  selectedFormFields,
+  routing,
   links,
   settings,
   deviceMode,
@@ -2397,6 +3383,9 @@ function MockDevicePreview({
 }: {
   selectedPage: MockPage;
   selectedLink: MockLinkItem;
+  selectedForm: MockFormTemplate;
+  selectedFormFields: MockFormField[];
+  routing: MockSubmissionRouting;
   links: MockLinkItem[];
   settings: DesignSettings;
   deviceMode: DeviceMode;
@@ -2444,6 +3433,25 @@ function MockDevicePreview({
                   />
                 ))}
               </div>
+              <div className="mt-3 rounded-xl border bg-background p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-[11px] font-semibold">{selectedForm.title}</p>
+                  <Badge variant="outline">form</Badge>
+                </div>
+                <div className="mt-2 grid gap-1.5">
+                  {selectedFormFields.slice(0, 3).map((field) => (
+                    <div key={field.id} className="rounded border bg-muted/30 px-2 py-1">
+                      <p className="truncate text-[10px] text-muted-foreground">
+                        {field.label || "Untitled field"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 rounded bg-foreground px-2 py-1 text-center text-[10px] font-semibold text-background">
+                  Submit mock
+                </div>
+                <p className="mt-1 text-center text-[10px] text-muted-foreground">no real submit</p>
+              </div>
             </div>
           </div>
         ) : (
@@ -2468,6 +3476,21 @@ function MockDevicePreview({
                     </div>
                   ))}
                 </div>
+                <div className="rounded-lg border bg-muted/30 p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-xs font-semibold">{selectedForm.title}</p>
+                    <Badge variant="outline">{routing.destination || "missing destination"}</Badge>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {selectedFormFields.slice(0, 4).map((field) => (
+                      <div key={field.id} className="rounded bg-background px-2 py-1">
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {field.label || "Untitled field"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -2484,6 +3507,14 @@ export function AdminUiV2LabPreview() {
   const [mockLinks, setMockLinks] = useState<MockLinkItem[]>(initialMockLinks);
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
   const [designSettings, setDesignSettings] = useState<DesignSettings>(defaultDesignSettings);
+  const [selectedFormId, setSelectedFormId] = useState(mockFormTemplates[0].id);
+  const [selectedFieldId, setSelectedFieldId] = useState(
+    initialMockFormFieldsByForm[mockFormTemplates[0].id][0].id
+  );
+  const [mockFormFieldsByForm, setMockFormFieldsByForm] =
+    useState<Record<string, MockFormField[]>>(initialMockFormFieldsByForm);
+  const [mockSubmissionRoutingByForm, setMockSubmissionRoutingByForm] =
+    useState<Record<string, MockSubmissionRouting>>(initialMockSubmissionRoutingByForm);
   const [pageSettingsByRoute, setPageSettingsByRoute] =
     useState<Record<string, PageSettings>>(initialPageSettingsByRoute);
   const [dirtyRoutes, setDirtyRoutes] = useState<Record<string, boolean>>({});
@@ -2504,6 +3535,24 @@ export function AdminUiV2LabPreview() {
     () => mockLinks.find((link) => link.id === selectedLinkId) ?? mockLinks[0],
     [mockLinks, selectedLinkId]
   );
+  const selectedForm = useMemo(
+    () => mockFormTemplates.find((form) => form.id === selectedFormId) ?? mockFormTemplates[0],
+    [selectedFormId]
+  );
+  const selectedFormFields = useMemo(
+    () => mockFormFieldsByForm[selectedForm.id] ?? [],
+    [mockFormFieldsByForm, selectedForm.id]
+  );
+  const selectedField = useMemo(
+    () =>
+      selectedFormFields.find((field) => field.id === selectedFieldId) ??
+      selectedFormFields[0] ??
+      initialMockFormFieldsByForm[mockFormTemplates[0].id][0],
+    [selectedFieldId, selectedFormFields]
+  );
+  const selectedSubmissionRouting =
+    mockSubmissionRoutingByForm[selectedForm.id] ??
+    initialMockSubmissionRoutingByForm[mockFormTemplates[0].id];
   const selectedLinkSettings = useMemo<DesignSettings>(
     () => ({
       ...designSettings,
@@ -2522,12 +3571,41 @@ export function AdminUiV2LabPreview() {
     () => getPageValidationHints(selectedPageSettings),
     [selectedPageSettings]
   );
+  const formValidationHints = useMemo(
+    () => getFormValidationHints(selectedForm, selectedFormFields, selectedSubmissionRouting),
+    [selectedForm, selectedFormFields, selectedSubmissionRouting]
+  );
   const hasUnsavedPageChanges = Boolean(dirtyRoutes[selectedPageRoute]);
 
   const updateSelectedLink: UpdateSelectedLink = (key, value) => {
     setMockLinks((current) =>
       current.map((link) => (link.id === selectedLink.id ? { ...link, [key]: value } : link))
     );
+  };
+
+  const selectMockForm = (formId: string) => {
+    const nextFields = mockFormFieldsByForm[formId] ?? [];
+    setSelectedFormId(formId);
+    setSelectedFieldId(nextFields[0]?.id ?? "");
+  };
+
+  const updateSelectedFormField: UpdateFormField = (key, value) => {
+    setMockFormFieldsByForm((current) => ({
+      ...current,
+      [selectedForm.id]: (current[selectedForm.id] ?? []).map((field) =>
+        field.id === selectedField.id ? { ...field, [key]: value } : field
+      ),
+    }));
+  };
+
+  const updateSelectedSubmissionRouting: UpdateSubmissionRouting = (key, value) => {
+    setMockSubmissionRoutingByForm((current) => ({
+      ...current,
+      [selectedForm.id]: {
+        ...selectedSubmissionRouting,
+        [key]: value,
+      },
+    }));
   };
 
   const updatePageSetting: UpdatePageSetting = (key, value) => {
@@ -2594,6 +3672,27 @@ export function AdminUiV2LabPreview() {
       const [movedLink] = next.splice(currentIndex, 1);
       next.splice(nextIndex, 0, movedLink);
       return next;
+    });
+  };
+
+  const moveFormField = (fieldId: string, direction: -1 | 1) => {
+    setMockFormFieldsByForm((current) => {
+      const fields = current[selectedForm.id] ?? [];
+      const currentIndex = fields.findIndex((field) => field.id === fieldId);
+      const nextIndex = currentIndex + direction;
+
+      if (currentIndex < 0 || nextIndex < 0 || nextIndex >= fields.length) {
+        return current;
+      }
+
+      const nextFields = [...fields];
+      const [movedField] = nextFields.splice(currentIndex, 1);
+      nextFields.splice(nextIndex, 0, movedField);
+
+      return {
+        ...current,
+        [selectedForm.id]: nextFields,
+      };
     });
   };
 
@@ -2729,11 +3828,43 @@ export function AdminUiV2LabPreview() {
                 links={mockLinks}
                 validationHints={pageValidationHints}
               />
+              <MockFormBuilderArea
+                forms={mockFormTemplates}
+                fieldsByForm={mockFormFieldsByForm}
+                selectedForm={selectedForm}
+                selectedFields={selectedFormFields}
+                routing={selectedSubmissionRouting}
+                onSelectForm={selectMockForm}
+              />
+              <MockFieldBuilder
+                fields={selectedFormFields}
+                selectedField={selectedField}
+                onSelectField={setSelectedFieldId}
+                onMoveField={moveFormField}
+              />
+              <MockSubmissionRoutingPanel
+                routing={selectedSubmissionRouting}
+                onRoutingChange={updateSelectedSubmissionRouting}
+              />
+              <MockSubmissionPreview
+                selectedForm={selectedForm}
+                selectedField={selectedField}
+                routing={selectedSubmissionRouting}
+              />
+              <MockFormValidationChecklist
+                selectedForm={selectedForm}
+                fields={selectedFormFields}
+                routing={selectedSubmissionRouting}
+                validationHints={formValidationHints}
+              />
               <DesignPanel settings={selectedLinkSettings} onChange={updateDesignSetting} />
               <MockEditorArea
                 selectedPage={selectedPage}
                 selectedBlock={selectedBlock}
                 selectedLink={selectedLink}
+                selectedForm={selectedForm}
+                selectedFormFields={selectedFormFields}
+                routing={selectedSubmissionRouting}
                 settings={selectedLinkSettings}
                 validationHints={validationHints}
               />
@@ -2743,15 +3874,22 @@ export function AdminUiV2LabPreview() {
               <MockPropertyInspector
                 selectedBlock={selectedBlock}
                 selectedLink={selectedLink}
+                selectedForm={selectedForm}
+                selectedField={selectedField}
                 settings={selectedLinkSettings}
                 onChange={updateDesignSetting}
                 onLinkChange={updateSelectedLink}
+                onFieldChange={updateSelectedFormField}
                 onTogglePrioritized={togglePrioritizedLink}
                 validationHints={validationHints}
+                formValidationHints={formValidationHints}
               />
               <MockDevicePreview
                 selectedPage={selectedPage}
                 selectedLink={selectedLink}
+                selectedForm={selectedForm}
+                selectedFormFields={selectedFormFields}
+                routing={selectedSubmissionRouting}
                 links={mockLinks}
                 settings={selectedLinkSettings}
                 deviceMode={deviceMode}

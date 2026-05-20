@@ -156,8 +156,8 @@ export function LabWorkspaceTabs({ flagRows }: { flagRows: FlagRow[] }) {
   );
 
   return (
-    <section className="grid gap-4">
-      <div className="rounded-xl border bg-background p-3 shadow-sm">
+    <section className="grid min-w-0 gap-4">
+      <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm">
         <div className="flex gap-2 overflow-x-auto" role="tablist" aria-label="Lab workspace tabs">
           {labTabs.map((tab) => {
             const Icon = tab.icon;
@@ -190,6 +190,7 @@ export function LabWorkspaceTabs({ flagRows }: { flagRows: FlagRow[] }) {
       </div>
 
       <div
+        className="min-w-0"
         role="tabpanel"
         id={`lab-panel-${activeTab}`}
         aria-labelledby={`lab-tab-${activeTab}`}

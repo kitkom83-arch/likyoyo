@@ -28,10 +28,10 @@ export const AdminLabShell = () => {
 
   return (
     <main className="min-h-screen bg-muted/40 px-4 py-8 text-foreground sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-6xl gap-5">
-        <section className="rounded-xl border bg-background p-6 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
+      <div className="mx-auto grid w-full min-w-0 max-w-6xl gap-5">
+        <section className="min-w-0 rounded-xl border bg-background p-6 shadow-sm">
+          <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 UI/UX Lab
               </p>
@@ -42,9 +42,9 @@ export const AdminLabShell = () => {
                 admin and public pages.
               </p>
             </div>
-            <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+            <div className="min-w-0 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
               <p className="font-medium">Mock profile source</p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 break-words text-xs text-muted-foreground">
                 @{mockBuilderData.header.username} · {mockBuilderData.header.displayName} ·{" "}
                 {mockBuilderData.header.layout}
               </p>
