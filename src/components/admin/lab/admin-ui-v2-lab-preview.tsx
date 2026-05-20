@@ -68,6 +68,7 @@ type SubmissionDestination =
   | "Email notification mock"
   | "Google Sheets mock"
   | "Webhook mock";
+type AnalyticsTimeRange = "Today" | "7 days" | "30 days" | "90 days";
 
 type PageSettings = {
   pageTitle: string;
@@ -144,6 +145,60 @@ type MockSubmissionRouting = {
   emailNotification: boolean;
   googleSheets: boolean;
   webhook: boolean;
+};
+
+type MockMetric = {
+  label: string;
+  value: string;
+  detail: string;
+  trend: string;
+};
+
+type MockTopLinkAnalytics = {
+  id: string;
+  title: string;
+  clicks: number;
+  views: number;
+  ctr: string;
+  conversions: number;
+  trend: string;
+  insight: string;
+};
+
+type MockFormAnalytics = {
+  id: string;
+  title: string;
+  views: number;
+  starts: number;
+  submissions: number;
+  completionRate: string;
+  dropOffHint: string;
+  destination: SubmissionDestination;
+};
+
+type MockSplitItem = {
+  label: string;
+  value: number;
+  detail: string;
+};
+
+type MockFunnelStep = {
+  label: string;
+  value: number;
+  percent: string;
+};
+
+type MockAnalyticsRangeData = {
+  metrics: MockMetric[];
+  topLinks: MockTopLinkAnalytics[];
+  forms: MockFormAnalytics[];
+  trafficSources: MockSplitItem[];
+  deviceSplit: MockSplitItem[];
+  regionSplit: MockSplitItem[];
+  funnel: MockFunnelStep[];
+  miniChartLabels: string[];
+  rangeInsight: string;
+  insights: string[];
 };
 
 type DesignSettings = {
@@ -705,6 +760,615 @@ const initialMockSubmissionRoutingByForm: Record<string, MockSubmissionRouting> 
   },
 };
 
+const mockAnalyticsByRange: Record<AnalyticsTimeRange, MockAnalyticsRangeData> = {
+  Today: {
+    metrics: [
+      { label: "Total views", value: "1,284", detail: "Mock page views", trend: "+8%" },
+      { label: "Link clicks", value: "312", detail: "Local click sample", trend: "+4%" },
+      { label: "Click-through rate", value: "24.3%", detail: "Clicks / views", trend: "+1.2%" },
+      { label: "Form submissions", value: "38", detail: "Fake submissions", trend: "+6" },
+      { label: "Conversion rate", value: "3.0%", detail: "Completed action", trend: "+0.4%" },
+      { label: "Top performing link", value: "VIP Menu", detail: "Highest CTR today", trend: "hot" },
+      { label: "Top traffic source", value: "Instagram", detail: "Largest source", trend: "+11%" },
+      { label: "Device split", value: "72% mobile", detail: "Mobile-heavy traffic", trend: "stable" },
+    ],
+    topLinks: [
+      {
+        id: "book-consultation",
+        title: "Book a Consultation",
+        clicks: 92,
+        views: 365,
+        ctr: "25.2%",
+        conversions: 15,
+        trend: "+6%",
+        insight: "Consultation clicks are strongest after profile visits today.",
+      },
+      {
+        id: "vip-menu",
+        title: "VIP Menu",
+        clicks: 104,
+        views: 318,
+        ctr: "32.7%",
+        conversions: 12,
+        trend: "+14%",
+        insight: "VIP Menu has the highest CTR today.",
+      },
+      {
+        id: "support-request",
+        title: "Support Request",
+        clicks: 48,
+        views: 224,
+        ctr: "21.4%",
+        conversions: 7,
+        trend: "+2%",
+        insight: "Support Request gets most traffic from mobile.",
+      },
+      {
+        id: "promo-banner",
+        title: "Promo Banner",
+        clicks: 21,
+        views: 180,
+        ctr: "11.7%",
+        conversions: 2,
+        trend: "-5%",
+        insight: "Promo Banner dropped this range.",
+      },
+      {
+        id: "announcement-panel",
+        title: "Announcement Panel",
+        clicks: 47,
+        views: 197,
+        ctr: "23.9%",
+        conversions: 2,
+        trend: "+3%",
+        insight: "Announcement Panel holds steady as a secondary action.",
+      },
+    ],
+    forms: [
+      {
+        id: "contact-form",
+        title: "Contact Form",
+        views: 156,
+        starts: 62,
+        submissions: 24,
+        completionRate: "38.7%",
+        dropOffHint: "Message field causes most exits",
+        destination: "Mock inbox",
+      },
+      {
+        id: "booking-form",
+        title: "Booking Form",
+        views: 121,
+        starts: 58,
+        submissions: 31,
+        completionRate: "53.4%",
+        dropOffHint: "Date selection is the soft drop-off",
+        destination: "Email notification mock",
+      },
+      {
+        id: "support-form",
+        title: "Support Form",
+        views: 94,
+        starts: 34,
+        submissions: 12,
+        completionRate: "35.3%",
+        dropOffHint: "Attachment URL is often skipped",
+        destination: "Mock inbox",
+      },
+      {
+        id: "lead-form",
+        title: "Lead Form",
+        views: 83,
+        starts: 29,
+        submissions: 17,
+        completionRate: "58.6%",
+        dropOffHint: "Low drop-off after email",
+        destination: "Google Sheets mock",
+      },
+      {
+        id: "custom-form",
+        title: "Custom Form",
+        views: 44,
+        starts: 11,
+        submissions: 5,
+        completionRate: "45.5%",
+        dropOffHint: "Untitled field needs cleanup",
+        destination: "Webhook mock",
+      },
+    ],
+    trafficSources: [
+      { label: "Direct", value: 18, detail: "231 views" },
+      { label: "Instagram", value: 34, detail: "437 views" },
+      { label: "Facebook", value: 13, detail: "167 views" },
+      { label: "TikTok", value: 16, detail: "205 views" },
+      { label: "X", value: 4, detail: "51 views" },
+      { label: "Search", value: 9, detail: "116 views" },
+      { label: "QR Code", value: 6, detail: "77 views" },
+    ],
+    deviceSplit: [
+      { label: "Mobile", value: 72, detail: "924 views" },
+      { label: "Desktop", value: 21, detail: "270 views" },
+      { label: "Tablet", value: 7, detail: "90 views" },
+    ],
+    regionSplit: [
+      { label: "Thailand", value: 64, detail: "822 views" },
+      { label: "Singapore", value: 12, detail: "154 views" },
+      { label: "United States", value: 9, detail: "116 views" },
+      { label: "Other", value: 15, detail: "192 views" },
+    ],
+    funnel: [
+      { label: "Page view", value: 1284, percent: "100%" },
+      { label: "Link click", value: 312, percent: "24%" },
+      { label: "Form start", value: 194, percent: "15%" },
+      { label: "Form submit", value: 38, percent: "3%" },
+      { label: "Completed action", value: 24, percent: "2%" },
+    ],
+    miniChartLabels: ["09:00", "12:00", "15:00", "18:00"],
+    rangeInsight: "Today is mobile-heavy, with VIP Menu leading short-session clicks.",
+    insights: [
+      "VIP Menu has the highest CTR today.",
+      "Support Request gets most traffic from mobile.",
+      "Booking Form has a higher completion rate than Contact Form.",
+      "Promo Banner dropped this range.",
+    ],
+  },
+  "7 days": {
+    metrics: [
+      { label: "Total views", value: "8,642", detail: "Mock weekly views", trend: "+12%" },
+      { label: "Link clicks", value: "2,184", detail: "Local click sample", trend: "+9%" },
+      { label: "Click-through rate", value: "25.3%", detail: "Clicks / views", trend: "+2.0%" },
+      { label: "Form submissions", value: "246", detail: "Fake submissions", trend: "+31" },
+      { label: "Conversion rate", value: "2.8%", detail: "Completed action", trend: "+0.3%" },
+      { label: "Top performing link", value: "VIP Menu", detail: "Best weekly CTR", trend: "hot" },
+      { label: "Top traffic source", value: "Instagram", detail: "Weekly leader", trend: "+18%" },
+      { label: "Device split", value: "69% mobile", detail: "Mobile leads", trend: "stable" },
+    ],
+    topLinks: [
+      {
+        id: "book-consultation",
+        title: "Book a Consultation",
+        clicks: 648,
+        views: 2310,
+        ctr: "28.1%",
+        conversions: 96,
+        trend: "+10%",
+        insight: "Book a Consultation converts strongly after repeat visits.",
+      },
+      {
+        id: "vip-menu",
+        title: "VIP Menu",
+        clicks: 712,
+        views: 2056,
+        ctr: "34.6%",
+        conversions: 82,
+        trend: "+19%",
+        insight: "VIP Menu has the highest CTR this week.",
+      },
+      {
+        id: "support-request",
+        title: "Support Request",
+        clicks: 326,
+        views: 1624,
+        ctr: "20.1%",
+        conversions: 41,
+        trend: "+5%",
+        insight: "Support Request gets most traffic from mobile.",
+      },
+      {
+        id: "promo-banner",
+        title: "Promo Banner",
+        clicks: 184,
+        views: 1338,
+        ctr: "13.8%",
+        conversions: 13,
+        trend: "-8%",
+        insight: "Promo Banner dropped this range.",
+      },
+      {
+        id: "announcement-panel",
+        title: "Announcement Panel",
+        clicks: 314,
+        views: 1314,
+        ctr: "23.9%",
+        conversions: 14,
+        trend: "+7%",
+        insight: "Announcement Panel supports return visitors.",
+      },
+    ],
+    forms: [
+      {
+        id: "contact-form",
+        title: "Contact Form",
+        views: 978,
+        starts: 402,
+        submissions: 138,
+        completionRate: "34.3%",
+        dropOffHint: "Message field adds friction",
+        destination: "Mock inbox",
+      },
+      {
+        id: "booking-form",
+        title: "Booking Form",
+        views: 812,
+        starts: 388,
+        submissions: 212,
+        completionRate: "54.6%",
+        dropOffHint: "Date step performs well",
+        destination: "Email notification mock",
+      },
+      {
+        id: "support-form",
+        title: "Support Form",
+        views: 624,
+        starts: 241,
+        submissions: 84,
+        completionRate: "34.9%",
+        dropOffHint: "Attachment URL is optional but distracting",
+        destination: "Mock inbox",
+      },
+      {
+        id: "lead-form",
+        title: "Lead Form",
+        views: 536,
+        starts: 232,
+        submissions: 137,
+        completionRate: "59.1%",
+        dropOffHint: "Interest options help completion",
+        destination: "Google Sheets mock",
+      },
+      {
+        id: "custom-form",
+        title: "Custom Form",
+        views: 214,
+        starts: 66,
+        submissions: 27,
+        completionRate: "40.9%",
+        dropOffHint: "Empty label depresses completion",
+        destination: "Webhook mock",
+      },
+    ],
+    trafficSources: [
+      { label: "Direct", value: 20, detail: "1,728 views" },
+      { label: "Instagram", value: 36, detail: "3,111 views" },
+      { label: "Facebook", value: 12, detail: "1,037 views" },
+      { label: "TikTok", value: 14, detail: "1,210 views" },
+      { label: "X", value: 3, detail: "259 views" },
+      { label: "Search", value: 10, detail: "864 views" },
+      { label: "QR Code", value: 5, detail: "432 views" },
+    ],
+    deviceSplit: [
+      { label: "Mobile", value: 69, detail: "5,963 views" },
+      { label: "Desktop", value: 24, detail: "2,074 views" },
+      { label: "Tablet", value: 7, detail: "605 views" },
+    ],
+    regionSplit: [
+      { label: "Thailand", value: 61, detail: "5,272 views" },
+      { label: "Singapore", value: 14, detail: "1,210 views" },
+      { label: "United States", value: 10, detail: "864 views" },
+      { label: "Other", value: 15, detail: "1,296 views" },
+    ],
+    funnel: [
+      { label: "Page view", value: 8642, percent: "100%" },
+      { label: "Link click", value: 2184, percent: "25%" },
+      { label: "Form start", value: 1329, percent: "15%" },
+      { label: "Form submit", value: 246, percent: "3%" },
+      { label: "Completed action", value: 168, percent: "2%" },
+    ],
+    miniChartLabels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    rangeInsight: "This week favors VIP Menu and Booking Form completion.",
+    insights: [
+      "VIP Menu has the highest CTR this week.",
+      "Support Request gets most traffic from mobile.",
+      "Booking Form has a higher completion rate than Contact Form.",
+      "Promo Banner dropped this range.",
+      "Instagram accounts for more than one-third of weekly traffic.",
+    ],
+  },
+  "30 days": {
+    metrics: [
+      { label: "Total views", value: "31,880", detail: "Mock monthly views", trend: "+7%" },
+      { label: "Link clicks", value: "7,842", detail: "Local click sample", trend: "+5%" },
+      { label: "Click-through rate", value: "24.6%", detail: "Clicks / views", trend: "+0.6%" },
+      { label: "Form submissions", value: "812", detail: "Fake submissions", trend: "+68" },
+      { label: "Conversion rate", value: "2.5%", detail: "Completed action", trend: "-0.1%" },
+      { label: "Top performing link", value: "Book a Consultation", detail: "Most conversions", trend: "+11%" },
+      { label: "Top traffic source", value: "Direct", detail: "Monthly leader", trend: "+9%" },
+      { label: "Device split", value: "66% mobile", detail: "Mobile leads", trend: "stable" },
+    ],
+    topLinks: [
+      {
+        id: "book-consultation",
+        title: "Book a Consultation",
+        clicks: 2546,
+        views: 9028,
+        ctr: "28.2%",
+        conversions: 388,
+        trend: "+11%",
+        insight: "Book a Consultation drives the most completed actions this month.",
+      },
+      {
+        id: "vip-menu",
+        title: "VIP Menu",
+        clicks: 2384,
+        views: 7422,
+        ctr: "32.1%",
+        conversions: 241,
+        trend: "+8%",
+        insight: "VIP Menu remains the CTR leader across 30 days.",
+      },
+      {
+        id: "support-request",
+        title: "Support Request",
+        clicks: 1248,
+        views: 5890,
+        ctr: "21.2%",
+        conversions: 104,
+        trend: "+4%",
+        insight: "Support Request is consistent, especially on mobile.",
+      },
+      {
+        id: "promo-banner",
+        title: "Promo Banner",
+        clicks: 642,
+        views: 4920,
+        ctr: "13.0%",
+        conversions: 35,
+        trend: "-12%",
+        insight: "Promo Banner dropped this range.",
+      },
+      {
+        id: "announcement-panel",
+        title: "Announcement Panel",
+        clicks: 1022,
+        views: 4620,
+        ctr: "22.1%",
+        conversions: 44,
+        trend: "+2%",
+        insight: "Announcement Panel keeps a steady baseline.",
+      },
+    ],
+    forms: [
+      {
+        id: "contact-form",
+        title: "Contact Form",
+        views: 3440,
+        starts: 1320,
+        submissions: 426,
+        completionRate: "32.3%",
+        dropOffHint: "Long message prompt causes exits",
+        destination: "Mock inbox",
+      },
+      {
+        id: "booking-form",
+        title: "Booking Form",
+        views: 2980,
+        starts: 1412,
+        submissions: 722,
+        completionRate: "51.1%",
+        dropOffHint: "Phone field performs better than email",
+        destination: "Email notification mock",
+      },
+      {
+        id: "support-form",
+        title: "Support Form",
+        views: 2104,
+        starts: 818,
+        submissions: 266,
+        completionRate: "32.5%",
+        dropOffHint: "Attachment link step is the largest drop",
+        destination: "Mock inbox",
+      },
+      {
+        id: "lead-form",
+        title: "Lead Form",
+        views: 1980,
+        starts: 888,
+        submissions: 515,
+        completionRate: "58.0%",
+        dropOffHint: "Lead Form completes cleanly",
+        destination: "Google Sheets mock",
+      },
+      {
+        id: "custom-form",
+        title: "Custom Form",
+        views: 722,
+        starts: 204,
+        submissions: 83,
+        completionRate: "40.7%",
+        dropOffHint: "Custom field labels need review",
+        destination: "Webhook mock",
+      },
+    ],
+    trafficSources: [
+      { label: "Direct", value: 29, detail: "9,245 views" },
+      { label: "Instagram", value: 28, detail: "8,926 views" },
+      { label: "Facebook", value: 12, detail: "3,826 views" },
+      { label: "TikTok", value: 11, detail: "3,507 views" },
+      { label: "X", value: 4, detail: "1,275 views" },
+      { label: "Search", value: 10, detail: "3,188 views" },
+      { label: "QR Code", value: 6, detail: "1,913 views" },
+    ],
+    deviceSplit: [
+      { label: "Mobile", value: 66, detail: "21,041 views" },
+      { label: "Desktop", value: 26, detail: "8,289 views" },
+      { label: "Tablet", value: 8, detail: "2,550 views" },
+    ],
+    regionSplit: [
+      { label: "Thailand", value: 58, detail: "18,490 views" },
+      { label: "Singapore", value: 16, detail: "5,101 views" },
+      { label: "United States", value: 12, detail: "3,826 views" },
+      { label: "Other", value: 14, detail: "4,463 views" },
+    ],
+    funnel: [
+      { label: "Page view", value: 31880, percent: "100%" },
+      { label: "Link click", value: 7842, percent: "25%" },
+      { label: "Form start", value: 4642, percent: "15%" },
+      { label: "Form submit", value: 812, percent: "3%" },
+      { label: "Completed action", value: 552, percent: "2%" },
+    ],
+    miniChartLabels: ["W1", "W2", "W3", "W4"],
+    rangeInsight: "30-day conversions are led by consultation and lead form flows.",
+    insights: [
+      "Book a Consultation drives the most completed actions this month.",
+      "VIP Menu remains the best CTR link.",
+      "Lead Form has a higher completion rate than Contact Form.",
+      "Promo Banner dropped this range.",
+    ],
+  },
+  "90 days": {
+    metrics: [
+      { label: "Total views", value: "94,210", detail: "Mock quarterly views", trend: "+16%" },
+      { label: "Link clicks", value: "22,480", detail: "Local click sample", trend: "+12%" },
+      { label: "Click-through rate", value: "23.9%", detail: "Clicks / views", trend: "-0.3%" },
+      { label: "Form submissions", value: "2,184", detail: "Fake submissions", trend: "+204" },
+      { label: "Conversion rate", value: "2.3%", detail: "Completed action", trend: "+0.2%" },
+      { label: "Top performing link", value: "Book a Consultation", detail: "Quarter winner", trend: "+15%" },
+      { label: "Top traffic source", value: "Direct", detail: "Durable source", trend: "+21%" },
+      { label: "Device split", value: "64% mobile", detail: "Mobile leads", trend: "stable" },
+    ],
+    topLinks: [
+      {
+        id: "book-consultation",
+        title: "Book a Consultation",
+        clicks: 7488,
+        views: 28120,
+        ctr: "26.6%",
+        conversions: 1164,
+        trend: "+15%",
+        insight: "Book a Consultation is the strongest long-range converter.",
+      },
+      {
+        id: "vip-menu",
+        title: "VIP Menu",
+        clicks: 6884,
+        views: 22690,
+        ctr: "30.3%",
+        conversions: 708,
+        trend: "+10%",
+        insight: "VIP Menu sustains the best long-range CTR.",
+      },
+      {
+        id: "support-request",
+        title: "Support Request",
+        clicks: 3482,
+        views: 17120,
+        ctr: "20.3%",
+        conversions: 284,
+        trend: "+3%",
+        insight: "Support Request gets most traffic from mobile.",
+      },
+      {
+        id: "promo-banner",
+        title: "Promo Banner",
+        clicks: 1788,
+        views: 12840,
+        ctr: "13.9%",
+        conversions: 96,
+        trend: "-6%",
+        insight: "Promo Banner dropped this range.",
+      },
+      {
+        id: "announcement-panel",
+        title: "Announcement Panel",
+        clicks: 2838,
+        views: 13440,
+        ctr: "21.1%",
+        conversions: 108,
+        trend: "+5%",
+        insight: "Announcement Panel performs best with direct traffic.",
+      },
+    ],
+    forms: [
+      {
+        id: "contact-form",
+        title: "Contact Form",
+        views: 9920,
+        starts: 3710,
+        submissions: 1188,
+        completionRate: "32.0%",
+        dropOffHint: "Long text remains the main drop-off",
+        destination: "Mock inbox",
+      },
+      {
+        id: "booking-form",
+        title: "Booking Form",
+        views: 8720,
+        starts: 4012,
+        submissions: 2030,
+        completionRate: "50.6%",
+        dropOffHint: "Booking Form remains efficient",
+        destination: "Email notification mock",
+      },
+      {
+        id: "support-form",
+        title: "Support Form",
+        views: 6220,
+        starts: 2310,
+        submissions: 724,
+        completionRate: "31.3%",
+        dropOffHint: "Attachment link creates friction",
+        destination: "Mock inbox",
+      },
+      {
+        id: "lead-form",
+        title: "Lead Form",
+        views: 5640,
+        starts: 2444,
+        submissions: 1392,
+        completionRate: "57.0%",
+        dropOffHint: "Lead Form remains the cleanest flow",
+        destination: "Google Sheets mock",
+      },
+      {
+        id: "custom-form",
+        title: "Custom Form",
+        views: 2110,
+        starts: 588,
+        submissions: 214,
+        completionRate: "36.4%",
+        dropOffHint: "Custom Form needs field cleanup",
+        destination: "Webhook mock",
+      },
+    ],
+    trafficSources: [
+      { label: "Direct", value: 32, detail: "30,147 views" },
+      { label: "Instagram", value: 27, detail: "25,437 views" },
+      { label: "Facebook", value: 11, detail: "10,363 views" },
+      { label: "TikTok", value: 10, detail: "9,421 views" },
+      { label: "X", value: 4, detail: "3,768 views" },
+      { label: "Search", value: 11, detail: "10,363 views" },
+      { label: "QR Code", value: 5, detail: "4,711 views" },
+    ],
+    deviceSplit: [
+      { label: "Mobile", value: 64, detail: "60,294 views" },
+      { label: "Desktop", value: 28, detail: "26,379 views" },
+      { label: "Tablet", value: 8, detail: "7,537 views" },
+    ],
+    regionSplit: [
+      { label: "Thailand", value: 57, detail: "53,700 views" },
+      { label: "Singapore", value: 17, detail: "16,016 views" },
+      { label: "United States", value: 13, detail: "12,247 views" },
+      { label: "Other", value: 13, detail: "12,247 views" },
+    ],
+    funnel: [
+      { label: "Page view", value: 94210, percent: "100%" },
+      { label: "Link click", value: 22480, percent: "24%" },
+      { label: "Form start", value: 13064, percent: "14%" },
+      { label: "Form submit", value: 2184, percent: "2%" },
+      { label: "Completed action", value: 1492, percent: "2%" },
+    ],
+    miniChartLabels: ["M1", "M2", "M3"],
+    rangeInsight: "90-day mock data points to durable direct traffic and consultation conversions.",
+    insights: [
+      "Book a Consultation is the strongest long-range converter.",
+      "VIP Menu sustains the best CTR over 90 days.",
+      "Support Request gets most traffic from mobile.",
+      "Booking Form has a higher completion rate than Contact Form.",
+      "Promo Banner dropped this range.",
+    ],
+  },
+};
+
 const buttonStyles: Array<{
   id: ButtonStyle;
   label: string;
@@ -740,8 +1404,12 @@ const defaultDesignSettings: DesignSettings = {
 
 const safeLabels = [
   "local mock state only",
+  "local mock analytics only",
   "no submission",
+  "no tracking",
+  "no database read",
   "no Google Sheets",
+  "no Supabase",
   "no save",
   "no publish",
   "no schema update",
@@ -754,6 +1422,7 @@ const lockTypeOptions: LockType[] = ["none", "code", "age", "sensitive"];
 const pageStatusOptions: PageStatus[] = ["Draft", "Published", "Scheduled"];
 const pageVisibilityOptions: PageVisibility[] = ["Public", "Hidden", "Password protected"];
 const pageLanguageOptions: PageLanguage[] = ["Thai", "English"];
+const analyticsTimeRangeOptions: AnalyticsTimeRange[] = ["Today", "7 days", "30 days", "90 days"];
 const formFieldTypeOptions: FormFieldType[] = [
   "text",
   "textarea",
@@ -788,6 +1457,8 @@ const getLinkStatusLabel = (link: MockLinkItem) => (link.enabled ? "enabled" : "
 const getLinkActionLabel = (link: MockLinkItem) => link.url.trim() || link.actionLabel;
 
 const formatNumber = (value: number) => new Intl.NumberFormat("en-US").format(value);
+
+const getPercentWidth = (value: number, max = 100) => `${Math.max(4, Math.min(100, (value / max) * 100))}%`;
 
 const isSlugValid = (slug: string) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug.trim());
 
@@ -1986,6 +2657,361 @@ function MockPageValidationChecklist({
             ))}
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function MockAnalyticsDashboard({
+  range,
+  data,
+  selectedTopLink,
+  onRangeChange,
+}: {
+  range: AnalyticsTimeRange;
+  data: MockAnalyticsRangeData;
+  selectedTopLink: MockTopLinkAnalytics;
+  onRangeChange: (range: AnalyticsTimeRange) => void;
+}) {
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Analytics Dashboard
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Mock performance overview</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Local mock analytics only. No event tracking, database read, API call, Supabase, or
+            Google Sheets connection is used.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">{range}</Badge>
+          <Badge variant="outline">local mock analytics only</Badge>
+          <Badge variant="outline">no tracking</Badge>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {data.metrics.map((metric) => (
+            <div key={metric.label} className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-xs font-medium text-muted-foreground">{metric.label}</p>
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <p className="text-xl font-semibold leading-tight">{metric.value}</p>
+                <Badge variant="outline">{metric.trend}</Badge>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">{metric.detail}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-xl border bg-muted/30 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Range selector
+          </p>
+          <div className="mt-3">
+            <ChoiceGroup
+              label="Time range"
+              options={analyticsTimeRangeOptions}
+              value={range}
+              onChange={(value) => onRangeChange(value as AnalyticsTimeRange)}
+            />
+          </div>
+          <div className="mt-4 rounded-lg border bg-background p-3">
+            <p className="text-xs font-medium text-muted-foreground">Mini chart labels</p>
+            <div className="mt-3 flex items-end gap-2">
+              {data.miniChartLabels.map((label, index) => (
+                <div key={label} className="grid flex-1 gap-1 text-center">
+                  <div
+                    className="mx-auto w-full rounded-t bg-foreground"
+                    style={{ height: `${28 + ((index + 1) % 4) * 12}px` }}
+                  />
+                  <span className="truncate text-[10px] text-muted-foreground">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 rounded-lg border bg-background p-3">
+            <p className="text-xs font-medium text-muted-foreground">Selected top link</p>
+            <p className="mt-1 text-sm font-semibold">{selectedTopLink.title}</p>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">{data.rangeInsight}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MockTopLinksAnalytics({
+  links,
+  selectedTopLink,
+  onSelectLink,
+}: {
+  links: MockTopLinkAnalytics[];
+  selectedTopLink: MockTopLinkAnalytics;
+  onSelectLink: (linkId: string) => void;
+}) {
+  const maxClicks = Math.max(...links.map((link) => link.clicks), 1);
+
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Top Links
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Mock link performance</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Selecting a row updates only local analytics detail and preview highlight state.
+          </p>
+        </div>
+        <Badge variant="outline">no event tracking</Badge>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="grid gap-3">
+          {links.map((link) => {
+            const selected = selectedTopLink.id === link.id;
+
+            return (
+              <button
+                key={link.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => onSelectLink(link.id)}
+                className={cn(
+                  "min-w-0 rounded-lg border p-3 text-left transition-colors",
+                  selected
+                    ? "border-foreground bg-foreground text-background"
+                    : "bg-muted/30 hover:bg-muted/60"
+                )}
+              >
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{link.title}</p>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-background/60">
+                      <div
+                        className={cn("h-full rounded-full", selected ? "bg-background" : "bg-foreground")}
+                        style={{ width: getPercentWidth(link.clicks, maxClicks) }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid shrink-0 grid-cols-2 gap-2 text-xs md:grid-cols-5">
+                    <Badge variant={selected ? "secondary" : "outline"}>{formatNumber(link.clicks)} clicks</Badge>
+                    <Badge variant={selected ? "secondary" : "outline"}>{formatNumber(link.views)} views</Badge>
+                    <Badge variant={selected ? "secondary" : "outline"}>{link.ctr} CTR</Badge>
+                    <Badge variant={selected ? "secondary" : "outline"}>{link.conversions} conv.</Badge>
+                    <Badge variant={selected ? "secondary" : "outline"}>{link.trend}</Badge>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="rounded-xl border bg-muted/30 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Analytics detail
+          </p>
+          <h4 className="mt-2 text-base font-semibold">{selectedTopLink.title}</h4>
+          <div className="mt-3 grid gap-2">
+            <StaticField label="Clicks" value={formatNumber(selectedTopLink.clicks)} />
+            <StaticField label="CTR" value={selectedTopLink.ctr} />
+            <StaticField label="Conversions" value={formatNumber(selectedTopLink.conversions)} />
+          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">{selectedTopLink.insight}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MockFormAnalyticsPanel({ forms }: { forms: MockFormAnalytics[] }) {
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Form Analytics
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Visual-only form performance</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Form metrics are mock values and do not read real submissions.
+          </p>
+        </div>
+        <Badge variant="outline">no database read</Badge>
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-5">
+        {forms.map((form) => (
+          <article key={form.id} className="rounded-lg border bg-muted/30 p-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="min-w-0 truncate text-sm font-semibold">{form.title}</p>
+              <Badge variant="outline">{form.destination}</Badge>
+            </div>
+            <div className="mt-3 grid gap-2 text-xs">
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Views</span>
+                <span className="font-medium">{formatNumber(form.views)}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Starts</span>
+                <span className="font-medium">{formatNumber(form.starts)}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Submissions</span>
+                <span className="font-medium">{formatNumber(form.submissions)}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Completion</span>
+                <span className="font-medium">{form.completionRate}</span>
+              </div>
+            </div>
+            <p className="mt-3 line-clamp-2 text-xs leading-5 text-muted-foreground">
+              {form.dropOffHint}
+            </p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MockSplitBars({
+  title,
+  items,
+}: {
+  title: string;
+  items: MockSplitItem[];
+}) {
+  return (
+    <div className="rounded-xl border bg-muted/30 p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        {title}
+      </p>
+      <div className="mt-4 grid gap-3">
+        {items.map((item) => (
+          <div key={item.label}>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="font-medium">{item.label}</span>
+              <span className="text-muted-foreground">{item.value}%</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-background">
+              <div className="h-full rounded-full bg-foreground" style={{ width: `${item.value}%` }} />
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MockTrafficDeviceRegionPanel({ data }: { data: MockAnalyticsRangeData }) {
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Traffic / Device / Region
+          </p>
+          <h3 className="mt-1 text-base font-semibold">CSS-only split views</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            These bars are visual mock data, not external analytics or tracking.
+          </p>
+        </div>
+        <Badge variant="outline">no tracking</Badge>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+        <MockSplitBars title="Traffic sources" items={data.trafficSources} />
+        <MockSplitBars title="Device split" items={data.deviceSplit} />
+        <MockSplitBars title="Region split" items={data.regionSplit} />
+      </div>
+    </section>
+  );
+}
+
+function MockConversionFunnel({ steps }: { steps: MockFunnelStep[] }) {
+  const maxValue = Math.max(...steps.map((step) => step.value), 1);
+
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Conversion Funnel
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Mock funnel progression</h3>
+        </div>
+        <Badge variant="outline">local percentages only</Badge>
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        {steps.map((step) => (
+          <div key={step.label} className="rounded-lg border bg-muted/30 p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold">{step.label}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatNumber(step.value)} mock events
+                </p>
+              </div>
+              <Badge variant="outline">{step.percent}</Badge>
+            </div>
+            <div className="mt-3 h-3 overflow-hidden rounded-full bg-background">
+              <div
+                className="h-full rounded-full bg-foreground"
+                style={{ width: getPercentWidth(step.value, maxValue) }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MockInsightsPanel({
+  insights,
+  selectedTopLink,
+  range,
+}: {
+  insights: string[];
+  selectedTopLink: MockTopLinkAnalytics;
+  range: AnalyticsTimeRange;
+}) {
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Insights
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Generated-looking mock notes</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Static local copy only. No AI, API, analytics service, or database call runs here.
+          </p>
+        </div>
+        <Badge variant="secondary">{range}</Badge>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        {insights.map((insight) => (
+          <article key={insight} className="rounded-lg border bg-muted/30 p-3">
+            <div className="flex items-start gap-2">
+              <BarChart3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <p className="text-sm leading-6">{insight}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-lg border bg-muted/30 p-3">
+        <p className="text-xs font-medium text-muted-foreground">Selected link insight</p>
+        <p className="mt-1 text-sm leading-6">{selectedTopLink.insight}</p>
       </div>
     </section>
   );
@@ -3373,6 +4399,7 @@ function DeviceModeToggle({
 function MockDevicePreview({
   selectedPage,
   selectedLink,
+  selectedAnalyticsLink,
   selectedForm,
   selectedFormFields,
   routing,
@@ -3383,6 +4410,7 @@ function MockDevicePreview({
 }: {
   selectedPage: MockPage;
   selectedLink: MockLinkItem;
+  selectedAnalyticsLink: MockTopLinkAnalytics;
   selectedForm: MockFormTemplate;
   selectedFormFields: MockFormField[];
   routing: MockSubmissionRouting;
@@ -3392,6 +4420,7 @@ function MockDevicePreview({
   onSelectMode: (mode: DeviceMode) => void;
 }) {
   const isPhone = deviceMode === "phone";
+  const highlightedLinkId = selectedAnalyticsLink.id || selectedLink.id;
 
   return (
     <section className="rounded-xl border bg-background p-4 shadow-sm">
@@ -3428,11 +4457,14 @@ function MockDevicePreview({
                     key={link.id}
                     className={cn(
                       "h-5 rounded",
-                      link.id === selectedLink.id ? "bg-foreground" : "bg-muted"
+                      link.id === highlightedLinkId ? "bg-foreground" : "bg-muted"
                     )}
                   />
                 ))}
               </div>
+              <p className="mt-2 truncate text-center text-[10px] text-muted-foreground">
+                Analytics: {selectedAnalyticsLink.title}
+              </p>
               <div className="mt-3 rounded-xl border bg-background p-2">
                 <div className="flex items-center justify-between gap-2">
                   <p className="truncate text-[11px] font-semibold">{selectedForm.title}</p>
@@ -3469,7 +4501,7 @@ function MockDevicePreview({
                       key={link.id}
                       className={cn(
                         "rounded p-2",
-                        link.id === selectedLink.id ? "bg-foreground text-background" : "bg-muted/70"
+                        link.id === highlightedLinkId ? "bg-foreground text-background" : "bg-muted/70"
                       )}
                     >
                       <p className="truncate text-[11px] font-medium">{link.title}</p>
@@ -3489,6 +4521,15 @@ function MockDevicePreview({
                         </p>
                       </div>
                     ))}
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-xs font-semibold">Analytics highlight</p>
+                      <Badge variant="outline">{selectedAnalyticsLink.ctr}</Badge>
+                    </div>
+                    <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                      {selectedAnalyticsLink.title}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -3515,6 +4556,10 @@ export function AdminUiV2LabPreview() {
     useState<Record<string, MockFormField[]>>(initialMockFormFieldsByForm);
   const [mockSubmissionRoutingByForm, setMockSubmissionRoutingByForm] =
     useState<Record<string, MockSubmissionRouting>>(initialMockSubmissionRoutingByForm);
+  const [selectedAnalyticsRange, setSelectedAnalyticsRange] =
+    useState<AnalyticsTimeRange>("7 days");
+  const [selectedAnalyticsLinkId, setSelectedAnalyticsLinkId] =
+    useState(initialMockLinks[0].id);
   const [pageSettingsByRoute, setPageSettingsByRoute] =
     useState<Record<string, PageSettings>>(initialPageSettingsByRoute);
   const [dirtyRoutes, setDirtyRoutes] = useState<Record<string, boolean>>({});
@@ -3553,6 +4598,13 @@ export function AdminUiV2LabPreview() {
   const selectedSubmissionRouting =
     mockSubmissionRoutingByForm[selectedForm.id] ??
     initialMockSubmissionRoutingByForm[mockFormTemplates[0].id];
+  const selectedAnalyticsData = mockAnalyticsByRange[selectedAnalyticsRange];
+  const selectedTopLinkAnalytics = useMemo(
+    () =>
+      selectedAnalyticsData.topLinks.find((link) => link.id === selectedAnalyticsLinkId) ??
+      selectedAnalyticsData.topLinks[0],
+    [selectedAnalyticsData, selectedAnalyticsLinkId]
+  );
   const selectedLinkSettings = useMemo<DesignSettings>(
     () => ({
       ...designSettings,
@@ -3857,6 +4909,25 @@ export function AdminUiV2LabPreview() {
                 routing={selectedSubmissionRouting}
                 validationHints={formValidationHints}
               />
+              <MockAnalyticsDashboard
+                range={selectedAnalyticsRange}
+                data={selectedAnalyticsData}
+                selectedTopLink={selectedTopLinkAnalytics}
+                onRangeChange={setSelectedAnalyticsRange}
+              />
+              <MockTopLinksAnalytics
+                links={selectedAnalyticsData.topLinks}
+                selectedTopLink={selectedTopLinkAnalytics}
+                onSelectLink={setSelectedAnalyticsLinkId}
+              />
+              <MockFormAnalyticsPanel forms={selectedAnalyticsData.forms} />
+              <MockTrafficDeviceRegionPanel data={selectedAnalyticsData} />
+              <MockConversionFunnel steps={selectedAnalyticsData.funnel} />
+              <MockInsightsPanel
+                insights={selectedAnalyticsData.insights}
+                selectedTopLink={selectedTopLinkAnalytics}
+                range={selectedAnalyticsRange}
+              />
               <DesignPanel settings={selectedLinkSettings} onChange={updateDesignSetting} />
               <MockEditorArea
                 selectedPage={selectedPage}
@@ -3887,6 +4958,7 @@ export function AdminUiV2LabPreview() {
               <MockDevicePreview
                 selectedPage={selectedPage}
                 selectedLink={selectedLink}
+                selectedAnalyticsLink={selectedTopLinkAnalytics}
                 selectedForm={selectedForm}
                 selectedFormFields={selectedFormFields}
                 routing={selectedSubmissionRouting}
