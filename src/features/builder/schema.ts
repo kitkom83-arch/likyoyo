@@ -52,6 +52,35 @@ const optionalWebUrlSchema = (message: string) =>
     .optional()
     .refine((value) => !value || isWebUrlValue(value), message);
 
+const legacyLinkDisplayStyleSchema = z.enum([
+  "icon_left",
+  "image_banner",
+  "text_only",
+  "media_card",
+  "text_panel",
+]);
+
+const linkButtonStyleSchema = z.enum([
+  "icon-left",
+  "image-full",
+  "text-only",
+  "card-left-image",
+  "text-panel",
+]);
+
+const linkDisplayStyleSchema = z.union([
+  legacyLinkDisplayStyleSchema,
+  linkButtonStyleSchema,
+]);
+
+const optionalLinkDisplayStyleSchema = linkDisplayStyleSchema.optional().catch(undefined);
+const optionalLinkButtonStyleSchema = linkButtonStyleSchema.optional().catch(undefined);
+const optionalLinkTextAlignSchema = z.enum(["left", "center", "right"]).optional().catch(undefined);
+const optionalLinkImageAspectSchema = z.enum(["3:1", "2:1"]).optional().catch(undefined);
+const optionalLinkImageFitSchema = z.enum(["cover", "contain"]).optional().catch(undefined);
+const optionalBooleanSchema = z.boolean().optional().catch(undefined);
+const optionalBodySchema = z.string().optional().catch(undefined);
+
 const optionalEditableImageSourceSchema = (message: string) =>
   optionalImageSourceSchema(message);
 
@@ -348,16 +377,13 @@ export const linkSchema = z
     preOpenSecondaryButtonLabel: z.string().trim().optional(),
     preOpenDismissible: z.boolean().optional(),
     preOpenButtonStyle: z.enum(["solid", "outline", "glow"]).optional(),
-    style: z
-      .enum(["icon_left", "image_banner", "text_only", "media_card", "text_panel"])
-      .optional(),
-    displayStyle: z
-      .enum(["icon_left", "image_banner", "text_only", "media_card", "text_panel"])
-      .optional(),
-    textAlign: z.enum(["left", "center", "right"]).optional(),
-    bannerRatio: z.enum(["3:1", "2:1"]).optional(),
-    imageAspect: z.enum(["3:1", "2:1"]).optional(),
-    imageFit: z.enum(["cover", "contain"]).optional(),
+    style: optionalLinkDisplayStyleSchema,
+    displayStyle: optionalLinkDisplayStyleSchema,
+    buttonStyle: optionalLinkButtonStyleSchema,
+    textAlign: optionalLinkTextAlignSchema,
+    bannerRatio: optionalLinkImageAspectSchema,
+    imageAspect: optionalLinkImageAspectSchema,
+    imageFit: optionalLinkImageFitSchema,
     imageUrl: optionalWebUrlSchema("Image URL must be a valid http(s) URL."),
     iconImageUrl: optionalWebUrlSchema("Icon image URL must be a valid http(s) URL."),
     backgroundImageUrl: optionalWebUrlSchema("Background image URL must be a valid http(s) URL."),
@@ -365,9 +391,10 @@ export const linkSchema = z
     imageContrast: optionalTuningNumberSchema(200),
     imageSaturation: optionalTuningNumberSchema(200),
     overlayOpacity: optionalTuningNumberSchema(100),
-    preserveLineBreaks: z.boolean().optional(),
-    textPanelContent: z.string().optional(),
-    openInNewTab: z.boolean().optional(),
+    preserveLineBreaks: optionalBooleanSchema,
+    body: optionalBodySchema,
+    textPanelContent: optionalBodySchema,
+    openInNewTab: optionalBooleanSchema,
     sortOrder: z.number().int().optional(),
     titleSize: z.number().optional(),
     textColor: z.string().trim().optional(),
@@ -651,12 +678,13 @@ export const linkSettingsSchema = z.object({
   endAt: z.string().optional(),
   locked: z.boolean(),
   lockMessage: z.string().trim().optional(),
-  style: z
-    .enum(["icon_left", "image_banner", "text_only", "media_card", "text_panel"])
-    .optional(),
-  textAlign: z.enum(["left", "center", "right"]).optional(),
-  bannerRatio: z.enum(["3:1", "2:1"]).optional(),
-  imageFit: z.enum(["cover", "contain"]).optional(),
+  style: optionalLinkDisplayStyleSchema,
+  displayStyle: optionalLinkDisplayStyleSchema,
+  buttonStyle: optionalLinkButtonStyleSchema,
+  textAlign: optionalLinkTextAlignSchema,
+  bannerRatio: optionalLinkImageAspectSchema,
+  imageAspect: optionalLinkImageAspectSchema,
+  imageFit: optionalLinkImageFitSchema,
   imageUrl: optionalWebUrlSchema("Image URL must be a valid http(s) URL."),
   iconImageUrl: optionalWebUrlSchema("Icon image URL must be a valid http(s) URL."),
   backgroundImageUrl: optionalWebUrlSchema("Background image URL must be a valid http(s) URL."),
@@ -664,9 +692,10 @@ export const linkSettingsSchema = z.object({
   imageContrast: optionalTuningNumberSchema(200),
   imageSaturation: optionalTuningNumberSchema(200),
   overlayOpacity: optionalTuningNumberSchema(100),
-  preserveLineBreaks: z.boolean().optional(),
-  textPanelContent: z.string().optional(),
-  openInNewTab: z.boolean().optional(),
+  preserveLineBreaks: optionalBooleanSchema,
+  body: optionalBodySchema,
+  textPanelContent: optionalBodySchema,
+  openInNewTab: optionalBooleanSchema,
   sortOrder: z.number().int().optional(),
   titleSize: z.number().optional(),
   textColor: z.string().trim().optional(),
@@ -743,6 +772,8 @@ export const builderDataSchema = z.object({
       title: persistedStringSchema.default("Untitled"),
       url: persistedUrlStringSchema.default(""),
       description: persistedStringSchema.optional(),
+      body: optionalBodySchema,
+      buttonStyle: optionalLinkButtonStyleSchema,
       enabled: z.boolean().default(true),
       discount: z
         .object({
@@ -928,16 +959,13 @@ export const builderDataSchema = z.object({
           .optional(),
         locked: z.boolean().default(false),
         lockMessage: persistedStringSchema.optional(),
-        style: z
-          .enum(["icon_left", "image_banner", "text_only", "media_card", "text_panel"])
-          .default("icon_left"),
-        displayStyle: z
-          .enum(["icon_left", "image_banner", "text_only", "media_card", "text_panel"])
-          .optional(),
-        textAlign: z.enum(["left", "center", "right"]).default("left"),
-        bannerRatio: z.enum(["3:1", "2:1"]).default("3:1"),
-        imageAspect: z.enum(["3:1", "2:1"]).optional(),
-        imageFit: z.enum(["cover", "contain"]).default("cover"),
+        style: optionalLinkDisplayStyleSchema,
+        displayStyle: optionalLinkDisplayStyleSchema,
+        buttonStyle: optionalLinkButtonStyleSchema,
+        textAlign: optionalLinkTextAlignSchema,
+        bannerRatio: optionalLinkImageAspectSchema,
+        imageAspect: optionalLinkImageAspectSchema,
+        imageFit: optionalLinkImageFitSchema,
         imageUrl: persistedOptionalWebUrlSchema,
         iconImageUrl: persistedOptionalWebUrlSchema,
         backgroundImageUrl: persistedOptionalWebUrlSchema,
@@ -945,9 +973,10 @@ export const builderDataSchema = z.object({
         imageContrast: persistedTuningNumberSchema(200, 100),
         imageSaturation: persistedTuningNumberSchema(200, 100),
         overlayOpacity: persistedTuningNumberSchema(100, 0),
-        preserveLineBreaks: z.boolean().default(true),
-        textPanelContent: persistedStringSchema.optional(),
-        openInNewTab: z.boolean().default(true),
+        preserveLineBreaks: optionalBooleanSchema,
+        body: optionalBodySchema,
+        textPanelContent: optionalBodySchema,
+        openInNewTab: optionalBooleanSchema,
         sortOrder: z.number().int().optional(),
         titleSize: z.number().optional(),
         textColor: persistedStringSchema.optional(),

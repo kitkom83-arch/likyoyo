@@ -55,24 +55,35 @@ export type LinkSchedule = {
   endAt?: string;
 };
 
-export type LinkDisplayStyle =
+export type LegacyLinkDisplayStyle =
   | "icon_left"
   | "image_banner"
   | "text_only"
   | "media_card"
   | "text_panel";
 
+export type LinkButtonStyle =
+  | "icon-left"
+  | "image-full"
+  | "text-only"
+  | "card-left-image"
+  | "text-panel";
+
+export type LinkDisplayStyle = LegacyLinkDisplayStyle | LinkButtonStyle;
 export type LinkTextAlign = "left" | "center" | "right";
-export type LinkBannerRatio = "3:1" | "2:1";
+export type LinkImageAspect = "3:1" | "2:1";
+export type LinkBannerRatio = LinkImageAspect;
 export type LinkImageFit = "cover" | "contain";
 
 export type UnifiedMenuItemDisplay = {
   id: string;
   style?: LinkDisplayStyle;
+  buttonStyle?: LinkButtonStyle;
   enabled?: boolean;
   sortOrder?: number;
   title?: string;
   description?: string;
+  body?: string;
   linkUrl?: string;
   openInNewTab?: boolean;
   textAlign?: LinkTextAlign;
@@ -85,6 +96,7 @@ export type UnifiedMenuItemDisplay = {
   overlayOpacity?: number;
   preserveLineBreaks?: boolean;
   bannerRatio?: LinkBannerRatio;
+  imageAspect?: LinkImageAspect;
   imageFit?: LinkImageFit;
   titleSize?: number;
   textColor?: string;
@@ -102,8 +114,10 @@ export type LinkSettings = {
   lockMessage?: string;
   style?: LinkDisplayStyle;
   displayStyle?: LinkDisplayStyle;
+  buttonStyle?: LinkButtonStyle;
   textAlign?: LinkTextAlign;
   bannerRatio?: LinkBannerRatio;
+  imageAspect?: LinkImageAspect;
   imageFit?: LinkImageFit;
   imageUrl?: string;
   iconImageUrl?: string;
@@ -113,6 +127,7 @@ export type LinkSettings = {
   imageSaturation?: number;
   overlayOpacity?: number;
   preserveLineBreaks?: boolean;
+  body?: string;
   textPanelContent?: string;
   openInNewTab?: boolean;
   sortOrder?: number;
@@ -296,6 +311,8 @@ export type BioLink = {
   url: string;
   enabled: boolean;
   description?: string;
+  body?: string;
+  buttonStyle?: LinkButtonStyle;
   preOpenModal?: PreOpenModalConfig;
   discount?: DiscountCodeData;
   embedPost?: EmbedPostData;

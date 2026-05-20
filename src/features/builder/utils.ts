@@ -8,7 +8,11 @@ import {
   FormBlock,
   FormField,
   FormTemplate,
+  LegacyLinkDisplayStyle,
+  LinkButtonStyle,
+  LinkImageAspect,
   LinkSettings,
+  LinkTextAlign,
   PromoGalleryBlock,
   UnifiedMenuItemDisplay,
 } from "@/features/builder/types";
@@ -41,8 +45,10 @@ export const normalizeFormFieldType = (fieldType: FormField["type"]): FormField[
 const DEFAULT_LINK_SETTINGS_STYLE: Pick<
   LinkSettings,
   | "style"
+  | "buttonStyle"
   | "textAlign"
   | "bannerRatio"
+  | "imageAspect"
   | "imageFit"
   | "imageUrl"
   | "iconImageUrl"
@@ -52,13 +58,16 @@ const DEFAULT_LINK_SETTINGS_STYLE: Pick<
   | "imageSaturation"
   | "overlayOpacity"
   | "preserveLineBreaks"
+  | "body"
   | "textPanelContent"
   | "openInNewTab"
   | "showBorder"
 > = {
   style: "icon_left",
+  buttonStyle: "icon-left",
   textAlign: "left",
   bannerRatio: "3:1",
+  imageAspect: "3:1",
   imageFit: "cover",
   imageUrl: "",
   iconImageUrl: "",
@@ -68,10 +77,69 @@ const DEFAULT_LINK_SETTINGS_STYLE: Pick<
   imageSaturation: 100,
   overlayOpacity: 0,
   preserveLineBreaks: true,
+  body: "",
   textPanelContent: "",
   openInNewTab: true,
   showBorder: true,
 };
+
+const V2_STYLE_TO_LEGACY_STYLE: Record<LinkButtonStyle, LegacyLinkDisplayStyle> = {
+  "icon-left": "icon_left",
+  "image-full": "image_banner",
+  "text-only": "text_only",
+  "card-left-image": "media_card",
+  "text-panel": "text_panel",
+};
+
+const LEGACY_STYLE_TO_V2_STYLE: Record<LegacyLinkDisplayStyle, LinkButtonStyle> = {
+  icon_left: "icon-left",
+  image_banner: "image-full",
+  text_only: "text-only",
+  media_card: "card-left-image",
+  text_panel: "text-panel",
+};
+
+const normalizeLinkDisplayStyle = (value: unknown): LegacyLinkDisplayStyle => {
+  if (typeof value !== "string") {
+    return "icon_left";
+  }
+
+  if (value in LEGACY_STYLE_TO_V2_STYLE) {
+    return value as LegacyLinkDisplayStyle;
+  }
+
+  return V2_STYLE_TO_LEGACY_STYLE[value as LinkButtonStyle] ?? "icon_left";
+};
+
+const normalizeLinkButtonStyle = (value: unknown): LinkButtonStyle | undefined => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  if (value in V2_STYLE_TO_LEGACY_STYLE) {
+    return value as LinkButtonStyle;
+  }
+
+  const legacyStyle = normalizeLinkDisplayStyle(value);
+  return LEGACY_STYLE_TO_V2_STYLE[legacyStyle];
+};
+
+const normalizeLinkTextAlign = (value: unknown): LinkTextAlign =>
+  value === "center" || value === "right" || value === "left"
+    ? value
+    : "left";
+
+const normalizeLinkImageAspect = (value: unknown): LinkImageAspect =>
+  value === "2:1" || value === "3:1" ? value : "3:1";
+
+const normalizeLinkImageFit = (value: unknown): NonNullable<LinkSettings["imageFit"]> =>
+  value === "contain" || value === "cover" ? value : "cover";
+
+const normalizeOptionalBoolean = (value: unknown, fallback: boolean): boolean =>
+  typeof value === "boolean" ? value : fallback;
+
+const normalizeOptionalText = (value: unknown): string =>
+  typeof value === "string" ? value : "";
 
 export const normalizeImageTuningValue = (
   value: unknown,
@@ -109,24 +177,53 @@ const normalizeMenuImageUrl = (value: unknown): string => {
 };
 
 export const getLinkDisplaySettings = (link: BioLink) => {
-  const settings = {
+  const rawSettings = {
     ...DEFAULT_LINK_SETTINGS_STYLE,
-    style: link.settings.style ?? link.settings.displayStyle ?? DEFAULT_LINK_SETTINGS_STYLE.style,
-    bannerRatio: link.settings.bannerRatio ?? (link.settings as { imageAspect?: "3:1" | "2:1" }).imageAspect ?? DEFAULT_LINK_SETTINGS_STYLE.bannerRatio,
-    backgroundImageUrl: link.settings.backgroundImageUrl ?? link.settings.imageUrl ?? "",
-    iconImageUrl: link.settings.iconImageUrl ?? link.settings.imageUrl ?? "",
     ...link.settings,
   };
+  const style = normalizeLinkDisplayStyle(
+    link.settings.style ?? link.settings.displayStyle ?? link.settings.buttonStyle ?? link.buttonStyle,
+  );
+  const buttonStyle =
+    normalizeLinkButtonStyle(link.settings.buttonStyle ?? link.buttonStyle ?? link.settings.style) ??
+    LEGACY_STYLE_TO_V2_STYLE[style];
+  const imageAspect = normalizeLinkImageAspect(link.settings.bannerRatio ?? link.settings.imageAspect);
+  const imageUrl = normalizeMenuImageUrl(rawSettings.imageUrl);
+  const iconImageUrl = normalizeMenuImageUrl(rawSettings.iconImageUrl) || imageUrl;
+  const backgroundImageUrl = normalizeMenuImageUrl(rawSettings.backgroundImageUrl) || imageUrl;
+  const body = normalizeOptionalText(link.settings.body || link.body);
+  const textPanelContent = normalizeOptionalText(link.settings.textPanelContent) || body;
 
   return {
-    ...settings,
-    imageUrl: normalizeMenuImageUrl(settings.imageUrl),
-    iconImageUrl: normalizeMenuImageUrl(settings.iconImageUrl),
-    backgroundImageUrl: normalizeMenuImageUrl(settings.backgroundImageUrl),
-    imageBrightness: normalizeImageTuningValue(settings.imageBrightness, 100, 200),
-    imageContrast: normalizeImageTuningValue(settings.imageContrast, 100, 200),
-    imageSaturation: normalizeImageTuningValue(settings.imageSaturation, 100, 200),
-    overlayOpacity: normalizeImageTuningValue(settings.overlayOpacity, 0, 100),
+    ...rawSettings,
+    style,
+    displayStyle: style,
+    buttonStyle,
+    textAlign: normalizeLinkTextAlign(rawSettings.textAlign),
+    bannerRatio: imageAspect,
+    imageAspect,
+    imageFit: normalizeLinkImageFit(rawSettings.imageFit),
+    imageUrl,
+    iconImageUrl,
+    backgroundImageUrl,
+    imageBrightness: normalizeImageTuningValue(rawSettings.imageBrightness, 100, 200),
+    imageContrast: normalizeImageTuningValue(rawSettings.imageContrast, 100, 200),
+    imageSaturation: normalizeImageTuningValue(rawSettings.imageSaturation, 100, 200),
+    overlayOpacity: normalizeImageTuningValue(rawSettings.overlayOpacity, 0, 100),
+    preserveLineBreaks: normalizeOptionalBoolean(
+      rawSettings.preserveLineBreaks,
+      DEFAULT_LINK_SETTINGS_STYLE.preserveLineBreaks ?? true,
+    ),
+    body,
+    textPanelContent,
+    openInNewTab: normalizeOptionalBoolean(
+      rawSettings.openInNewTab,
+      DEFAULT_LINK_SETTINGS_STYLE.openInNewTab ?? true,
+    ),
+    showBorder: normalizeOptionalBoolean(
+      rawSettings.showBorder,
+      DEFAULT_LINK_SETTINGS_STYLE.showBorder ?? true,
+    ),
   };
 };
 
@@ -138,10 +235,12 @@ export const getUnifiedMenuItemDisplay = (
   return {
     id: link.id,
     style: settings.style,
+    buttonStyle: settings.buttonStyle,
     enabled: link.enabled,
     sortOrder: settings.sortOrder ?? sortOrder,
     title: link.title,
     description: link.description ?? "",
+    body: settings.body || settings.textPanelContent,
     linkUrl: link.url,
     openInNewTab: settings.openInNewTab,
     textAlign: settings.textAlign,
@@ -154,6 +253,7 @@ export const getUnifiedMenuItemDisplay = (
     overlayOpacity: settings.overlayOpacity,
     preserveLineBreaks: settings.preserveLineBreaks,
     bannerRatio: settings.bannerRatio,
+    imageAspect: settings.imageAspect,
     imageFit: settings.imageFit,
     titleSize: settings.titleSize,
     textColor: settings.textColor,
