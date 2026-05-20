@@ -4,18 +4,26 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  ArrowDown,
+  ArrowUp,
   BarChart3,
   Blocks,
+  CalendarClock,
   Eye,
+  ExternalLink,
   FileText,
   FormInput,
   ImageIcon,
+  LockKeyhole,
   Monitor,
+  MousePointerClick,
   Palette,
   PanelRight,
   Settings,
   ShieldCheck,
   Smartphone,
+  Star,
+  TriangleAlert,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -25,6 +33,7 @@ import { cn } from "@/lib/utils";
 type DeviceMode = "phone" | "desktop";
 type ButtonStyle = "icon-left" | "image-full" | "text-only" | "card-left-image" | "text-panel";
 type TextAlign = "left" | "center" | "right";
+type LockType = "none" | "code" | "age" | "sensitive";
 
 type MockPage = {
   route: string;
@@ -43,6 +52,28 @@ type MockBlock = {
   previewTitle: string;
   previewBody: string;
   controls: string[];
+};
+
+type MockLinkItem = {
+  id: string;
+  title: string;
+  description: string;
+  body: string;
+  url: string;
+  actionLabel: string;
+  enabled: boolean;
+  prioritized: boolean;
+  openInNewTab: boolean;
+  buttonStyle: ButtonStyle;
+  textAlignment: TextAlign;
+  imageUrl: string;
+  backgroundImageUrl: string;
+  schedulePublishDate: string;
+  scheduleHideDate: string;
+  lockType: LockType;
+  totalClicks: number;
+  sevenDayClicks: number;
+  ctr: string;
 };
 
 type DesignSettings = {
@@ -69,6 +100,11 @@ type DesignSettings = {
 type UpdateDesignSetting = <K extends keyof DesignSettings>(
   key: K,
   value: DesignSettings[K]
+) => void;
+
+type UpdateSelectedLink = <K extends keyof MockLinkItem>(
+  key: K,
+  value: MockLinkItem[K]
 ) => void;
 
 const adminNavItems = [
@@ -155,6 +191,114 @@ const mockBlocks: MockBlock[] = [
   },
 ];
 
+const initialMockLinks: MockLinkItem[] = [
+  {
+    id: "book-consultation",
+    title: "Book a Consultation",
+    description: "Fast path for high-intent visitors who want a guided setup call.",
+    body: "Choose a time with the studio team.\nConfirmation details stay in this mock only.",
+    url: "https://support.bn9.one/consultation",
+    actionLabel: "Open booking mock",
+    enabled: true,
+    prioritized: true,
+    openInNewTab: true,
+    buttonStyle: "icon-left",
+    textAlignment: "left",
+    imageUrl: "https://images.example/mock-consultation-icon.png",
+    backgroundImageUrl: "https://images.example/mock-consultation-cover.jpg",
+    schedulePublishDate: "2026-05-20",
+    scheduleHideDate: "",
+    lockType: "none",
+    totalClicks: 1284,
+    sevenDayClicks: 132,
+    ctr: "12.4%",
+  },
+  {
+    id: "vip-menu",
+    title: "VIP Menu",
+    description: "Image-forward menu concept for premium offers and private options.",
+    body: "VIP members can scan current packages.\nThis is visual-only menu copy.",
+    url: "https://support.bn9.one/vip",
+    actionLabel: "Open VIP menu mock",
+    enabled: true,
+    prioritized: false,
+    openInNewTab: false,
+    buttonStyle: "image-full",
+    textAlignment: "center",
+    imageUrl: "https://images.example/mock-vip-icon.png",
+    backgroundImageUrl: "https://images.example/mock-vip-cover.jpg",
+    schedulePublishDate: "2026-05-22",
+    scheduleHideDate: "",
+    lockType: "age",
+    totalClicks: 942,
+    sevenDayClicks: 88,
+    ctr: "10.1%",
+  },
+  {
+    id: "support-request",
+    title: "Support Request",
+    description: "Private support flow concept with code-gated access.",
+    body: "Describe the support need.\nA future version can route this into a real queue.",
+    url: "support-request",
+    actionLabel: "Open support mock",
+    enabled: true,
+    prioritized: false,
+    openInNewTab: false,
+    buttonStyle: "card-left-image",
+    textAlignment: "left",
+    imageUrl: "https://images.example/mock-support-icon.png",
+    backgroundImageUrl: "https://images.example/mock-support-cover.jpg",
+    schedulePublishDate: "2026-05-19",
+    scheduleHideDate: "",
+    lockType: "code",
+    totalClicks: 603,
+    sevenDayClicks: 47,
+    ctr: "8.7%",
+  },
+  {
+    id: "promo-banner",
+    title: "Promo Banner",
+    description: "Disabled banner draft with an intentionally empty URL state.",
+    body: "Promo copy can sit here before a campaign URL exists.",
+    url: "",
+    actionLabel: "No URL set",
+    enabled: false,
+    prioritized: false,
+    openInNewTab: false,
+    buttonStyle: "text-only",
+    textAlignment: "center",
+    imageUrl: "https://images.example/mock-promo-icon.png",
+    backgroundImageUrl: "https://images.example/mock-promo-cover.jpg",
+    schedulePublishDate: "2026-05-10",
+    scheduleHideDate: "2026-05-18",
+    lockType: "none",
+    totalClicks: 217,
+    sevenDayClicks: 0,
+    ctr: "0.0%",
+  },
+  {
+    id: "announcement-panel",
+    title: "Announcement Panel",
+    description: "Long-form panel for updates that need multiple lines of context.",
+    body: "Line one: service hours update.\nLine two: support response windows.\nLine three: follow the latest notice.",
+    url: "https://support.bn9.one/announcements",
+    actionLabel: "Read announcement mock",
+    enabled: true,
+    prioritized: false,
+    openInNewTab: true,
+    buttonStyle: "text-panel",
+    textAlignment: "left",
+    imageUrl: "https://images.example/mock-announcement-icon.png",
+    backgroundImageUrl: "https://images.example/mock-announcement-cover.jpg",
+    schedulePublishDate: "2026-05-21",
+    scheduleHideDate: "",
+    lockType: "sensitive",
+    totalClicks: 451,
+    sevenDayClicks: 71,
+    ctr: "9.8%",
+  },
+];
+
 const buttonStyles: Array<{
   id: ButtonStyle;
   label: string;
@@ -188,9 +332,18 @@ const defaultDesignSettings: DesignSettings = {
   body: "Use this panel for longer menu copy.\nLine breaks stay visible in the preview.",
 };
 
-const safeLabels = ["local mock state only", "no schema update", "no save", "no publish"];
+const safeLabels = [
+  "local mock state only",
+  "no save",
+  "no publish",
+  "no schema update",
+  "no route loading",
+  "no API calls",
+];
 
 const alignOptions: TextAlign[] = ["left", "center", "right"];
+const lockTypeOptions: LockType[] = ["none", "code", "age", "sensitive"];
+const mockToday = "2026-05-20";
 
 const getStatusLabel = (value: string) => {
   if (value === "active") return "active";
@@ -200,6 +353,37 @@ const getStatusLabel = (value: string) => {
 
 const getStyleLabel = (style: ButtonStyle) =>
   buttonStyles.find((item) => item.id === style)?.label ?? style;
+
+const getLinkStatusLabel = (link: MockLinkItem) => (link.enabled ? "enabled" : "disabled");
+
+const getLinkActionLabel = (link: MockLinkItem) => link.url.trim() || link.actionLabel;
+
+const formatNumber = (value: number) => new Intl.NumberFormat("en-US").format(value);
+
+const getValidationHints = (link: MockLinkItem) => {
+  const hints: string[] = [];
+  const trimmedUrl = link.url.trim();
+
+  if (!trimmedUrl) {
+    hints.push("empty URL");
+  } else if (!/^https?:\/\/[^\s]+$/i.test(trimmedUrl)) {
+    hints.push("invalid URL sample");
+  }
+
+  if (!link.enabled) {
+    hints.push("disabled link");
+  }
+
+  if (link.scheduleHideDate && link.scheduleHideDate <= mockToday) {
+    hints.push("scheduled hidden");
+  }
+
+  if (link.lockType !== "none") {
+    hints.push("locked link");
+  }
+
+  return hints;
+};
 
 const getAlignClass = (alignment: TextAlign) => {
   if (alignment === "center") return "text-center";
@@ -239,10 +423,12 @@ function SafetyLabelRow() {
 
 function MockTopBar({
   selectedPage,
+  selectedLink,
   deviceMode,
   selectedStyle,
 }: {
   selectedPage: MockPage;
+  selectedLink: MockLinkItem;
   deviceMode: DeviceMode;
   selectedStyle: ButtonStyle;
 }) {
@@ -259,6 +445,7 @@ function MockTopBar({
             <h3 className="text-lg font-semibold leading-tight">{selectedPage.route}</h3>
             <Badge variant="outline">no real route loading</Badge>
             <Badge variant="secondary">{getStyleLabel(selectedStyle)}</Badge>
+            <Badge variant="outline">{selectedLink.title}</Badge>
           </div>
         </div>
 
@@ -438,6 +625,149 @@ function MockBlockManager({
   );
 }
 
+function MockValidationHints({ hints }: { hints: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {hints.length ? (
+        hints.map((hint) => (
+          <Badge key={hint} variant="secondary">
+            <TriangleAlert data-icon="inline-start" />
+            {hint}
+          </Badge>
+        ))
+      ) : (
+        <Badge variant="outline">no visual validation hints</Badge>
+      )}
+    </div>
+  );
+}
+
+function MockStatsGrid({ link }: { link: MockLinkItem }) {
+  const stats = [
+    { label: "Total clicks", value: formatNumber(link.totalClicks) },
+    { label: "7 day clicks", value: formatNumber(link.sevenDayClicks) },
+    { label: "CTR", value: link.ctr },
+  ];
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      {stats.map((stat) => (
+        <div key={stat.label} className="rounded-lg border bg-muted/30 p-3">
+          <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
+          <p className="mt-1 text-lg font-semibold leading-tight">{stat.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MockLinkManager({
+  links,
+  selectedLink,
+  onSelectLink,
+  onMoveLink,
+}: {
+  links: MockLinkItem[];
+  selectedLink: MockLinkItem;
+  onSelectLink: (linkId: string) => void;
+  onMoveLink: (linkId: string, direction: -1 | 1) => void;
+}) {
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Link Manager
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Mock link stack</h3>
+        </div>
+        <Badge variant="outline">local reorder only</Badge>
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        {links.map((link, index) => {
+          const selected = selectedLink.id === link.id;
+          const first = index === 0;
+          const last = index === links.length - 1;
+
+          return (
+            <div
+              key={link.id}
+              className={cn(
+                "flex min-w-0 gap-2 rounded-lg border p-2 transition-colors",
+                selected
+                  ? "border-foreground bg-foreground text-background"
+                  : "bg-muted/30 hover:bg-muted/60"
+              )}
+            >
+              <button
+                type="button"
+                aria-pressed={selected}
+                onClick={() => onSelectLink(link.id)}
+                className="min-w-0 flex-1 rounded-md p-1 text-left"
+              >
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-semibold">{link.title}</p>
+                      {link.prioritized ? (
+                        <Badge variant={selected ? "secondary" : "outline"}>
+                          <Star data-icon="inline-start" />
+                          prioritized
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p
+                      className={cn(
+                        "mt-1 truncate text-xs",
+                        selected ? "text-background/75" : "text-muted-foreground"
+                      )}
+                    >
+                      {getLinkActionLabel(link)}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <StatusBadge value={getLinkStatusLabel(link)} />
+                    <Badge variant={selected ? "secondary" : "outline"}>
+                      {getStyleLabel(link.buttonStyle)}
+                    </Badge>
+                    <Badge variant={selected ? "secondary" : "outline"}>
+                      <MousePointerClick data-icon="inline-start" />
+                      {formatNumber(link.totalClicks)}
+                    </Badge>
+                  </div>
+                </div>
+              </button>
+
+              <div className="grid shrink-0 grid-cols-2 gap-1 sm:grid-cols-1">
+                <button
+                  type="button"
+                  onClick={() => onMoveLink(link.id, -1)}
+                  disabled={first}
+                  title="Move up"
+                  className="grid size-8 place-items-center rounded-md border bg-background/80 text-foreground transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ArrowUp className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onMoveLink(link.id, 1)}
+                  disabled={last}
+                  title="Move down"
+                  className="grid size-8 place-items-center rounded-md border bg-background/80 text-foreground transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ArrowDown className="size-4" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function ChoiceGroup({
   label,
   options,
@@ -590,6 +920,144 @@ function MockToggle({
         <span className="size-4 rounded-full bg-background shadow-sm" />
       </span>
     </button>
+  );
+}
+
+function PerLinkSettingsPanel({
+  link,
+  settings,
+  validationHints,
+  onLinkChange,
+  onSettingChange,
+  onTogglePrioritized,
+}: {
+  link: MockLinkItem;
+  settings: DesignSettings;
+  validationHints: string[];
+  onLinkChange: UpdateSelectedLink;
+  onSettingChange: UpdateDesignSetting;
+  onTogglePrioritized: () => void;
+}) {
+  return (
+    <div className="grid gap-4">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Visual validation
+        </p>
+        <div className="mt-2">
+          <MockValidationHints hints={validationHints} />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <MockInput
+          label="Title"
+          value={link.title}
+          onChange={(value) => onLinkChange("title", value)}
+        />
+        <MockInput
+          label="URL"
+          value={link.url}
+          onChange={(value) => onLinkChange("url", value)}
+        />
+      </div>
+
+      <MockTextarea
+        label="Description"
+        value={link.description}
+        onChange={(value) => onLinkChange("description", value)}
+      />
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <MockToggle
+          label="Open in new tab"
+          checked={link.openInNewTab}
+          onToggle={() => onLinkChange("openInNewTab", !link.openInNewTab)}
+        />
+        <MockToggle
+          label="Enabled"
+          checked={link.enabled}
+          onToggle={() => onLinkChange("enabled", !link.enabled)}
+        />
+        <MockToggle
+          label="Featured / Prioritized"
+          checked={link.prioritized}
+          onToggle={onTogglePrioritized}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ChoiceGroup
+          label="Button style"
+          options={buttonStyles.map((style) => style.id)}
+          value={link.buttonStyle}
+          onChange={(value) => onLinkChange("buttonStyle", value as ButtonStyle)}
+        />
+        <AlignmentChoice
+          value={link.textAlignment}
+          onChange={(value) => onLinkChange("textAlignment", value)}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <MockInput
+          label="Image URL"
+          value={link.imageUrl}
+          onChange={(value) => onLinkChange("imageUrl", value)}
+        />
+        <MockInput
+          label="Background Image URL"
+          value={link.backgroundImageUrl}
+          onChange={(value) => onLinkChange("backgroundImageUrl", value)}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <MockInput
+          label="Schedule publish date"
+          value={link.schedulePublishDate}
+          onChange={(value) => onLinkChange("schedulePublishDate", value)}
+        />
+        <MockInput
+          label="Schedule hide date"
+          value={link.scheduleHideDate}
+          onChange={(value) => onLinkChange("scheduleHideDate", value)}
+        />
+      </div>
+
+      <ChoiceGroup
+        label="Lock type"
+        options={lockTypeOptions}
+        value={link.lockType}
+        onChange={(value) => onLinkChange("lockType", value as LockType)}
+      />
+
+      {link.buttonStyle === "text-panel" ? (
+        <MockTextarea
+          label="Text panel body"
+          value={link.body}
+          onChange={(value) => onLinkChange("body", value)}
+        />
+      ) : null}
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Style-specific mock fields
+        </p>
+        <div className="mt-3">
+          <StyleSpecificFields settings={settings} onChange={onSettingChange} />
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Mock click stats
+        </p>
+        <div className="mt-3">
+          <MockStatsGrid link={link} />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -866,7 +1334,7 @@ function StyleSpecificFields({
         <p className="text-xs font-medium text-muted-foreground">
           Line-break preservation note
         </p>
-        <p className="mt-2 text-sm leading-6 whitespace-pre-line">{settings.body}</p>
+        <p className="mt-2 text-sm leading-6 whitespace-pre-wrap">{settings.body}</p>
       </div>
     </div>
   );
@@ -985,7 +1453,7 @@ function StylePreview({
         style={radiusStyle}
       >
         <p className={titleClass}>{settings.title}</p>
-        <p className="mt-2 text-xs leading-5 whitespace-pre-line text-muted-foreground">
+        <p className="mt-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
           {settings.body}
         </p>
       </div>
@@ -1033,7 +1501,7 @@ function StaticField({
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <div
         className={cn(
-          "mt-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm",
+          "mt-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm break-words",
           tall ? "min-h-20 leading-6" : ""
         )}
       >
@@ -1046,11 +1514,15 @@ function StaticField({
 function MockEditorArea({
   selectedPage,
   selectedBlock,
+  selectedLink,
   settings,
+  validationHints,
 }: {
   selectedPage: MockPage;
   selectedBlock: MockBlock;
+  selectedLink: MockLinkItem;
   settings: DesignSettings;
+  validationHints: string[];
 }) {
   return (
     <section className="rounded-xl border bg-background p-4 shadow-sm">
@@ -1059,15 +1531,21 @@ function MockEditorArea({
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             Editor
           </p>
-          <h3 className="mt-1 text-base font-semibold">Selected block preview</h3>
+          <h3 className="mt-1 text-base font-semibold">Selected link workspace</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            {selectedBlock.label} is selected on {selectedPage.route}. Controls below are static
-            mock UI only.
+            {selectedLink.title} is selected inside {selectedBlock.label} on {selectedPage.route}.
+            Controls below are local mock UI only.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline">no form state save</Badge>
           <Badge variant="secondary">{settings.buttonStyle}</Badge>
+          {selectedLink.prioritized ? (
+            <Badge>
+              <Star data-icon="inline-start" />
+              prioritized
+            </Badge>
+          ) : null}
         </div>
       </div>
 
@@ -1081,13 +1559,15 @@ function MockEditorArea({
           </div>
           <div className="grid content-center gap-3">
             <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">{selectedBlock.previewTitle}</Badge>
+              <Badge variant="secondary">{selectedLink.title}</Badge>
               <Badge variant="outline">active style: {settings.buttonStyle}</Badge>
+              <StatusBadge value={getLinkStatusLabel(selectedLink)} />
             </div>
             <h4 className="text-2xl font-semibold leading-tight">{selectedPage.headline}</h4>
             <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-              {selectedBlock.previewBody}
+              {selectedLink.description}
             </p>
+            <MockValidationHints hints={validationHints} />
             <div className="max-w-xl">
               <StylePreview settings={settings} />
             </div>
@@ -1095,13 +1575,53 @@ function MockEditorArea({
         </div>
       </div>
 
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
+        <div className="rounded-xl border bg-muted/30 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Active link card
+              </p>
+              <h4 className="mt-1 truncate text-lg font-semibold">{selectedLink.title}</h4>
+            </div>
+            <Badge variant="outline">{getStyleLabel(selectedLink.buttonStyle)}</Badge>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {selectedLink.description}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge variant="outline" className="max-w-full truncate">
+              <ExternalLink data-icon="inline-start" />
+              {getLinkActionLabel(selectedLink)}
+            </Badge>
+            {selectedLink.lockType !== "none" ? (
+              <Badge variant="secondary">
+                <LockKeyhole data-icon="inline-start" />
+                {selectedLink.lockType}
+              </Badge>
+            ) : null}
+            {selectedLink.scheduleHideDate ? (
+              <Badge variant="outline">
+                <CalendarClock data-icon="inline-start" />
+                hide {selectedLink.scheduleHideDate}
+              </Badge>
+            ) : null}
+          </div>
+          <StylePreview settings={settings} />
+        </div>
+
+        <MockStatsGrid link={selectedLink} />
+      </div>
+
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <StaticField label="Selected route" value={selectedPage.route} />
         <StaticField label="Selected block" value={selectedBlock.label} />
-        <StaticField label="Selected style" value={settings.buttonStyle} />
+        <StaticField label="Selected link" value={selectedLink.title} />
+        <StaticField label="Selected style" value={selectedLink.buttonStyle} />
+        <StaticField label="Mock URL/action" value={getLinkActionLabel(selectedLink)} />
         <StaticField label="Mock state boundary" value="Local component state only" />
         <StaticField label="Planning note" value={selectedPage.previewNote} tall />
-        <StaticField label="Block behavior" value={selectedBlock.previewBody} tall />
+        <StaticField label="Link behavior" value={selectedLink.body} tall />
       </div>
     </section>
   );
@@ -1109,12 +1629,20 @@ function MockEditorArea({
 
 function MockPropertyInspector({
   selectedBlock,
+  selectedLink,
   settings,
   onChange,
+  onLinkChange,
+  onTogglePrioritized,
+  validationHints,
 }: {
   selectedBlock: MockBlock;
+  selectedLink: MockLinkItem;
   settings: DesignSettings;
   onChange: UpdateDesignSetting;
+  onLinkChange: UpdateSelectedLink;
+  onTogglePrioritized: () => void;
+  validationHints: string[];
 }) {
   return (
     <section className="rounded-xl border bg-background p-4 shadow-sm">
@@ -1124,7 +1652,7 @@ function MockPropertyInspector({
             Property Inspector
           </p>
           <h3 className="mt-1 text-base font-semibold">
-            {selectedBlock.label} / {getStyleLabel(settings.buttonStyle)}
+            {selectedLink.title} / {getStyleLabel(settings.buttonStyle)}
           </h3>
         </div>
         <PanelRight className="size-4 text-muted-foreground" />
@@ -1135,14 +1663,14 @@ function MockPropertyInspector({
       </div>
 
       <div className="mt-4 grid gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            Style-specific mock fields
-          </p>
-          <div className="mt-3">
-            <StyleSpecificFields settings={settings} onChange={onChange} />
-          </div>
-        </div>
+        <PerLinkSettingsPanel
+          link={selectedLink}
+          settings={settings}
+          validationHints={validationHints}
+          onLinkChange={onLinkChange}
+          onSettingChange={onChange}
+          onTogglePrioritized={onTogglePrioritized}
+        />
 
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -1209,13 +1737,15 @@ function DeviceModeToggle({
 
 function MockDevicePreview({
   selectedPage,
-  selectedBlock,
+  selectedLink,
+  links,
   settings,
   deviceMode,
   onSelectMode,
 }: {
   selectedPage: MockPage;
-  selectedBlock: MockBlock;
+  selectedLink: MockLinkItem;
+  links: MockLinkItem[];
   settings: DesignSettings;
   deviceMode: DeviceMode;
   onSelectMode: (mode: DeviceMode) => void;
@@ -1252,12 +1782,12 @@ function MockDevicePreview({
                 <StylePreview settings={settings} compact />
               </div>
               <div className="mt-3 grid gap-1.5">
-                {mockBlocks.slice(0, 3).map((block) => (
+                {links.slice(0, 3).map((link) => (
                   <div
-                    key={block.id}
+                    key={link.id}
                     className={cn(
                       "h-5 rounded",
-                      block.id === selectedBlock.id ? "bg-foreground" : "bg-muted"
+                      link.id === selectedLink.id ? "bg-foreground" : "bg-muted"
                     )}
                   />
                 ))}
@@ -1274,14 +1804,16 @@ function MockDevicePreview({
                 </div>
                 <StylePreview settings={settings} compact />
                 <div className="grid grid-cols-2 gap-2">
-                  {mockBlocks.slice(0, 4).map((block) => (
+                  {links.slice(0, 4).map((link) => (
                     <div
-                      key={block.id}
+                      key={link.id}
                       className={cn(
-                        "h-12 rounded",
-                        block.id === selectedBlock.id ? "bg-foreground" : "bg-muted/70"
+                        "rounded p-2",
+                        link.id === selectedLink.id ? "bg-foreground text-background" : "bg-muted/70"
                       )}
-                    />
+                    >
+                      <p className="truncate text-[11px] font-medium">{link.title}</p>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -1296,6 +1828,8 @@ function MockDevicePreview({
 export function AdminUiV2LabPreview() {
   const [selectedPageRoute, setSelectedPageRoute] = useState(mockPages[0].route);
   const [selectedBlockId, setSelectedBlockId] = useState(mockBlocks[0].id);
+  const [selectedLinkId, setSelectedLinkId] = useState(initialMockLinks[0].id);
+  const [mockLinks, setMockLinks] = useState<MockLinkItem[]>(initialMockLinks);
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
   const [designSettings, setDesignSettings] = useState<DesignSettings>(defaultDesignSettings);
 
@@ -1307,9 +1841,93 @@ export function AdminUiV2LabPreview() {
     () => mockBlocks.find((block) => block.id === selectedBlockId) ?? mockBlocks[0],
     [selectedBlockId]
   );
+  const selectedLink = useMemo(
+    () => mockLinks.find((link) => link.id === selectedLinkId) ?? mockLinks[0],
+    [mockLinks, selectedLinkId]
+  );
+  const selectedLinkSettings = useMemo<DesignSettings>(
+    () => ({
+      ...designSettings,
+      buttonStyle: selectedLink.buttonStyle,
+      textAlignment: selectedLink.textAlignment,
+      imageUrl: selectedLink.imageUrl,
+      backgroundImageUrl: selectedLink.backgroundImageUrl,
+      title: selectedLink.title,
+      description: selectedLink.description,
+      body: selectedLink.body,
+    }),
+    [designSettings, selectedLink]
+  );
+  const validationHints = useMemo(() => getValidationHints(selectedLink), [selectedLink]);
+
+  const updateSelectedLink: UpdateSelectedLink = (key, value) => {
+    setMockLinks((current) =>
+      current.map((link) => (link.id === selectedLink.id ? { ...link, [key]: value } : link))
+    );
+  };
 
   const updateDesignSetting: UpdateDesignSetting = (key, value) => {
+    if (key === "buttonStyle") {
+      updateSelectedLink("buttonStyle", value as ButtonStyle);
+      return;
+    }
+
+    if (key === "textAlignment") {
+      updateSelectedLink("textAlignment", value as TextAlign);
+      return;
+    }
+
+    if (key === "imageUrl") {
+      updateSelectedLink("imageUrl", value as string);
+      return;
+    }
+
+    if (key === "backgroundImageUrl") {
+      updateSelectedLink("backgroundImageUrl", value as string);
+      return;
+    }
+
+    if (key === "title") {
+      updateSelectedLink("title", value as string);
+      return;
+    }
+
+    if (key === "description") {
+      updateSelectedLink("description", value as string);
+      return;
+    }
+
+    if (key === "body") {
+      updateSelectedLink("body", value as string);
+      return;
+    }
+
     setDesignSettings((current) => ({ ...current, [key]: value }));
+  };
+
+  const moveLink = (linkId: string, direction: -1 | 1) => {
+    setMockLinks((current) => {
+      const currentIndex = current.findIndex((link) => link.id === linkId);
+      const nextIndex = currentIndex + direction;
+
+      if (currentIndex < 0 || nextIndex < 0 || nextIndex >= current.length) {
+        return current;
+      }
+
+      const next = [...current];
+      const [movedLink] = next.splice(currentIndex, 1);
+      next.splice(nextIndex, 0, movedLink);
+      return next;
+    });
+  };
+
+  const togglePrioritizedLink = () => {
+    setMockLinks((current) =>
+      current.map((link) => ({
+        ...link,
+        prioritized: link.id === selectedLink.id ? !selectedLink.prioritized : false,
+      }))
+    );
   };
 
   return (
@@ -1327,7 +1945,8 @@ export function AdminUiV2LabPreview() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary">mock only</Badge>
-          <Badge variant="outline">active style: {designSettings.buttonStyle}</Badge>
+          <Badge variant="outline">active style: {selectedLinkSettings.buttonStyle}</Badge>
+          <Badge variant="outline">selected link: {selectedLink.title}</Badge>
         </div>
       </div>
 
@@ -1338,47 +1957,63 @@ export function AdminUiV2LabPreview() {
       <div className="mt-5 overflow-hidden rounded-xl border bg-muted/30">
         <MockTopBar
           selectedPage={selectedPage}
+          selectedLink={selectedLink}
           deviceMode={deviceMode}
-          selectedStyle={designSettings.buttonStyle}
+          selectedStyle={selectedLinkSettings.buttonStyle}
         />
 
         <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
           <MockSidebar />
 
-          <div className="grid min-w-0 gap-4 p-4 2xl:grid-cols-[minmax(0,1fr)_390px]">
+          <div className="grid min-w-0 gap-4 p-4 2xl:grid-cols-[minmax(0,1fr)_420px]">
             <main className="grid min-w-0 content-start gap-4">
-              <div className="grid gap-4 xl:grid-cols-2">
+              <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
                 <MockPagesArea
                   selectedPage={selectedPage}
                   onSelectPage={(page) => setSelectedPageRoute(page.route)}
                 />
+                <MockLinkManager
+                  links={mockLinks}
+                  selectedLink={selectedLink}
+                  onSelectLink={setSelectedLinkId}
+                  onMoveLink={moveLink}
+                />
+              </div>
+              <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
                 <MockBlockManager
                   selectedBlock={selectedBlock}
                   onSelectBlock={(block) => setSelectedBlockId(block.id)}
                 />
+                <ButtonStyleSelector
+                  value={selectedLinkSettings.buttonStyle}
+                  onChange={(value) => updateDesignSetting("buttonStyle", value)}
+                />
               </div>
-              <ButtonStyleSelector
-                value={designSettings.buttonStyle}
-                onChange={(value) => updateDesignSetting("buttonStyle", value)}
-              />
-              <DesignPanel settings={designSettings} onChange={updateDesignSetting} />
+              <DesignPanel settings={selectedLinkSettings} onChange={updateDesignSetting} />
               <MockEditorArea
                 selectedPage={selectedPage}
                 selectedBlock={selectedBlock}
-                settings={designSettings}
+                selectedLink={selectedLink}
+                settings={selectedLinkSettings}
+                validationHints={validationHints}
               />
             </main>
 
             <aside className="grid min-w-0 content-start gap-4 xl:grid-cols-2 2xl:grid-cols-1">
               <MockPropertyInspector
                 selectedBlock={selectedBlock}
-                settings={designSettings}
+                selectedLink={selectedLink}
+                settings={selectedLinkSettings}
                 onChange={updateDesignSetting}
+                onLinkChange={updateSelectedLink}
+                onTogglePrioritized={togglePrioritizedLink}
+                validationHints={validationHints}
               />
               <MockDevicePreview
                 selectedPage={selectedPage}
-                selectedBlock={selectedBlock}
-                settings={designSettings}
+                selectedLink={selectedLink}
+                links={mockLinks}
+                settings={selectedLinkSettings}
                 deviceMode={deviceMode}
                 onSelectMode={setDeviceMode}
               />
