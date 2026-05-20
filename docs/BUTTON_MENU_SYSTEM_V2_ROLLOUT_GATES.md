@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the gates that must protect the first Button/Menu System V2 code-touch phase. It is docs-only and does not implement Button/Menu System V2.
+This document defines the gates that must protect Button/Menu System V2 rollout phases.
 
 Production domain context: `https://support.bn9.one`.
 
@@ -118,3 +118,56 @@ These items are intentionally deferred until later phases:
 - owner reset logic.
 
 Opening any of these areas requires a new reviewed phase and cannot be bundled into D3-A.
+
+## D3-B - Admin Controls Gate
+
+D3-B may expose Button/Menu System V2 controls in the real admin
+`LinksSection`, but only behind the default-off
+`NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_ADMIN` flag.
+
+### D3-B Allowed Files
+
+D3-B passes this gate only when changed files are limited to:
+
+- `src/components/admin/sections/links-section.tsx`
+- `src/lib/feature-flags.ts`
+- `docs/FEATURE_FLAGS.md`
+- `docs/BUTTON_MENU_SYSTEM_V2_ROLLOUT_GATES.md`
+
+### D3-B Behavior Boundary
+
+When `NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_ADMIN` is missing or false:
+
+- Existing `LinksSection` behavior must remain unchanged.
+- No Button/Menu System V2 admin controls are visible.
+- Existing link editing behavior and layout must remain unchanged.
+
+When `NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_ADMIN` is enabled:
+
+- Admin-only controls may edit D3-A-compatible fields such as `buttonStyle`,
+  `textAlign`, `imageUrl`, `backgroundImageUrl`, `imageAspect`, `body`, and
+  `preserveLineBreaks`.
+- The controls must remain inside the existing admin link editor/drawer flow.
+- Public and preview renderers may continue using existing safe defaults until a
+  later renderer phase.
+
+### D3-B Forbidden Files And Areas
+
+D3-B fails if any of these files or areas change:
+
+- `src/components/preview/mobile-preview.tsx`
+- `src/components/public/**`
+- `src/app/api/**`
+- `src/lib/server/**`
+- `supabase/migrations/**`
+- support forms
+- Google Sheets logic
+- admin auth
+- owner reset logic
+
+### D3-B Rollback
+
+Rollback is to disable `NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_ADMIN` and redeploy.
+No data migration, SQL rollback, public renderer rollback, API rollback,
+Supabase rollback, support form rollback, or Google Sheets rollback is required
+for D3-B.

@@ -8,6 +8,7 @@ const readPublicBooleanFlag = (name: string): boolean => {
 export const featureFlags = {
   publicResponsiveV2: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_PUBLIC_RESPONSIVE_V2"),
   adminUiV2: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_ADMIN_UI_V2"),
+  buttonMenuV2Admin: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_ADMIN"),
   formEngineV1: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_FORM_ENGINE_V1"),
   uiLabMode: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_UI_LAB_MODE"),
 } as const;
@@ -31,6 +32,12 @@ export const featureFlagMetadata: Array<{
     envName: "NEXT_PUBLIC_ENABLE_ADMIN_UI_V2",
     label: "Admin UI V2",
     description: "Future admin interface experiments.",
+  },
+  {
+    key: "buttonMenuV2Admin",
+    envName: "NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_ADMIN",
+    label: "Button/Menu V2 Admin Controls",
+    description: "Enables Button/Menu System V2 controls in the admin link editor only.",
   },
   {
     key: "formEngineV1",

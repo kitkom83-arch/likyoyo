@@ -54,7 +54,7 @@ import {
   linkSettingsSchema,
 } from "@/features/builder/schema";
 import { useBuilderStore } from "@/features/builder/store/use-builder-store";
-import { BioLink, FormTemplate } from "@/features/builder/types";
+import { BioLink, FormTemplate, LinkButtonStyle, LegacyLinkDisplayStyle } from "@/features/builder/types";
 import {
   createEmptyDiscountCode,
   createEmptyEmbedPost,
@@ -72,9 +72,38 @@ import {
   normalizeFormFieldType,
 } from "@/features/builder/utils";
 import { useI18n } from "@/i18n/use-i18n";
+import { featureFlags } from "@/lib/feature-flags";
 import { getPerLinkClickCounts } from "@/lib/local-storage/analytics-storage";
 import { toProfileSlug } from "@/lib/local-storage/profile-storage";
 import { cn } from "@/lib/utils";
+
+const BUTTON_STYLE_TO_LEGACY_STYLE: Record<LinkButtonStyle, LegacyLinkDisplayStyle> = {
+  "icon-left": "icon_left",
+  "image-full": "image_banner",
+  "text-only": "text_only",
+  "card-left-image": "media_card",
+  "text-panel": "text_panel",
+};
+
+const LEGACY_STYLE_TO_BUTTON_STYLE: Record<LegacyLinkDisplayStyle, LinkButtonStyle> = {
+  icon_left: "icon-left",
+  image_banner: "image-full",
+  text_only: "text-only",
+  media_card: "card-left-image",
+  text_panel: "text-panel",
+};
+
+const toButtonStyle = (value: unknown): LinkButtonStyle => {
+  if (typeof value === "string" && value in BUTTON_STYLE_TO_LEGACY_STYLE) {
+    return value as LinkButtonStyle;
+  }
+
+  if (typeof value === "string" && value in LEGACY_STYLE_TO_BUTTON_STYLE) {
+    return LEGACY_STYLE_TO_BUTTON_STYLE[value as LegacyLinkDisplayStyle];
+  }
+
+  return "icon-left";
+};
 
 type SortableLinkItemProps = {
   link: BioLink;
@@ -272,6 +301,7 @@ const StaticLinkItem = ({
 
 export const LinksSection = () => {
   const { t } = useI18n();
+  const isButtonMenuV2AdminEnabled = featureFlags.buttonMenuV2Admin;
   const links = useBuilderStore((state) => state.links);
   const username = useBuilderStore((state) => state.header.username);
   const addLink = useBuilderStore((state) => state.addLink);
@@ -383,8 +413,10 @@ export const LinksSection = () => {
       preOpenDismissible: true,
       preOpenButtonStyle: "solid",
       style: "icon_left",
+      buttonStyle: "icon-left",
       textAlign: "left",
       bannerRatio: "3:1",
+      imageAspect: "3:1",
       imageFit: "cover",
       imageUrl: "",
       iconImageUrl: "",
@@ -394,6 +426,7 @@ export const LinksSection = () => {
       imageSaturation: 100,
       overlayOpacity: 0,
       preserveLineBreaks: true,
+      body: "",
       textPanelContent: "",
       openInNewTab: true,
       sortOrder: 0,
@@ -471,6 +504,7 @@ export const LinksSection = () => {
     name: "preOpenDismissible",
   });
   const editStyle = useWatch({ control: editForm.control, name: "style" });
+  const editButtonStyle = useWatch({ control: editForm.control, name: "buttonStyle" });
   const editImageBrightness = useWatch({ control: editForm.control, name: "imageBrightness" });
   const editImageContrast = useWatch({ control: editForm.control, name: "imageContrast" });
   const editImageSaturation = useWatch({ control: editForm.control, name: "imageSaturation" });
@@ -538,6 +572,7 @@ export const LinksSection = () => {
   const destinationUrlErrorText = editDestinationUrlError
     ? t("discount_invalid_url_message")
     : null;
+  const effectiveButtonStyle = toButtonStyle(editButtonStyle ?? editStyle);
   const slug = useMemo(() => toProfileSlug(username), [username]);
   const [isDndMounted, setIsDndMounted] = useState(false);
   const [analyticsRefreshKey, setAnalyticsRefreshKey] = useState(0);
@@ -726,8 +761,10 @@ export const LinksSection = () => {
       preOpenDismissible: link.preOpenModal?.dismissible ?? true,
       preOpenButtonStyle: link.preOpenModal?.buttonStyle ?? "solid",
       style: link.settings.style ?? link.settings.displayStyle ?? "icon_left",
+      buttonStyle: toButtonStyle(link.settings.buttonStyle ?? link.buttonStyle ?? link.settings.style),
       textAlign: link.settings.textAlign ?? "left",
       bannerRatio: link.settings.bannerRatio ?? "3:1",
+      imageAspect: link.settings.imageAspect ?? link.settings.bannerRatio ?? "3:1",
       imageFit: link.settings.imageFit ?? "cover",
       imageUrl: link.settings.imageUrl ?? "",
       iconImageUrl: link.settings.iconImageUrl ?? "",
@@ -737,6 +774,7 @@ export const LinksSection = () => {
       imageSaturation: link.settings.imageSaturation ?? 100,
       overlayOpacity: link.settings.overlayOpacity ?? 0,
       preserveLineBreaks: link.settings.preserveLineBreaks ?? true,
+      body: link.settings.body ?? link.body ?? link.settings.textPanelContent ?? "",
       textPanelContent: link.settings.textPanelContent ?? "",
       openInNewTab: link.settings.openInNewTab ?? true,
       sortOrder: link.settings.sortOrder ?? 0,
@@ -798,6 +836,9 @@ export const LinksSection = () => {
       return;
     }
     setEditSubmitError(null);
+    const selectedButtonStyle = toButtonStyle(values.buttonStyle ?? values.style);
+    const selectedLegacyStyle = BUTTON_STYLE_TO_LEGACY_STYLE[selectedButtonStyle];
+    const selectedImageAspect = values.imageAspect ?? values.bannerRatio ?? "3:1";
     updateLink(editId, {
       contentType: values.contentType,
       title:
@@ -979,11 +1020,21 @@ export const LinksSection = () => {
         dismissible: values.preOpenDismissible ?? true,
         buttonStyle: values.preOpenButtonStyle ?? "solid",
       },
+      ...(isButtonMenuV2AdminEnabled
+        ? {
+            body: values.body ?? "",
+            buttonStyle: selectedButtonStyle,
+          }
+        : {}),
     });
     updateLinkSettings(editId, {
-      style: values.style ?? "icon_left",
+      style: isButtonMenuV2AdminEnabled
+        ? selectedLegacyStyle
+        : values.style ?? "icon_left",
       textAlign: values.textAlign ?? "left",
-      bannerRatio: values.bannerRatio ?? "3:1",
+      bannerRatio: isButtonMenuV2AdminEnabled
+        ? selectedImageAspect
+        : values.bannerRatio ?? "3:1",
       imageFit: values.imageFit ?? "cover",
       imageUrl: values.imageUrl || undefined,
       iconImageUrl: values.iconImageUrl || undefined,
@@ -993,7 +1044,10 @@ export const LinksSection = () => {
       imageSaturation: values.imageSaturation ?? 100,
       overlayOpacity: values.overlayOpacity ?? 0,
       preserveLineBreaks: values.preserveLineBreaks ?? true,
-      textPanelContent: values.textPanelContent ?? "",
+      textPanelContent:
+        isButtonMenuV2AdminEnabled && selectedButtonStyle === "text-panel"
+          ? values.body ?? ""
+          : values.textPanelContent ?? "",
       openInNewTab: values.openInNewTab ?? true,
       sortOrder: values.sortOrder,
       titleSize: values.titleSize || undefined,
@@ -1002,6 +1056,13 @@ export const LinksSection = () => {
       borderColor: values.borderColor || undefined,
       showBorder: values.showBorder ?? true,
       borderRadius: values.borderRadius || undefined,
+      ...(isButtonMenuV2AdminEnabled
+        ? {
+            buttonStyle: selectedButtonStyle,
+            imageAspect: selectedImageAspect,
+            body: values.body ?? "",
+          }
+        : {}),
     });
 
     if (values.contentType === "discount") {
@@ -2329,84 +2390,204 @@ export const LinksSection = () => {
 
               {(editContentType === "discount" || editContentType === "embed_post" || editContentType === "form" || editContentType === "promo_gallery" || editContentType === "external_form" || editContentType === "link") && editTab === "layout" ? (
                 <>
-                  <div className="space-y-2">
-                    <Label>{t("links_display_style")}</Label>
-                    <select
-                      className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                      {...editForm.register("style")}
-                    >
-                      <option value="icon_left">{t("links_display_style_icon_left")}</option>
-                      <option value="image_banner">{t("links_display_style_image_full")}</option>
-                      <option value="text_only">{t("links_display_style_text_only")}</option>
-                      <option value="media_card">{t("links_display_style_card_left_image")}</option>
-                      <option value="text_panel">{t("links_display_style_text_panel")}</option>
-                    </select>
-                  </div>
-                  {editStyle === "icon_left" ? (
-                    <div className="space-y-2">
-                      <Label>{t("links_style_icon_image_url")}</Label>
-                      <Input
-                        placeholder="https://..."
-                        aria-invalid={Boolean(editIconImageUrlError)}
-                        className={editIconImageUrlError ? "border-destructive" : undefined}
-                        {...editForm.register("iconImageUrl")}
-                      />
-                      {editIconImageUrlError ? (
-                        <p className="text-xs text-destructive">{editIconImageUrlError}</p>
+                  {isButtonMenuV2AdminEnabled ? (
+                    <div className="space-y-4 rounded-lg border border-border/70 p-3">
+                      <div className="space-y-2">
+                        <Label>Button/Menu V2 style</Label>
+                        <select
+                          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                          value={effectiveButtonStyle}
+                          onChange={(event) => {
+                            const nextStyle = event.target.value as LinkButtonStyle;
+                            editForm.setValue("buttonStyle", nextStyle, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
+                            editForm.setValue("style", BUTTON_STYLE_TO_LEGACY_STYLE[nextStyle], {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
+                          }}
+                        >
+                          <option value="icon-left">{t("links_display_style_icon_left")}</option>
+                          <option value="image-full">{t("links_display_style_image_full")}</option>
+                          <option value="text-only">{t("links_display_style_text_only")}</option>
+                          <option value="card-left-image">{t("links_display_style_card_left_image")}</option>
+                          <option value="text-panel">{t("links_display_style_text_panel")}</option>
+                        </select>
+                      </div>
+                      {(effectiveButtonStyle === "icon-left" ||
+                        effectiveButtonStyle === "card-left-image") ? (
+                        <div className="space-y-2">
+                          <Label>{t("links_style_image_url")}</Label>
+                          <Input
+                            placeholder="https://..."
+                            aria-invalid={Boolean(editImageUrlError)}
+                            className={editImageUrlError ? "border-destructive" : undefined}
+                            {...editForm.register("imageUrl")}
+                          />
+                          {editImageUrlError ? (
+                            <p className="text-xs text-destructive">{editImageUrlError}</p>
+                          ) : null}
+                        </div>
                       ) : null}
+                      {effectiveButtonStyle === "image-full" ? (
+                        <>
+                          <div className="space-y-2">
+                            <Label>{t("links_style_background_image_url")}</Label>
+                            <Input
+                              placeholder="https://..."
+                              aria-invalid={Boolean(editBackgroundImageUrlError)}
+                              className={editBackgroundImageUrlError ? "border-destructive" : undefined}
+                              {...editForm.register("backgroundImageUrl")}
+                            />
+                            {editBackgroundImageUrlError ? (
+                              <p className="text-xs text-destructive">{editBackgroundImageUrlError}</p>
+                            ) : null}
+                          </div>
+                          <div className="space-y-2">
+                            <Label>{t("links_style_image_aspect")}</Label>
+                            <select
+                              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                              {...editForm.register("imageAspect")}
+                            >
+                              <option value="3:1">{t("links_style_image_aspect_3_1")}</option>
+                              <option value="2:1">{t("links_style_image_aspect_2_1")}</option>
+                            </select>
+                          </div>
+                        </>
+                      ) : null}
+                      {(effectiveButtonStyle === "card-left-image" ||
+                        effectiveButtonStyle === "text-panel") ? (
+                        <div className="space-y-2">
+                          <Label>
+                            {effectiveButtonStyle === "text-panel"
+                              ? "Body"
+                              : "Description/body"}
+                          </Label>
+                          <textarea
+                            className="min-h-[120px] w-full rounded-md border bg-background px-3 py-2 text-sm"
+                            {...editForm.register("body")}
+                          />
+                        </div>
+                      ) : null}
+                      {effectiveButtonStyle === "text-panel" ? (
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 text-sm">
+                            <Switch
+                              checked={Boolean(editPreserveLineBreaks)}
+                              onCheckedChange={(value) =>
+                                editForm.setValue("preserveLineBreaks", value, {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                })
+                              }
+                            />
+                            {t("links_style_preserve_line_breaks")}
+                          </label>
+                          <p className="text-xs text-muted-foreground">
+                            Preserves line breaks in the saved text for later renderer support.
+                          </p>
+                        </div>
+                      ) : null}
+                      <div className="space-y-2">
+                        <Label>{t("links_style_text_align")}</Label>
+                        <select
+                          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                          {...editForm.register("textAlign")}
+                        >
+                          <option value="left">{t("links_style_text_align_left")}</option>
+                          <option value="center">{t("links_style_text_align_center")}</option>
+                          <option value="right">{t("links_style_text_align_right")}</option>
+                        </select>
+                      </div>
                     </div>
-                  ) : null}
-                  {editStyle === "image_banner" ? (
+                  ) : (
                     <>
                       <div className="space-y-2">
-                        <Label>{t("links_style_background_image_url")}</Label>
-                        <Input
-                          placeholder="https://..."
-                          aria-invalid={Boolean(editBackgroundImageUrlError)}
-                          className={editBackgroundImageUrlError ? "border-destructive" : undefined}
-                          {...editForm.register("backgroundImageUrl")}
-                        />
-                        {editBackgroundImageUrlError ? (
-                          <p className="text-xs text-destructive">{editBackgroundImageUrlError}</p>
-                        ) : null}
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{t("links_style_image_aspect")}</Label>
+                        <Label>{t("links_display_style")}</Label>
                         <select
                           className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                          {...editForm.register("bannerRatio")}
+                          {...editForm.register("style")}
                         >
-                          <option value="3:1">{t("links_style_image_aspect_3_1")}</option>
-                          <option value="2:1">{t("links_style_image_aspect_2_1")}</option>
+                          <option value="icon_left">{t("links_display_style_icon_left")}</option>
+                          <option value="image_banner">{t("links_display_style_image_full")}</option>
+                          <option value="text_only">{t("links_display_style_text_only")}</option>
+                          <option value="media_card">{t("links_display_style_card_left_image")}</option>
+                          <option value="text_panel">{t("links_display_style_text_panel")}</option>
                         </select>
                       </div>
-                      <div className="space-y-2">
-                        <Label>{t("links_style_image_fit")}</Label>
-                        <select
-                          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                          {...editForm.register("imageFit")}
-                        >
-                          <option value="cover">{t("links_style_image_fit_cover")}</option>
-                          <option value="contain">{t("links_style_image_fit_contain")}</option>
-                        </select>
-                      </div>
-                    </>
-                  ) : null}
-                  {editStyle === "media_card" ? (
-                    <div className="space-y-2">
-                      <Label>{t("links_style_image_url")}</Label>
-                      <Input
-                        placeholder="https://..."
-                        aria-invalid={Boolean(editImageUrlError)}
-                        className={editImageUrlError ? "border-destructive" : undefined}
-                        {...editForm.register("imageUrl")}
-                      />
-                      {editImageUrlError ? (
-                        <p className="text-xs text-destructive">{editImageUrlError}</p>
+                      {editStyle === "icon_left" ? (
+                        <div className="space-y-2">
+                          <Label>{t("links_style_icon_image_url")}</Label>
+                          <Input
+                            placeholder="https://..."
+                            aria-invalid={Boolean(editIconImageUrlError)}
+                            className={editIconImageUrlError ? "border-destructive" : undefined}
+                            {...editForm.register("iconImageUrl")}
+                          />
+                          {editIconImageUrlError ? (
+                            <p className="text-xs text-destructive">{editIconImageUrlError}</p>
+                          ) : null}
+                        </div>
                       ) : null}
-                    </div>
-                  ) : null}
-                  {(editStyle === "image_banner" || editStyle === "media_card") ? (
+                      {editStyle === "image_banner" ? (
+                        <>
+                          <div className="space-y-2">
+                            <Label>{t("links_style_background_image_url")}</Label>
+                            <Input
+                              placeholder="https://..."
+                              aria-invalid={Boolean(editBackgroundImageUrlError)}
+                              className={editBackgroundImageUrlError ? "border-destructive" : undefined}
+                              {...editForm.register("backgroundImageUrl")}
+                            />
+                            {editBackgroundImageUrlError ? (
+                              <p className="text-xs text-destructive">{editBackgroundImageUrlError}</p>
+                            ) : null}
+                          </div>
+                          <div className="space-y-2">
+                            <Label>{t("links_style_image_aspect")}</Label>
+                            <select
+                              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                              {...editForm.register("bannerRatio")}
+                            >
+                              <option value="3:1">{t("links_style_image_aspect_3_1")}</option>
+                              <option value="2:1">{t("links_style_image_aspect_2_1")}</option>
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>{t("links_style_image_fit")}</Label>
+                            <select
+                              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                              {...editForm.register("imageFit")}
+                            >
+                              <option value="cover">{t("links_style_image_fit_cover")}</option>
+                              <option value="contain">{t("links_style_image_fit_contain")}</option>
+                            </select>
+                          </div>
+                        </>
+                      ) : null}
+                      {editStyle === "media_card" ? (
+                        <div className="space-y-2">
+                          <Label>{t("links_style_image_url")}</Label>
+                          <Input
+                            placeholder="https://..."
+                            aria-invalid={Boolean(editImageUrlError)}
+                            className={editImageUrlError ? "border-destructive" : undefined}
+                            {...editForm.register("imageUrl")}
+                          />
+                          {editImageUrlError ? (
+                            <p className="text-xs text-destructive">{editImageUrlError}</p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                  {((!isButtonMenuV2AdminEnabled &&
+                    (editStyle === "image_banner" || editStyle === "media_card")) ||
+                    (isButtonMenuV2AdminEnabled &&
+                      (effectiveButtonStyle === "image-full" ||
+                        effectiveButtonStyle === "card-left-image"))) ? (
                     <div className="rounded-lg border border-border/70 p-3 space-y-3">
                       <div className="space-y-1">
                         <Label>{t("links_image_brightness", { value: editImageBrightness ?? 100 })}</Label>
@@ -2457,7 +2638,8 @@ export const LinksSection = () => {
                       </div>
                     </div>
                   ) : null}
-                  {(editStyle === "icon_left" || editStyle === "text_only") ? (
+                  {!isButtonMenuV2AdminEnabled &&
+                  (editStyle === "icon_left" || editStyle === "text_only") ? (
                     <div className="space-y-2">
                       <Label>{t("links_style_text_align")}</Label>
                       <select
@@ -2470,7 +2652,7 @@ export const LinksSection = () => {
                       </select>
                     </div>
                   ) : null}
-                  {editStyle === "text_panel" ? (
+                  {!isButtonMenuV2AdminEnabled && editStyle === "text_panel" ? (
                     <div className="space-y-2">
                       <Label>{t("links_style_text_panel_content")}</Label>
                       <textarea
