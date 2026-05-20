@@ -1,125 +1,107 @@
 # Admin UI V2 Lab Merge Audit
 
-## Branch
+## C11-R1 Final Merge Readiness Audit
 
 - Branch: `codex/fix-public-page-routes`
-- Audited commit before this report: `65767da Add Admin UI V2 lab handoff docs`
+- Base/head refs: `neworigin/main..HEAD`
+- Audited commit: `d09d61a3bd647a1de2108822ec87796eb523ee85`
 - Production domain context: `https://support.bn9.one`
-- Comparison base: local `main`
 
-## C1-C10 Summary
+## Required Remote Diff Commands
 
-- C1 Visual polish: completed in the lab prototype.
-- C2 Mock interactions: completed with local component state.
-- C3 Design panel and Button/Menu style mock: completed as mock-only UI.
-- C4 Link Manager and Per-Link Tools mock: completed as mock-only UI.
-- C5 Page Settings and Publish Flow mock: completed as mock-only UI.
-- C6 Form Builder and Submission Flow mock: completed as mock-only UI.
-- C7 Analytics Dashboard and Conversion Insights mock: completed with static/mock data.
-- C8 Lab-only refactor: completed for Admin UI V2 mock modules under `src/components/admin/lab/`.
-- C9 QA Checklist and Regression Guard: completed in the Admin UI V2 tab.
-- C10 Lab handoff documentation: completed in `docs/ADMIN_UI_V2_LAB_HANDOFF.md`.
+- `git fetch neworigin --prune`: passed.
+- `git diff --name-only neworigin/main..HEAD`: 23 changed files.
+- `git diff --stat neworigin/main..HEAD`: 23 files changed, 6,952 insertions(+), 5 deletions(-).
 
-## Changed File Groups
-
-`git diff --name-only main..codex/fix-public-page-routes` and `git diff --stat main..codex/fix-public-page-routes` show 33 files changed with 7,255 insertions and 113 deletions before this audit report.
-
-Expected lab/docs/local lab access scope:
+## Changed Files
 
 - `docs/ADMIN_UI_V2_LAB_HANDOFF.md`
+- `docs/ADMIN_UI_V2_LAB_MERGE_AUDIT.md`
 - `docs/FEATURE_FLAGS.md`
 - `src/app/admin/lab/page.tsx`
-- `src/components/admin/lab/**`
+- `src/components/admin/lab/admin-lab-shell.tsx`
+- `src/components/admin/lab/admin-ui-v2-lab-preview.tsx`
+- `src/components/admin/lab/admin-ui-v2/mock-analytics.tsx`
+- `src/components/admin/lab/admin-ui-v2/mock-data.ts`
+- `src/components/admin/lab/admin-ui-v2/mock-forms.tsx`
+- `src/components/admin/lab/admin-ui-v2/mock-links.tsx`
+- `src/components/admin/lab/admin-ui-v2/mock-page-settings.tsx`
+- `src/components/admin/lab/admin-ui-v2/mock-preview.tsx`
+- `src/components/admin/lab/admin-ui-v2/mock-qa-checklist.tsx`
+- `src/components/admin/lab/admin-ui-v2/mock-shared.tsx`
+- `src/components/admin/lab/admin-ui-v2/mock-utils.ts`
+- `src/components/admin/lab/admin-ui-v2/types.ts`
+- `src/components/admin/lab/analytics-lab-preview.tsx`
+- `src/components/admin/lab/form-engine-lab-preview.tsx`
+- `src/components/admin/lab/lab-workspace-tabs.tsx`
+- `src/components/admin/lab/public-responsive-lab-preview.tsx`
+- `src/components/admin/lab/safety-notes-lab.tsx`
 - `src/lib/feature-flags.ts`
 - `src/proxy.ts`
 
-Files outside the narrow lab/docs scope:
+## Diff Scope Audit
 
-- `src/app/admin/login/page.tsx`
-- `src/components/admin/admin-shell.tsx`
-- `src/components/admin/data-tools-card.tsx`
-- `src/components/admin/owner-control-client.tsx`
-- `src/components/admin/sections/header-section.tsx`
-- `src/components/admin/shared/custom-image-upload.tsx`
-- `src/components/preview/mobile-preview.tsx`
-- `src/components/profile/profile-header.tsx`
-- `src/components/public/public-profile-page-client.tsx`
-- `src/features/builder/schema.ts`
-- `src/features/builder/utils.ts`
+Result: passed.
 
-## Risky File Audit
+Evidence: the refreshed `neworigin/main..HEAD` diff is limited to docs, `src/app/admin/lab`, `src/components/admin/lab`, `src/lib/feature-flags.ts`, and `src/proxy.ts`.
 
-The branch changes files that the C11 audit instructions explicitly classify as risky:
+## Risky Files Audit
 
-- `src/components/admin/admin-shell.tsx`
-- `src/components/preview/mobile-preview.tsx`
-- `src/components/public/public-profile-page-client.tsx`
-- `src/features/builder/schema.ts`
-- `src/features/builder/utils.ts`
+Result: passed.
 
-Observed risky themes in the diff:
+Required risky scan returned no matches:
 
-- Public handle fallback and normalization behavior changed in production admin/public paths.
-- Real `MobilePreview` behavior changed.
-- Real public profile client normalization changed.
-- Real builder schema and normalization utilities changed.
+```powershell
+git diff --name-only neworigin/main..HEAD | Select-String -Pattern "src/components/admin/admin-shell.tsx|src/components/admin/editor-panel.tsx|src/components/admin/save-status-bar.tsx|src/components/admin/saved-profiles-manager-card.tsx|src/components/preview/mobile-preview.tsx|src/components/public/|src/features/builder/schema.ts|src/features/builder/types.ts|src/features/builder/utils.ts|src/app/api/|src/lib/server/|supabase/migrations"
+```
 
-No changes were found under:
+## Safety Grep
 
-- `src/app/api/**`
-- `src/lib/server/**`
-- `supabase/migrations/**`
-- `src/app/support/**`
-- `src/components/support/**`
+Result: passed.
 
-## Safety Grep Summary
-
-Commands run under `src/components/admin/lab`:
+Evidence:
 
 - `git grep -n "fetch(" src/components/admin/lab`: no matches.
 - `git grep -n "createClient" src/components/admin/lab`: no matches.
-- `git grep -n "supabase" src/components/admin/lab`: no code/import matches; only safety label text mentions Supabase.
-- `git grep -n "Google Sheets" src/components/admin/lab`: matches are labels, mock data strings, and safety text.
-- `git grep -n "webhook" src/components/admin/lab`: matches are mock routing booleans, labels, and safety text.
-- `git grep -n "tracking" src/components/admin/lab`: matches are CSS `tracking-*` classes and safety text; no tracking implementation.
+- `git grep -n "supabase" src/components/admin/lab`: no lowercase code/import matches.
+- `git grep -n "Google Sheets" src/components/admin/lab`: labels, mock data strings, and safety copy only.
+- `git grep -n "webhook" src/components/admin/lab`: mock booleans, labels, and safety copy only.
+- `git grep -n "tracking" src/components/admin/lab`: CSS `tracking-*` classes and safety copy only.
 
-Interpretation: lab safety grep passed. The matches are labels, mock state, or explanatory safety text, not real API/Supabase/Google Sheets/webhook/tracking calls.
+No API, Supabase, Google Sheets, webhook, or tracking calls were added by the lab diff.
 
 ## Lab Smoke Check
 
-Smoke test used `http://localhost:3000/admin/lab` with:
+Result: passed.
+
+Required environment:
 
 ```env
 ENABLE_LOCAL_LAB_ACCESS=true
 NEXT_PUBLIC_ENABLE_UI_LAB_MODE=true
 ```
 
-Result:
+Checks:
 
-- `/admin/lab` returned HTTP 200.
-- Admin UI V2 tab rendered.
-- QA / Regression Guard panel rendered.
-- Page selection worked.
-- Form selection worked.
-- Analytics range selection worked.
-- Top-link analytics selection worked.
-- Desktop global horizontal overflow: false.
-- 390px mobile global horizontal overflow: false.
+- `/admin/lab` opens locally with HTTP 200.
+- Admin UI V2 tab renders in the tab list.
+- Admin UI V2 tab activates in Playwright with `aria-selected="true"`.
+- QA / Regression Guard panel renders after Admin UI V2 tab activation.
+- Playwright observed no matching API, Supabase, Google Sheets, webhook, or tracking requests during the lab smoke check.
 
-## Build Checks
+## Production Behavior Untouched
+
+Result: passed.
+
+Evidence: no production admin shell, editor panel, save status bar, saved profiles manager, mobile preview, public components, builder schema/types/utils, API routes, server library, or Supabase migration files appear in `neworigin/main..HEAD`. `src/proxy.ts` only adds development localhost lab bypass logic behind `ENABLE_LOCAL_LAB_ACCESS`; normal admin authentication remains the production path.
+
+## Merge Readiness
+
+Status: ready.
+
+Blockers: none.
+
+Completed checks:
 
 - `npm run lint`: passed.
 - `npm run build`: passed.
-
-## Merge Recommendation
-
-Recommendation: not ready.
-
-Blocker:
-
-- The branch changes production-adjacent files that C11 explicitly flags as risky, including real admin shell, real mobile preview, real public profile client, and real builder schema/utils. Those diffs include production public handle/header normalization behavior, so the branch is not limited to Lab/docs/local lab access scope.
-
-Notes before merge:
-
-- Either split the non-lab production route/public handle work into a separate reviewed branch, or obtain explicit approval that those production changes belong in this merge.
-- Keep the Admin UI V2 Lab mock work isolated from production editor, public renderer, API, Supabase, Google Sheets, support forms, auth, owner reset, and migration changes.
