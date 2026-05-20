@@ -9,18 +9,24 @@ import {
   BarChart3,
   Blocks,
   CalendarClock,
+  CheckCircle2,
+  Clock3,
   Eye,
   ExternalLink,
   FileText,
   FormInput,
+  Globe2,
   ImageIcon,
   LockKeyhole,
   Monitor,
   MousePointerClick,
   Palette,
   PanelRight,
+  Save,
   Settings,
   ShieldCheck,
+  ShieldOff,
+  Share2,
   Smartphone,
   Star,
   TriangleAlert,
@@ -42,6 +48,26 @@ type MockPage = {
   detail: string;
   headline: string;
   previewNote: string;
+};
+
+type PageStatus = "Draft" | "Published" | "Scheduled";
+type PageVisibility = "Public" | "Hidden" | "Password protected";
+type PageLanguage = "Thai" | "English";
+
+type PageSettings = {
+  pageTitle: string;
+  publicHandle: string;
+  slug: string;
+  status: PageStatus;
+  visibility: PageVisibility;
+  language: PageLanguage;
+  timezone: "Asia/Bangkok";
+  seoTitle: string;
+  seoDescription: string;
+  socialTitle: string;
+  socialDescription: string;
+  socialImageUrl: string;
+  noindex: boolean;
 };
 
 type MockBlock = {
@@ -107,6 +133,11 @@ type UpdateSelectedLink = <K extends keyof MockLinkItem>(
   value: MockLinkItem[K]
 ) => void;
 
+type UpdatePageSetting = <K extends keyof PageSettings>(
+  key: K,
+  value: PageSettings[K]
+) => void;
+
 const adminNavItems = [
   { label: "Pages", icon: FileText, active: true },
   { label: "Blocks", icon: Blocks, active: false },
@@ -142,6 +173,57 @@ const mockPages: MockPage[] = [
     previewNote: "Mock support layout only; no deposit, withdraw, or ticket routes.",
   },
 ];
+
+const initialPageSettingsByRoute: Record<string, PageSettings> = {
+  "/bn9/main": {
+    pageTitle: "Northfield Studio main experience",
+    publicHandle: "bn9",
+    slug: "main",
+    status: "Published",
+    visibility: "Public",
+    language: "English",
+    timezone: "Asia/Bangkok",
+    seoTitle: "Northfield Studio | Main Links",
+    seoDescription:
+      "Book consultations, view VIP menu, and open current support links from the BN9 main page.",
+    socialTitle: "Northfield Studio main links",
+    socialDescription: "Fast access to consultation, VIP offers, and support resources.",
+    socialImageUrl: "https://support.bn9.one/mock-share/main.jpg",
+    noindex: false,
+  },
+  "/bn9/promo": {
+    pageTitle: "Limited campaign page",
+    publicHandle: "bn9",
+    slug: "promo",
+    status: "Draft",
+    visibility: "Hidden",
+    language: "Thai",
+    timezone: "Asia/Bangkok",
+    seoTitle: "BN9 Promo | Limited Campaign",
+    seoDescription:
+      "A draft campaign page preview for limited offers, visual-only urgency blocks, and seasonal CTAs.",
+    socialTitle: "Limited campaign preview",
+    socialDescription: "Preview the mock promo flow before any real route or publishing exists.",
+    socialImageUrl: "https://support.bn9.one/mock-share/promo.jpg",
+    noindex: true,
+  },
+  "/bn9/support": {
+    pageTitle: "Support request hub",
+    publicHandle: "bn9",
+    slug: "support",
+    status: "Scheduled",
+    visibility: "Password protected",
+    language: "English",
+    timezone: "Asia/Bangkok",
+    seoTitle: "BN9 Support Hub",
+    seoDescription:
+      "Visual-only support hub preview with safe mock status, locked access styling, and no ticket routes.",
+    socialTitle: "Support request hub",
+    socialDescription: "A protected mock support preview for future account and help actions.",
+    socialImageUrl: "",
+    noindex: true,
+  },
+};
 
 const mockBlocks: MockBlock[] = [
   {
@@ -343,7 +425,11 @@ const safeLabels = [
 
 const alignOptions: TextAlign[] = ["left", "center", "right"];
 const lockTypeOptions: LockType[] = ["none", "code", "age", "sensitive"];
+const pageStatusOptions: PageStatus[] = ["Draft", "Published", "Scheduled"];
+const pageVisibilityOptions: PageVisibility[] = ["Public", "Hidden", "Password protected"];
+const pageLanguageOptions: PageLanguage[] = ["Thai", "English"];
 const mockToday = "2026-05-20";
+const productionOrigin = "https://support.bn9.one";
 
 const getStatusLabel = (value: string) => {
   if (value === "active") return "active";
@@ -359,6 +445,99 @@ const getLinkStatusLabel = (link: MockLinkItem) => (link.enabled ? "enabled" : "
 const getLinkActionLabel = (link: MockLinkItem) => link.url.trim() || link.actionLabel;
 
 const formatNumber = (value: number) => new Intl.NumberFormat("en-US").format(value);
+
+const isSlugValid = (slug: string) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug.trim());
+
+const normalizeRouteSegment = (value: string, fallback: string) => {
+  const trimmed = value.trim().replace(/^\/+|\/+$/g, "");
+  return trimmed || fallback;
+};
+
+const getMockRoutePreview = (settings: PageSettings) => {
+  const handle = normalizeRouteSegment(settings.publicHandle, "bn9");
+  const slug = normalizeRouteSegment(settings.slug, "untitled");
+
+  return `/${handle}/${slug}`;
+};
+
+const getCanonicalPreview = (settings: PageSettings) =>
+  `${productionOrigin}${getMockRoutePreview(settings)}`;
+
+const getSearchPreviewTitle = (settings: PageSettings) =>
+  settings.seoTitle.trim() || settings.pageTitle.trim() || "Untitled mock page";
+
+const getSearchPreviewDescription = (settings: PageSettings) =>
+  settings.seoDescription.trim() || "SEO description preview is empty in this mock state.";
+
+const getSocialPreviewTitle = (settings: PageSettings) =>
+  settings.socialTitle.trim() || settings.pageTitle.trim() || "Untitled social preview";
+
+const getSocialPreviewDescription = (settings: PageSettings) =>
+  settings.socialDescription.trim() || settings.seoDescription.trim() || "Social description is empty.";
+
+const getPageValidationHints = (settings: PageSettings) => {
+  const hints: string[] = [];
+
+  if (!settings.pageTitle.trim()) {
+    hints.push("empty title");
+  }
+
+  if (!isSlugValid(settings.slug)) {
+    hints.push("invalid slug sample");
+  }
+
+  if (settings.visibility === "Hidden") {
+    hints.push("hidden page");
+  }
+
+  if (settings.status === "Scheduled") {
+    hints.push("scheduled page");
+  }
+
+  if (settings.visibility === "Password protected") {
+    hints.push("locked page");
+  }
+
+  if (settings.noindex) {
+    hints.push("noindex enabled");
+  }
+
+  return hints;
+};
+
+const getPageValidationItems = (settings: PageSettings, links: MockLinkItem[]) => {
+  const enabledLinks = links.filter((link) => link.enabled).length;
+
+  return [
+    {
+      label: "Page title exists",
+      ready: Boolean(settings.pageTitle.trim()),
+      detail: settings.pageTitle.trim() ? "Title is present" : "empty title",
+    },
+    {
+      label: "Slug looks valid",
+      ready: isSlugValid(settings.slug),
+      detail: isSlugValid(settings.slug)
+        ? getMockRoutePreview(settings)
+        : "invalid slug sample: use lowercase words with hyphens",
+    },
+    {
+      label: "At least one enabled link",
+      ready: enabledLinks > 0,
+      detail: `${enabledLinks} enabled mock links`,
+    },
+    {
+      label: "SEO description exists",
+      ready: Boolean(settings.seoDescription.trim()),
+      detail: settings.seoDescription.trim() ? "Search preview has body copy" : "description empty",
+    },
+    {
+      label: "Social image optional",
+      ready: true,
+      detail: settings.socialImageUrl.trim() ? "Image URL set" : "optional empty state",
+    },
+  ];
+};
 
 const getValidationHints = (link: MockLinkItem) => {
   const hints: string[] = [];
@@ -409,6 +588,18 @@ function StatusBadge({ value }: { value: string }) {
   return <Badge variant="secondary">{value}</Badge>;
 }
 
+function PageStatusBadge({ status }: { status: PageStatus }) {
+  if (status === "Published") {
+    return <Badge>{status}</Badge>;
+  }
+
+  if (status === "Scheduled") {
+    return <Badge variant="secondary">{status}</Badge>;
+  }
+
+  return <Badge variant="outline">{status}</Badge>;
+}
+
 function SafetyLabelRow() {
   return (
     <div className="flex flex-wrap gap-2">
@@ -423,14 +614,18 @@ function SafetyLabelRow() {
 
 function MockTopBar({
   selectedPage,
+  pageSettings,
   selectedLink,
   deviceMode,
   selectedStyle,
+  hasUnsavedChanges,
 }: {
   selectedPage: MockPage;
+  pageSettings: PageSettings;
   selectedLink: MockLinkItem;
   deviceMode: DeviceMode;
   selectedStyle: ButtonStyle;
+  hasUnsavedChanges: boolean;
 }) {
   const DeviceIcon = deviceMode === "phone" ? Smartphone : Monitor;
 
@@ -442,11 +637,16 @@ function MockTopBar({
             Current mock page route
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-semibold leading-tight">{selectedPage.route}</h3>
+            <h3 className="text-lg font-semibold leading-tight">{getMockRoutePreview(pageSettings)}</h3>
             <Badge variant="outline">no real route loading</Badge>
+            <PageStatusBadge status={pageSettings.status} />
+            {hasUnsavedChanges ? <Badge variant="secondary">Unsaved mock changes</Badge> : null}
             <Badge variant="secondary">{getStyleLabel(selectedStyle)}</Badge>
             <Badge variant="outline">{selectedLink.title}</Badge>
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Selected static lab route: {selectedPage.route}
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -505,9 +705,13 @@ function MockSidebar() {
 
 function MockPagesArea({
   selectedPage,
+  pageSettingsByRoute,
+  dirtyRoutes,
   onSelectPage,
 }: {
   selectedPage: MockPage;
+  pageSettingsByRoute: Record<string, PageSettings>;
+  dirtyRoutes: Record<string, boolean>;
   onSelectPage: (page: MockPage) => void;
 }) {
   return (
@@ -524,6 +728,7 @@ function MockPagesArea({
       <div className="mt-4 grid gap-3">
         {mockPages.map((page) => {
           const selected = selectedPage.route === page.route;
+          const pageSettings = pageSettingsByRoute[page.route];
 
           return (
             <button
@@ -550,7 +755,16 @@ function MockPagesArea({
                     {page.title}
                   </p>
                 </div>
-                <StatusBadge value={page.status} />
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  {dirtyRoutes[page.route] ? (
+                    <Badge variant={selected ? "secondary" : "outline"}>unsaved</Badge>
+                  ) : null}
+                  {pageSettings ? (
+                    <PageStatusBadge status={pageSettings.status} />
+                  ) : (
+                    <StatusBadge value={page.status} />
+                  )}
+                </div>
               </div>
               <p
                 className={cn(
@@ -920,6 +1134,444 @@ function MockToggle({
         <span className="size-4 rounded-full bg-background shadow-sm" />
       </span>
     </button>
+  );
+}
+
+function MockPageSettingsPanel({
+  settings,
+  validationHints,
+  hasUnsavedChanges,
+  onChange,
+}: {
+  settings: PageSettings;
+  validationHints: string[];
+  hasUnsavedChanges: boolean;
+  onChange: UpdatePageSetting;
+}) {
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Page Settings
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Mock route and page controls</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Local component state only. These controls do not load routes, write schema, or save
+            production page data.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <PageStatusBadge status={settings.status} />
+          {hasUnsavedChanges ? <Badge variant="secondary">Unsaved mock changes</Badge> : null}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.7fr)]">
+        <div className="grid gap-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <MockInput
+              label="Page title"
+              value={settings.pageTitle}
+              onChange={(value) => onChange("pageTitle", value)}
+            />
+            <MockInput
+              label="Public handle"
+              value={settings.publicHandle}
+              onChange={(value) => onChange("publicHandle", value)}
+            />
+            <MockInput
+              label="Page slug"
+              value={settings.slug}
+              onChange={(value) => onChange("slug", value)}
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <ChoiceGroup
+              label="Page status"
+              options={pageStatusOptions}
+              value={settings.status}
+              onChange={(value) => onChange("status", value as PageStatus)}
+            />
+            <ChoiceGroup
+              label="Visibility"
+              options={pageVisibilityOptions}
+              value={settings.visibility}
+              onChange={(value) => onChange("visibility", value as PageVisibility)}
+            />
+            <ChoiceGroup
+              label="Language"
+              options={pageLanguageOptions}
+              value={settings.language}
+              onChange={(value) => onChange("language", value as PageLanguage)}
+            />
+            <ChoiceGroup
+              label="Timezone"
+              options={["Asia/Bangkok"]}
+              value={settings.timezone}
+              onChange={(value) => onChange("timezone", value as "Asia/Bangkok")}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4">
+          <StaticField label="Full mock route preview" value={getMockRoutePreview(settings)} />
+          <StaticField label="Canonical URL preview" value={getCanonicalPreview(settings)} />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Page validation hints
+            </p>
+            <div className="mt-2">
+              <MockValidationHints hints={validationHints} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MockSeoSocialPanel({
+  settings,
+  onChange,
+}: {
+  settings: PageSettings;
+  onChange: UpdatePageSetting;
+}) {
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            SEO / Social Share
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Mock metadata fields</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            These fields update preview cards only. No metadata export, route update, or API call
+            is created.
+          </p>
+        </div>
+        <Badge variant="outline">no real SEO publishing</Badge>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4">
+          <MockInput
+            label="SEO title"
+            value={settings.seoTitle}
+            onChange={(value) => onChange("seoTitle", value)}
+          />
+          <MockTextarea
+            label="SEO description"
+            value={settings.seoDescription}
+            onChange={(value) => onChange("seoDescription", value)}
+          />
+          <MockToggle
+            label="Noindex toggle mock"
+            checked={settings.noindex}
+            onToggle={() => onChange("noindex", !settings.noindex)}
+          />
+        </div>
+
+        <div className="grid gap-4">
+          <MockInput
+            label="Social preview title"
+            value={settings.socialTitle}
+            onChange={(value) => onChange("socialTitle", value)}
+          />
+          <MockTextarea
+            label="Social preview description"
+            value={settings.socialDescription}
+            onChange={(value) => onChange("socialDescription", value)}
+          />
+          <MockInput
+            label="Social image URL"
+            value={settings.socialImageUrl}
+            onChange={(value) => onChange("socialImageUrl", value)}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MockSharePreviewCards({
+  settings,
+  selectedLink,
+}: {
+  settings: PageSettings;
+  selectedLink: MockLinkItem;
+}) {
+  const routePreview = getMockRoutePreview(settings);
+  const canonicalUrl = getCanonicalPreview(settings);
+
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Share Preview Cards
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Search, social, and mobile mocks</h3>
+        </div>
+        <Badge variant="outline">preview cards only</Badge>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+        <article className="min-w-0 rounded-xl border bg-muted/30 p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            <Globe2 className="size-4" />
+            Browser/search preview
+          </div>
+          <p className="mt-4 break-words text-sm font-semibold leading-5 text-blue-700">
+            {getSearchPreviewTitle(settings)}
+          </p>
+          <p className="mt-1 break-all text-xs leading-5 text-green-700">{canonicalUrl}</p>
+          <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">
+            {getSearchPreviewDescription(settings)}
+          </p>
+          {settings.noindex ? (
+            <Badge variant="secondary" className="mt-3">
+              <ShieldOff data-icon="inline-start" />
+              noindex mock
+            </Badge>
+          ) : null}
+        </article>
+
+        <article className="min-w-0 overflow-hidden rounded-xl border bg-muted/30">
+          <div className="grid aspect-[1.9/1] place-items-center bg-foreground text-background">
+            {settings.socialImageUrl.trim() ? (
+              <div className="max-w-full px-4 text-center">
+                <ImageIcon className="mx-auto size-7" />
+                <p className="mt-2 line-clamp-2 break-all text-xs">{settings.socialImageUrl}</p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <ImageIcon className="mx-auto size-7" />
+                <p className="mt-2 text-xs">optional image empty</p>
+              </div>
+            )}
+          </div>
+          <div className="p-4">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              <Share2 className="size-4" />
+              Social share preview
+            </div>
+            <p className="mt-3 line-clamp-2 text-sm font-semibold leading-5">
+              {getSocialPreviewTitle(settings)}
+            </p>
+            <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">
+              {getSocialPreviewDescription(settings)}
+            </p>
+            <p className="mt-2 break-all text-xs text-muted-foreground">{routePreview}</p>
+          </div>
+        </article>
+
+        <article className="rounded-xl border bg-muted/30 p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            <Smartphone className="size-4" />
+            Mobile link preview
+          </div>
+          <div className="mx-auto mt-4 w-full max-w-[220px] rounded-3xl border bg-background p-2 shadow-sm">
+            <div className="rounded-2xl bg-muted/40 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-xs font-semibold">{settings.publicHandle}</span>
+                <PageStatusBadge status={settings.status} />
+              </div>
+              <div className="mt-3 rounded-xl border bg-background p-3 text-center">
+                <p className="line-clamp-2 text-sm font-semibold leading-5">
+                  {settings.pageTitle || "Untitled mock page"}
+                </p>
+                <p className="mt-1 break-all text-xs text-muted-foreground">{routePreview}</p>
+              </div>
+              <div className="mt-3 rounded-xl bg-foreground px-3 py-2 text-background">
+                <p className="truncate text-xs font-semibold">{selectedLink.title}</p>
+                <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-background/75">
+                  {selectedLink.description}
+                </p>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function MockPublishFlow({
+  settings,
+  hasUnsavedChanges,
+  publishFlowNote,
+  onSaveDraft,
+  onPreview,
+  onPublish,
+  onSchedule,
+}: {
+  settings: PageSettings;
+  hasUnsavedChanges: boolean;
+  publishFlowNote: string;
+  onSaveDraft: () => void;
+  onPreview: () => void;
+  onPublish: () => void;
+  onSchedule: () => void;
+}) {
+  const actions = [
+    {
+      label: "Save draft mock",
+      detail: "Clears local dirty badge only",
+      icon: Save,
+      onClick: onSaveDraft,
+    },
+    {
+      label: "Preview page mock",
+      detail: "Updates this visual note only",
+      icon: Eye,
+      onClick: onPreview,
+    },
+    {
+      label: "Publish mock",
+      detail: "Sets local status badge only",
+      icon: Share2,
+      onClick: onPublish,
+    },
+    {
+      label: "Schedule publish mock",
+      detail: "Sets local scheduled badge only",
+      icon: Clock3,
+      onClick: onSchedule,
+    },
+  ];
+
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Publish Flow
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Safe visual controls</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            No save, no publish, no route loading, no schema update, and no API calls.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <PageStatusBadge status={settings.status} />
+          {hasUnsavedChanges ? <Badge variant="secondary">Unsaved mock changes</Badge> : null}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {actions.map((action) => {
+          const Icon = action.icon;
+
+          return (
+            <button
+              key={action.label}
+              type="button"
+              onClick={action.onClick}
+              className="min-w-0 rounded-lg border bg-muted/30 p-3 text-left transition-colors hover:bg-muted/60"
+            >
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Icon className="size-4" />
+                {action.label}
+              </div>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">{action.detail}</p>
+              <Badge variant="outline" className="mt-3">
+                mock only
+              </Badge>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 rounded-lg border bg-muted/30 p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Local action log
+        </p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{publishFlowNote}</p>
+      </div>
+    </section>
+  );
+}
+
+function MockPageValidationChecklist({
+  settings,
+  links,
+  validationHints,
+}: {
+  settings: PageSettings;
+  links: MockLinkItem[];
+  validationHints: string[];
+}) {
+  const validationItems = getPageValidationItems(settings, links);
+  const sampleHints = [
+    "invalid slug sample",
+    "empty title",
+    "hidden page",
+    "scheduled page",
+    "locked page",
+  ];
+
+  return (
+    <section className="rounded-xl border bg-background p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Publish Checklist
+          </p>
+          <h3 className="mt-1 text-base font-semibold">Mock validation only</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Checklist states are hints for the prototype and do not block any local mock action.
+          </p>
+        </div>
+        <Badge variant="outline">no real validation blocking</Badge>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        {validationItems.map((item) => (
+          <div key={item.label} className="rounded-lg border bg-muted/30 p-3">
+            <div className="flex items-start gap-2">
+              {item.ready ? (
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+              ) : (
+                <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-semibold leading-5">{item.label}</p>
+                <p className="mt-1 break-words text-xs leading-5 text-muted-foreground">
+                  {item.detail}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.6fr)]">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Active visual hints
+          </p>
+          <div className="mt-2">
+            <MockValidationHints hints={validationHints} />
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Hint examples
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {sampleHints.map((hint) => (
+              <Badge key={hint} variant="outline">
+                <TriangleAlert data-icon="inline-start" />
+                {hint}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1832,11 +2484,18 @@ export function AdminUiV2LabPreview() {
   const [mockLinks, setMockLinks] = useState<MockLinkItem[]>(initialMockLinks);
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
   const [designSettings, setDesignSettings] = useState<DesignSettings>(defaultDesignSettings);
+  const [pageSettingsByRoute, setPageSettingsByRoute] =
+    useState<Record<string, PageSettings>>(initialPageSettingsByRoute);
+  const [dirtyRoutes, setDirtyRoutes] = useState<Record<string, boolean>>({});
+  const [publishFlowNote, setPublishFlowNote] = useState(
+    "No publish flow action has run. Buttons below only update local mock state."
+  );
 
   const selectedPage = useMemo(
     () => mockPages.find((page) => page.route === selectedPageRoute) ?? mockPages[0],
     [selectedPageRoute]
   );
+  const selectedPageSettings = pageSettingsByRoute[selectedPageRoute] ?? initialPageSettingsByRoute["/bn9/main"];
   const selectedBlock = useMemo(
     () => mockBlocks.find((block) => block.id === selectedBlockId) ?? mockBlocks[0],
     [selectedBlockId]
@@ -1859,11 +2518,28 @@ export function AdminUiV2LabPreview() {
     [designSettings, selectedLink]
   );
   const validationHints = useMemo(() => getValidationHints(selectedLink), [selectedLink]);
+  const pageValidationHints = useMemo(
+    () => getPageValidationHints(selectedPageSettings),
+    [selectedPageSettings]
+  );
+  const hasUnsavedPageChanges = Boolean(dirtyRoutes[selectedPageRoute]);
 
   const updateSelectedLink: UpdateSelectedLink = (key, value) => {
     setMockLinks((current) =>
       current.map((link) => (link.id === selectedLink.id ? { ...link, [key]: value } : link))
     );
+  };
+
+  const updatePageSetting: UpdatePageSetting = (key, value) => {
+    setPageSettingsByRoute((current) => ({
+      ...current,
+      [selectedPageRoute]: {
+        ...selectedPageSettings,
+        [key]: value,
+      },
+    }));
+    setDirtyRoutes((current) => ({ ...current, [selectedPageRoute]: true }));
+    setPublishFlowNote("Local page setting changed. Nothing has been saved or published.");
   };
 
   const updateDesignSetting: UpdateDesignSetting = (key, value) => {
@@ -1930,6 +2606,41 @@ export function AdminUiV2LabPreview() {
     );
   };
 
+  const clearSelectedPageDirtyState = () => {
+    setDirtyRoutes((current) => ({ ...current, [selectedPageRoute]: false }));
+    setPublishFlowNote("Save draft mock cleared the local unsaved badge only.");
+  };
+
+  const previewSelectedPageMock = () => {
+    setPublishFlowNote(
+      `Preview page mock points at ${getMockRoutePreview(selectedPageSettings)} without loading a route.`
+    );
+  };
+
+  const publishSelectedPageMock = () => {
+    setPageSettingsByRoute((current) => ({
+      ...current,
+      [selectedPageRoute]: {
+        ...selectedPageSettings,
+        status: "Published",
+      },
+    }));
+    setDirtyRoutes((current) => ({ ...current, [selectedPageRoute]: true }));
+    setPublishFlowNote("Publish mock changed only the local status badge to Published.");
+  };
+
+  const scheduleSelectedPageMock = () => {
+    setPageSettingsByRoute((current) => ({
+      ...current,
+      [selectedPageRoute]: {
+        ...selectedPageSettings,
+        status: "Scheduled",
+      },
+    }));
+    setDirtyRoutes((current) => ({ ...current, [selectedPageRoute]: true }));
+    setPublishFlowNote("Schedule publish mock changed only the local status badge to Scheduled.");
+  };
+
   return (
     <section className="rounded-xl border bg-background p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1957,9 +2668,11 @@ export function AdminUiV2LabPreview() {
       <div className="mt-5 overflow-hidden rounded-xl border bg-muted/30">
         <MockTopBar
           selectedPage={selectedPage}
+          pageSettings={selectedPageSettings}
           selectedLink={selectedLink}
           deviceMode={deviceMode}
           selectedStyle={selectedLinkSettings.buttonStyle}
+          hasUnsavedChanges={hasUnsavedPageChanges}
         />
 
         <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
@@ -1970,6 +2683,8 @@ export function AdminUiV2LabPreview() {
               <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
                 <MockPagesArea
                   selectedPage={selectedPage}
+                  pageSettingsByRoute={pageSettingsByRoute}
+                  dirtyRoutes={dirtyRoutes}
                   onSelectPage={(page) => setSelectedPageRoute(page.route)}
                 />
                 <MockLinkManager
@@ -1989,6 +2704,31 @@ export function AdminUiV2LabPreview() {
                   onChange={(value) => updateDesignSetting("buttonStyle", value)}
                 />
               </div>
+              <MockPageSettingsPanel
+                settings={selectedPageSettings}
+                validationHints={pageValidationHints}
+                hasUnsavedChanges={hasUnsavedPageChanges}
+                onChange={updatePageSetting}
+              />
+              <MockSeoSocialPanel settings={selectedPageSettings} onChange={updatePageSetting} />
+              <MockSharePreviewCards
+                settings={selectedPageSettings}
+                selectedLink={selectedLink}
+              />
+              <MockPublishFlow
+                settings={selectedPageSettings}
+                hasUnsavedChanges={hasUnsavedPageChanges}
+                publishFlowNote={publishFlowNote}
+                onSaveDraft={clearSelectedPageDirtyState}
+                onPreview={previewSelectedPageMock}
+                onPublish={publishSelectedPageMock}
+                onSchedule={scheduleSelectedPageMock}
+              />
+              <MockPageValidationChecklist
+                settings={selectedPageSettings}
+                links={mockLinks}
+                validationHints={pageValidationHints}
+              />
               <DesignPanel settings={selectedLinkSettings} onChange={updateDesignSetting} />
               <MockEditorArea
                 selectedPage={selectedPage}
