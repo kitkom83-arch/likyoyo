@@ -163,6 +163,20 @@ export type MockAnalyticsRangeData = {
   insights: string[];
 };
 
+export type QaChecklistStatus = "Ready" | "Manual check" | "Mock only" | "Safety guard";
+
+export type QaChecklistItem = {
+  label: string;
+  expectedBehavior: string;
+  status: QaChecklistStatus;
+  note?: string;
+};
+
+export type QaChecklistGroup = {
+  title: string;
+  items: QaChecklistItem[];
+};
+
 export type DesignSettings = {
   theme: string;
   buttonStyle: ButtonStyle;

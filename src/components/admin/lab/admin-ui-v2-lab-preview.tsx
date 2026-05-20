@@ -20,6 +20,7 @@ import { MockFieldBuilder, MockFormBuilderArea, MockFormValidationChecklist, Moc
 import { ButtonStyleSelector, DesignPanel } from "./admin-ui-v2/mock-links";
 import { MockDevicePreview, MockEditorArea, MockPropertyInspector } from "./admin-ui-v2/mock-preview";
 import { MockPageSettingsPanel, MockPageValidationChecklist, MockPublishFlow, MockSeoSocialPanel, MockSharePreviewCards } from "./admin-ui-v2/mock-page-settings";
+import { MockQaChecklistPanel } from "./admin-ui-v2/mock-qa-checklist";
 import { MockBlockManager, MockLinkManager, MockPagesArea, MockSidebar, MockTopBar, SafetyLabelRow } from "./admin-ui-v2/mock-shared";
 import type {
   AnalyticsTimeRange,
@@ -296,7 +297,10 @@ export function AdminUiV2LabPreview() {
   };
 
   return (
-    <section className="rounded-xl border bg-background p-5 shadow-sm">
+    <section
+      className="rounded-xl border bg-background p-5 shadow-sm"
+      data-testid="admin-ui-v2-lab-preview"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -431,6 +435,7 @@ export function AdminUiV2LabPreview() {
                 selectedTopLink={selectedTopLinkAnalytics}
                 range={selectedAnalyticsRange}
               />
+              <MockQaChecklistPanel />
               <DesignPanel settings={selectedLinkSettings} onChange={updateDesignSetting} />
               <MockEditorArea
                 selectedPage={selectedPage}

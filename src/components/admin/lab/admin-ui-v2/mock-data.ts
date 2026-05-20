@@ -24,6 +24,7 @@ import type {
   PageSettings,
   PageStatus,
   PageVisibility,
+  QaChecklistGroup,
   SubmissionDestination,
   TextAlign,
 } from "./types";
@@ -1196,6 +1197,183 @@ export const safeLabels = [
   "no schema update",
   "no route loading",
   "no API calls",
+];
+
+export const qaSafetyGuardLabels = [
+  "no save",
+  "no publish",
+  "no API calls",
+  "no Supabase",
+  "no Google Sheets",
+  "no webhook call",
+  "no tracking",
+  "no public renderer changes",
+];
+
+export const qaChecklistGroups: QaChecklistGroup[] = [
+  {
+    title: "Navigation",
+    items: [
+      {
+        label: "Admin UI V2 tab opens",
+        expectedBehavior: "Selecting the lab tab renders the mock workspace without changing route data.",
+        status: "Ready",
+        note: "Lab tab shell only.",
+      },
+    ],
+  },
+  {
+    title: "Page selection",
+    items: [
+      {
+        label: "Mock pages update the workspace",
+        expectedBehavior: "/bn9/main, /bn9/promo, and /bn9/support update local settings and previews.",
+        status: "Manual check",
+      },
+    ],
+  },
+  {
+    title: "Block selection",
+    items: [
+      {
+        label: "Block manager changes inspector copy",
+        expectedBehavior: "Selecting a block updates the editor and property inspector labels only.",
+        status: "Mock only",
+      },
+    ],
+  },
+  {
+    title: "Button style selector",
+    items: [
+      {
+        label: "Style changes stay local",
+        expectedBehavior: "Icon, image, text, card, and panel styles update the selected mock link preview.",
+        status: "Ready",
+      },
+    ],
+  },
+  {
+    title: "Link manager",
+    items: [
+      {
+        label: "Selected link drives editor state",
+        expectedBehavior: "Clicking a link card changes the design panel, preview, and inspector.",
+        status: "Manual check",
+      },
+    ],
+  },
+  {
+    title: "Link reorder",
+    items: [
+      {
+        label: "Move controls reorder mock links",
+        expectedBehavior: "Move up and down controls reorder only the local link array.",
+        status: "Mock only",
+      },
+    ],
+  },
+  {
+    title: "Prioritize one link",
+    items: [
+      {
+        label: "Priority toggle remains exclusive",
+        expectedBehavior: "Prioritizing one link clears priority from the other mock links.",
+        status: "Ready",
+      },
+    ],
+  },
+  {
+    title: "Page settings",
+    items: [
+      {
+        label: "Settings update previews",
+        expectedBehavior: "Title, handle, slug, status, visibility, language, and SEO values update cards only.",
+        status: "Manual check",
+      },
+    ],
+  },
+  {
+    title: "Mock publish flow",
+    items: [
+      {
+        label: "Publish controls do not persist",
+        expectedBehavior: "Save draft clears local dirty state; publish and schedule update local badges only.",
+        status: "Safety guard",
+        note: "No real save status bar or route update.",
+      },
+    ],
+  },
+  {
+    title: "Form builder",
+    items: [
+      {
+        label: "Template cards select mock forms",
+        expectedBehavior: "Contact, booking, support, lead, and custom templates change local form state.",
+        status: "Mock only",
+      },
+    ],
+  },
+  {
+    title: "Field builder",
+    items: [
+      {
+        label: "Field list and settings stay local",
+        expectedBehavior: "Selecting, editing, enabling, requiring, and reordering fields changes mock state only.",
+        status: "Manual check",
+      },
+    ],
+  },
+  {
+    title: "Submission routing",
+    items: [
+      {
+        label: "Routing toggles are labels only",
+        expectedBehavior: "Mock inbox, email, Google Sheets, and webhook toggles never call external systems.",
+        status: "Safety guard",
+      },
+    ],
+  },
+  {
+    title: "Analytics range selector",
+    items: [
+      {
+        label: "Time range changes mock analytics",
+        expectedBehavior: "Today, 7 days, 30 days, and 90 days switch static metric sets and insight text.",
+        status: "Mock only",
+      },
+    ],
+  },
+  {
+    title: "Top link analytics selection",
+    items: [
+      {
+        label: "Top link detail follows selection",
+        expectedBehavior: "Selecting a top link updates the mock detail card and preview highlight.",
+        status: "Ready",
+      },
+    ],
+  },
+  {
+    title: "Responsive layout",
+    items: [
+      {
+        label: "Desktop and narrow screens remain contained",
+        expectedBehavior: "Panels stack cleanly, preserve min-w-0 containment, and avoid horizontal overflow.",
+        status: "Manual check",
+      },
+    ],
+  },
+  {
+    title: "Safety checks",
+    items: [
+      {
+        label: "Production paths stay untouched",
+        expectedBehavior: "No real editor, public renderer, API, Supabase, Google Sheets, webhook, or tracking code.",
+        status: "Safety guard",
+        note: "Manual grep plus lint/build guard.",
+      },
+    ],
+  },
 ];
 
 export const alignOptions: TextAlign[] = ["left", "center", "right"];
