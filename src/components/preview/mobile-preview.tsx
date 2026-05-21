@@ -493,7 +493,6 @@ export const MobilePreview = ({
   const [isClientMounted, setIsClientMounted] = useState(false);
   const isButtonMenuV2PreviewEnabled =
     isAdminPreview &&
-    isClientMounted &&
     IS_BUTTON_MENU_V2_ADMIN_ENABLED &&
     IS_BUTTON_MENU_V2_PREVIEW_ENABLED;
   const [resolvedImageRefs, setResolvedImageRefs] = useState<Record<string, string>>({});
@@ -1209,8 +1208,8 @@ export const MobilePreview = ({
                           displaySettings.imageAspect === "2:1" ? "aspect-[2/1]" : "aspect-[3/1]",
                         )}
                       >
-                        {safeButtonMenuV2BackgroundImageSrc ? (
-                          <div className="absolute inset-0" style={imageFilterStyle}>
+                        <div className="absolute inset-0" style={imageFilterStyle}>
+                          {safeButtonMenuV2BackgroundImageSrc ? (
                             <SafeImage
                               src={safeButtonMenuV2BackgroundImageSrc}
                               alt=""
@@ -1227,8 +1226,10 @@ export const MobilePreview = ({
                                 }));
                               }}
                             />
-                          </div>
-                        ) : null}
+                          ) : (
+                            <div className="h-full w-full bg-black/10" aria-hidden="true" />
+                          )}
+                        </div>
                         <div
                           className="absolute inset-0"
                           style={{ backgroundColor: `rgba(0,0,0,${resolvedImageOverlayOpacity})` }}
@@ -1259,8 +1260,8 @@ export const MobilePreview = ({
                   if (buttonMenuV2Style === "card-left-image") {
                     return (
                       <div className="flex w-full items-center gap-3">
-                        {safeButtonMenuV2ImageSrc ? (
-                          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-black/10" style={imageFilterStyle}>
+                        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-black/10 bg-black/10" style={imageFilterStyle}>
+                          {safeButtonMenuV2ImageSrc ? (
                             <SafeImage
                               src={safeButtonMenuV2ImageSrc}
                               alt=""
@@ -1277,14 +1278,16 @@ export const MobilePreview = ({
                                 }));
                               }}
                             />
-                            {imageOverlayExtraOpacity > 0 ? (
-                              <div
-                                className="pointer-events-none absolute inset-0"
-                                style={{ backgroundColor: `rgba(0,0,0,${imageOverlayExtraOpacity / 100})` }}
-                              />
-                            ) : null}
-                          </div>
-                        ) : null}
+                          ) : (
+                            <div className="h-full w-full" aria-hidden="true" />
+                          )}
+                          {imageOverlayExtraOpacity > 0 ? (
+                            <div
+                              className="pointer-events-none absolute inset-0"
+                              style={{ backgroundColor: `rgba(0,0,0,${imageOverlayExtraOpacity / 100})` }}
+                            />
+                          ) : null}
+                        </div>
                         <div className={cn("min-w-0 flex-1", textAlignClass)}>
                           {title ? <p className="w-full text-lg font-semibold leading-tight">{title}</p> : null}
                           {bodyText ? (
@@ -1319,24 +1322,28 @@ export const MobilePreview = ({
 
                   return (
                     <>
-                      {safeButtonMenuV2ImageSrc ? (
-                        <SafeImage
-                          src={safeButtonMenuV2ImageSrc}
-                          alt=""
-                          className="size-10 rounded-full border border-black/10 object-cover"
-                          width={40}
-                          height={40}
-                          onError={() => {
-                            if (!buttonMenuV2ImageKey) {
-                              return;
-                            }
-                            setBrokenThumbnailKeys((current) => ({
-                              ...current,
-                              [buttonMenuV2ImageKey]: true,
-                            }));
-                          }}
-                        />
-                      ) : null}
+                      <span className="relative size-10 shrink-0 overflow-hidden rounded-full border border-black/10 bg-black/10">
+                        {safeButtonMenuV2ImageSrc ? (
+                          <SafeImage
+                            src={safeButtonMenuV2ImageSrc}
+                            alt=""
+                            className="size-10 object-cover"
+                            width={40}
+                            height={40}
+                            onError={() => {
+                              if (!buttonMenuV2ImageKey) {
+                                return;
+                              }
+                              setBrokenThumbnailKeys((current) => ({
+                                ...current,
+                                [buttonMenuV2ImageKey]: true,
+                              }));
+                            }}
+                          />
+                        ) : (
+                          <span className="block size-full" aria-hidden="true" />
+                        )}
+                      </span>
                       <div className={cn("min-w-0 flex-1", textAlignClass)}>
                         {title ? <p className="truncate text-sm font-semibold sm:text-base">{title}</p> : null}
                         {bodyText ? (
