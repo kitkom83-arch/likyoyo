@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { SafeImage } from "@/components/shared/safe-image";
-import { ComponentType, FocusEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ComponentType, FocusEvent, memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   Globe,
   Link2,
@@ -481,7 +481,7 @@ const XEmbedRenderer = ({ markup }: { markup: string }) => {
   );
 };
 
-export const MobilePreview = ({
+const MobilePreviewComponent = ({
   data: rawData,
   routeSlug,
   mode = "admin",
@@ -3653,3 +3653,6 @@ export const MobilePreview = ({
     </div>
   );
 };
+
+export const MobilePreview = memo(MobilePreviewComponent);
+MobilePreview.displayName = "MobilePreview";

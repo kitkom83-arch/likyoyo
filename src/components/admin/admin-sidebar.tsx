@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ExternalLink, Image as ImageIcon, Link2 } from "lucide-react";
-import { type MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, type MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AnalyticsSummaryCard } from "@/components/admin/analytics-summary-card";
 import { DataToolsCard } from "@/components/admin/data-tools-card";
@@ -25,7 +25,7 @@ type AdminSidebarProps = {
   onRefreshSavedPages?: () => Promise<PublicPageListItem[] | null>;
 };
 
-export const AdminSidebar = ({
+const AdminSidebarComponent = ({
   currentSlug,
   adminMe,
   isSwitchingWorkspace = false,
@@ -44,6 +44,9 @@ export const AdminSidebar = ({
     onRefreshSavedPages={onRefreshSavedPages}
   />
 );
+
+export const AdminSidebar = memo(AdminSidebarComponent);
+AdminSidebar.displayName = "AdminSidebar";
 
 const AdminSidebarContent = ({
   currentSlug,

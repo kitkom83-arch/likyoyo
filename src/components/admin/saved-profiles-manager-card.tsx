@@ -1,7 +1,7 @@
 "use client";
 
 import { LoaderCircle } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -71,7 +71,7 @@ const createPageWorkspaceData = (slug: string, pageName: string): BuilderData =>
   },
 });
 
-export const SavedProfilesManagerCard = ({
+const SavedProfilesManagerCardComponent = ({
   currentSlug,
   adminMe,
   isSwitchingWorkspace = false,
@@ -660,3 +660,6 @@ export const SavedProfilesManagerCard = ({
     </>
   );
 };
+
+export const SavedProfilesManagerCard = memo(SavedProfilesManagerCardComponent);
+SavedProfilesManagerCard.displayName = "SavedProfilesManagerCard";

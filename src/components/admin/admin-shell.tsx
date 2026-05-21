@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { EditorPanel } from "@/components/admin/editor-panel";
@@ -43,6 +43,47 @@ type WorkspaceSwitchOptions = {
 };
 
 type WorkspaceSwitchResult = "remote" | "fallback";
+
+const arePublicPageListsEqual = (
+  left: PublicPageListItem[],
+  right: PublicPageListItem[],
+): boolean => {
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((item, index) => {
+    const next = right[index];
+    return (
+      item.slug === next.slug &&
+      item.updatedAt === next.updatedAt &&
+      item.ownerAdminId === next.ownerAdminId &&
+      item.owner?.id === next.owner?.id &&
+      item.owner?.username === next.owner?.username &&
+      item.owner?.displayName === next.owner?.displayName &&
+      item.owner?.role === next.owner?.role
+    );
+  });
+};
+
+const areAdminMeEqual = (left: AdminMe | null, right: AdminMe | null): boolean => {
+  if (left === right) {
+    return true;
+  }
+  if (!left || !right) {
+    return false;
+  }
+  return (
+    left.user.adminId === right.user.adminId &&
+    left.user.username === right.user.username &&
+    left.user.displayName === right.user.displayName &&
+    left.user.role === right.user.role &&
+    left.user.slugLimit === right.user.slugLimit &&
+    left.user.active === right.user.active &&
+    left.quota.used === right.quota.used &&
+    left.quota.limit === right.quota.limit &&
+    left.quota.remaining === right.quota.remaining
+  );
+};
 
 const getUniqueSlug = (baseSlug: string, existingSlugs: Set<string>) => {
   if (!existingSlugs.has(baseSlug)) {
@@ -215,6 +256,8 @@ export const AdminShell = () => {
     () => ({ header, theme, text, buttonStyle, socials, links }),
     [buttonStyle, header, links, socials, text, theme],
   );
+  const deferredPreviewData = useDeferredValue(builderData);
+  const deferredPreviewSlug = useDeferredValue(currentEditorSlug);
 
   const refreshSavedPages = useCallback(async () => {
     if (savedPagesRequestRef.current) {
@@ -227,7 +270,7 @@ export const AdminShell = () => {
       try {
         const pages = await listPublicPages(controller.signal);
         accessibleSlugsRef.current = new Set(pages.map((page) => page.slug));
-        setSavedProfiles(pages);
+        setSavedProfiles((current) => (arePublicPageListsEqual(current, pages) ? current : pages));
         setSavedPagesError(null);
         setAdminNotice((current) =>
           current?.text === tRef.current("save_status_load_error") ? null : current,
@@ -258,7 +301,7 @@ export const AdminShell = () => {
       const currentAdmin = await getCurrentAdmin();
       adminScopeKeyRef.current = currentAdmin.user.adminId;
       adminRoleRef.current = currentAdmin.user.role;
-      setAdminMe(currentAdmin);
+      setAdminMe((current) => (areAdminMeEqual(current, currentAdmin) ? current : currentAdmin));
       return currentAdmin;
     } catch (error) {
       console.error("[admin-shell] admin context refresh failed", error);
@@ -693,8 +736,8 @@ export const AdminShell = () => {
           <div className="lg:sticky lg:top-4 rounded-3xl border border-border/60 bg-gradient-to-b from-background/95 to-muted/20 p-2 shadow-sm">
             <MobilePreview
               key={workspaceHydrationKey}
-              data={builderData}
-              routeSlug={currentEditorSlug}
+              data={deferredPreviewData}
+              routeSlug={deferredPreviewSlug}
               mode="admin"
             />
           </div>
