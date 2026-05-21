@@ -42,7 +42,6 @@ import {
   hydrateBuilderDataWithIndexedDbImages,
 } from "@/lib/local-storage/image-storage";
 import { useI18n } from "@/i18n/use-i18n";
-import { featureFlags } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
 
 type MobilePreviewProps = {
@@ -107,6 +106,17 @@ const BUTTON_MENU_V2_STYLES = new Set<LinkButtonStyle>([
 
 const isButtonMenuV2Style = (value: unknown): value is LinkButtonStyle =>
   typeof value === "string" && BUTTON_MENU_V2_STYLES.has(value as LinkButtonStyle);
+
+const TRUE_FLAG_VALUES = new Set(["1", "true", "yes", "on"]);
+const readStaticPublicFlag = (value: string | undefined): boolean =>
+  typeof value === "string" && TRUE_FLAG_VALUES.has(value.trim().toLowerCase());
+
+const IS_BUTTON_MENU_V2_ADMIN_ENABLED = readStaticPublicFlag(
+  process.env.NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_ADMIN,
+);
+const IS_BUTTON_MENU_V2_PREVIEW_ENABLED = readStaticPublicFlag(
+  process.env.NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PREVIEW,
+);
 
 const normalizeImageSrc = (
   value: string | null | undefined,
@@ -478,9 +488,14 @@ export const MobilePreview = ({
   onPublicLinkClick,
 }: MobilePreviewProps) => {
   const isAdminPreview = mode === "admin";
-  const isButtonMenuV2PreviewEnabled = isAdminPreview && featureFlags.buttonMenuV2Preview;
   const { t } = useI18n();
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
+  const [isClientMounted, setIsClientMounted] = useState(false);
+  const isButtonMenuV2PreviewEnabled =
+    isAdminPreview &&
+    isClientMounted &&
+    IS_BUTTON_MENU_V2_ADMIN_ENABLED &&
+    IS_BUTTON_MENU_V2_PREVIEW_ENABLED;
   const [resolvedImageRefs, setResolvedImageRefs] = useState<Record<string, string>>({});
   const data = useMemo(
     () => hydrateBuilderDataWithIndexedDbImages(rawData, resolvedImageRefs),
@@ -520,6 +535,18 @@ export const MobilePreview = ({
   const [xActivityChecklistByLink, setXActivityChecklistByLink] = useState<
     Record<string, XActivityChecklistState>
   >({});
+
+  useEffect(() => {
+    let canceled = false;
+    queueMicrotask(() => {
+      if (!canceled) {
+        setIsClientMounted(true);
+      }
+    });
+    return () => {
+      canceled = true;
+    };
+  }, []);
 
   const wallpaperRequestSrc = useMemo(
     () => normalizeImageSrc(data.theme.wallpaperUrl, WALLPAPER_FALLBACK_SRC) ?? WALLPAPER_FALLBACK_SRC,
@@ -1080,11 +1107,13 @@ export const MobilePreview = ({
                 ? `${link.id}::v2-background::${buttonMenuV2BackgroundImageSrc}`
                 : null;
               const safeButtonMenuV2ImageSrc =
-                buttonMenuV2ImageKey && !brokenThumbnailKeys[buttonMenuV2ImageKey]
+                isClientMounted && buttonMenuV2ImageKey && !brokenThumbnailKeys[buttonMenuV2ImageKey]
                   ? buttonMenuV2ImageSrc
                   : null;
               const safeButtonMenuV2BackgroundImageSrc =
-                buttonMenuV2BackgroundImageKey && !brokenThumbnailKeys[buttonMenuV2BackgroundImageKey]
+                isClientMounted &&
+                buttonMenuV2BackgroundImageKey &&
+                !brokenThumbnailKeys[buttonMenuV2BackgroundImageKey]
                   ? buttonMenuV2BackgroundImageSrc
                   : null;
               const textAlignClass =

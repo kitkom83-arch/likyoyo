@@ -72,7 +72,6 @@ import {
   normalizeFormFieldType,
 } from "@/features/builder/utils";
 import { useI18n } from "@/i18n/use-i18n";
-import { featureFlags } from "@/lib/feature-flags";
 import { getPerLinkClickCounts } from "@/lib/local-storage/analytics-storage";
 import { toProfileSlug } from "@/lib/local-storage/profile-storage";
 import { cn } from "@/lib/utils";
@@ -92,6 +91,12 @@ const LEGACY_STYLE_TO_BUTTON_STYLE: Record<LegacyLinkDisplayStyle, LinkButtonSty
   media_card: "card-left-image",
   text_panel: "text-panel",
 };
+
+const TRUE_FLAG_VALUES = new Set(["1", "true", "yes", "on"]);
+const IS_BUTTON_MENU_V2_ADMIN_ENABLED = (() => {
+  const value = process.env.NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_ADMIN;
+  return typeof value === "string" && TRUE_FLAG_VALUES.has(value.trim().toLowerCase());
+})();
 
 const toButtonStyle = (value: unknown): LinkButtonStyle => {
   if (typeof value === "string" && value in BUTTON_STYLE_TO_LEGACY_STYLE) {
@@ -301,7 +306,7 @@ const StaticLinkItem = ({
 
 export const LinksSection = () => {
   const { t } = useI18n();
-  const isButtonMenuV2AdminEnabled = featureFlags.buttonMenuV2Admin;
+  const isButtonMenuV2AdminEnabled = IS_BUTTON_MENU_V2_ADMIN_ENABLED;
   const links = useBuilderStore((state) => state.links);
   const username = useBuilderStore((state) => state.header.username);
   const addLink = useBuilderStore((state) => state.addLink);
