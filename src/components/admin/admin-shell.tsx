@@ -39,6 +39,7 @@ type CollisionDialogState = {
 type WorkspaceSwitchOptions = {
   fallbackData?: BuilderData;
   markUnsaved?: boolean;
+  showSwitchingState?: boolean;
 };
 
 type WorkspaceSwitchResult = "remote" | "fallback";
@@ -318,10 +319,13 @@ export const AdminShell = () => {
         return "fallback";
       }
       const loadToken = workspaceLoadTokenRef.current + 1;
+      const showSwitchingState = options.showSwitchingState ?? true;
       workspaceLoadTokenRef.current = loadToken;
       clearPendingSaves();
-      isSwitchingWorkspaceRef.current = true;
-      setIsSwitchingWorkspace(true);
+      if (showSwitchingState) {
+        isSwitchingWorkspaceRef.current = true;
+        setIsSwitchingWorkspace(true);
+      }
       workspaceSlugRef.current = normalized;
       setCurrentEditorSlug(normalized);
       setActiveEditorSlug(normalized, adminScopeKeyRef.current);
@@ -359,7 +363,7 @@ export const AdminShell = () => {
         setAdminNotice({ type: "error", text: tRef.current("save_status_load_error") });
         throw error;
       } finally {
-        if (workspaceLoadTokenRef.current === loadToken) {
+        if (showSwitchingState && workspaceLoadTokenRef.current === loadToken) {
           isSwitchingWorkspaceRef.current = false;
           setIsSwitchingWorkspace(false);
         }
@@ -489,7 +493,7 @@ export const AdminShell = () => {
         return;
       }
       try {
-        await loadWorkspaceFromSlug(resolvedSlug);
+        await loadWorkspaceFromSlug(resolvedSlug, { showSwitchingState: false });
       } catch {
         // Error notice is set by loadWorkspaceFromSlug; keep the editor usable.
       }
@@ -620,6 +624,7 @@ export const AdminShell = () => {
   const currentOwnerUsername = currentRouteParts.ownerUsername || adminMe?.user.username || "-";
   const currentPageSlug = currentRouteParts.pageSlug || currentEditorSlug;
   const currentFullPublicRoute = `/${currentEditorSlug}`;
+  const isSaveDisabled = isSwitchingWorkspace || !isWorkspaceReady;
 
   return (
     <>
@@ -646,7 +651,7 @@ export const AdminShell = () => {
               lastSavedAt={lastSavedAt}
               onSaveNow={handleSaveNow}
               onLogout={handleLogout}
-              isSwitchingWorkspace={isSwitchingWorkspace}
+              isSwitchingWorkspace={isSaveDisabled}
             />
             {adminNotice ? (
               <div
@@ -657,6 +662,11 @@ export const AdminShell = () => {
                 }`}
               >
                 {adminNotice.text}
+              </div>
+            ) : null}
+            {!isWorkspaceReady ? (
+              <div className="mb-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+                Loading saved workspace data in the background.
               </div>
             ) : null}
             <div className={isSwitchingWorkspace ? "pointer-events-none opacity-65" : ""}>
