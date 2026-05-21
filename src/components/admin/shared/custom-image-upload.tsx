@@ -28,8 +28,7 @@ type CustomImageUploadProps = {
   className?: string;
 };
 
-const UPLOAD_ICON_PRIMARY_SRC = "/placeholders/upload-icon.png";
-const UPLOAD_ICON_FALLBACK_SRC = "/file.svg";
+const UPLOAD_ICON_SRC = "/file.svg";
 
 const normalizeImageSrc = (value: string | null | undefined): string | null => {
   if (typeof value !== "string") {
@@ -73,7 +72,6 @@ export const CustomImageUpload = ({
 }: CustomImageUploadProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [selectedFileName, setSelectedFileName] = useState("");
-  const [uploadIconSrc, setUploadIconSrc] = useState(UPLOAD_ICON_PRIMARY_SRC);
   const [isProcessing, setIsProcessing] = useState(false);
   const [resolvedImageValue, setResolvedImageValue] = useState<string | null>(null);
   const inputId = useId();
@@ -181,13 +179,12 @@ export const CustomImageUpload = ({
         ) : (
           <div className="flex h-24 w-full max-w-full items-center justify-center overflow-hidden rounded-md border border-dashed border-border/70 bg-background/60">
             <SafeImage
-              src={uploadIconSrc}
+              src={UPLOAD_ICON_SRC}
               alt=""
               className="h-8 w-8 object-contain opacity-80"
               width={32}
               height={32}
               unoptimized
-              onError={() => setUploadIconSrc(UPLOAD_ICON_FALLBACK_SRC)}
             />
           </div>
         )}
