@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ExternalLink, Image as ImageIcon, Link2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AnalyticsSummaryCard } from "@/components/admin/analytics-summary-card";
 import { DataToolsCard } from "@/components/admin/data-tools-card";
@@ -57,12 +57,12 @@ const AdminSidebarContent = ({
   const { t } = useI18n();
   const SECTION_ITEMS = useMemo(
     () => [
-      { id: "header", label: t("sidebar_section_header") },
-      { id: "wallpaper", label: t("sidebar_section_wallpaper") },
-      { id: "text", label: t("sidebar_section_text") },
-      { id: "buttons", label: t("sidebar_section_buttons") },
-      { id: "social-icons", label: t("sidebar_section_social") },
-      { id: "links", label: t("sidebar_section_links") },
+      { id: "profile", targetId: "header", label: t("sidebar_section_header") },
+      { id: "wallpaper", targetId: "wallpaper", label: t("sidebar_section_wallpaper") },
+      { id: "text", targetId: "text", label: t("sidebar_section_text") },
+      { id: "buttons", targetId: "buttons", label: t("sidebar_section_buttons") },
+      { id: "social-links", targetId: "social-icons", label: t("sidebar_section_social") },
+      { id: "links", targetId: "links", label: t("sidebar_section_links") },
     ],
     [t],
   );
@@ -86,6 +86,28 @@ const AdminSidebarContent = ({
     window.setTimeout(() => setCopied(false), 1800);
   };
 
+  const scrollToSection = useCallback((sectionId: string) => {
+    const section = SECTION_ITEMS.find(
+      (item) => item.id === sectionId || item.targetId === sectionId,
+    );
+    const target = section ? document.getElementById(section.targetId) : null;
+    if (!section || !target) {
+      return;
+    }
+
+    setActiveSection(section.id);
+    target.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [SECTION_ITEMS]);
+
+  const handleSectionClick = (
+    event: MouseEvent<HTMLAnchorElement>,
+    sectionId: string,
+  ) => {
+    event.preventDefault();
+    scrollToSection(sectionId);
+    window.history.pushState(null, "", `#${sectionId}`);
+  };
+
   useEffect(() => {
     const setActiveFromHash = () => {
       const hash = window.location.hash.replace("#", "");
@@ -93,16 +115,17 @@ const AdminSidebarContent = ({
         return;
       }
 
-      if (SECTION_ITEMS.some((item) => item.id === hash)) {
-        setActiveSection(hash);
-      }
+      scrollToSection(hash);
     };
 
     const hashFrameId = window.requestAnimationFrame(setActiveFromHash);
 
     const observedSections = SECTION_ITEMS.map((item) =>
-      document.getElementById(item.id),
+      document.getElementById(item.targetId),
     ).filter(Boolean) as HTMLElement[];
+    const sectionIdByTargetId = new Map(
+      SECTION_ITEMS.map((item) => [item.targetId, item.id]),
+    );
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -111,7 +134,7 @@ const AdminSidebarContent = ({
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
         const topEntry = intersecting[0];
         if (topEntry) {
-          setActiveSection(topEntry.target.id);
+          setActiveSection(sectionIdByTargetId.get(topEntry.target.id) ?? topEntry.target.id);
         }
       },
       {
@@ -128,7 +151,7 @@ const AdminSidebarContent = ({
       observer.disconnect();
       window.removeEventListener("hashchange", setActiveFromHash);
     };
-  }, [SECTION_ITEMS]);
+  }, [SECTION_ITEMS, scrollToSection]);
 
   return (
     <aside className="rounded-2xl border border-border/60 bg-gradient-to-b from-background/95 to-muted/35 p-4 shadow-sm sm:p-5">
@@ -147,7 +170,7 @@ const AdminSidebarContent = ({
           <a
             key={item.id}
             href={`#${item.id}`}
-            onClick={() => setActiveSection(item.id)}
+            onClick={(event) => handleSectionClick(event, item.id)}
             className={cn(
               "relative block rounded-lg px-3 py-2 text-sm font-medium transition",
               activeSection === item.id
