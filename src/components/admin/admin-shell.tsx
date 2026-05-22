@@ -583,23 +583,19 @@ export const AdminShell = () => {
       return;
     }
 
-    const snapshot = JSON.stringify(builderData);
-
     if (!hasInitializedRef.current) {
       hasInitializedRef.current = true;
-      if (snapshot === lastSavedSnapshotRef.current) {
-        return;
-      }
       const initFrameId = window.requestAnimationFrame(() => {
-        persistProfile(builderData, snapshot);
+        const latestData = selectBuilderDataSnapshot();
+        const latestSnapshot = JSON.stringify(latestData);
+        if (latestSnapshot === lastSavedSnapshotRef.current && !pendingAutosaveRef.current) {
+          return;
+        }
+        persistProfile(latestData, latestSnapshot);
       });
       return () => {
         window.cancelAnimationFrame(initFrameId);
       };
-    }
-
-    if (snapshot === lastSavedSnapshotRef.current && !pendingAutosaveRef.current) {
-      return;
     }
 
     if (saveOperationTimerRef.current) {
@@ -616,7 +612,14 @@ export const AdminShell = () => {
     }
 
     autosaveTimerRef.current = window.setTimeout(() => {
-      persistProfile(builderData, snapshot);
+      const latestData = selectBuilderDataSnapshot();
+      const latestSnapshot = JSON.stringify(latestData);
+      if (latestSnapshot === lastSavedSnapshotRef.current && !pendingAutosaveRef.current) {
+        setSaveStatus("saved");
+        autosaveTimerRef.current = null;
+        return;
+      }
+      persistProfile(latestData, latestSnapshot);
       autosaveTimerRef.current = null;
     }, 800);
 
@@ -668,6 +671,11 @@ export const AdminShell = () => {
   const currentPageSlug = currentRouteParts.pageSlug || currentEditorSlug;
   const currentFullPublicRoute = `/${currentEditorSlug}`;
   const isSaveDisabled = isSwitchingWorkspace || !isWorkspaceReady;
+  const workspaceLoadingPanel = (
+    <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+      Loading saved workspace data.
+    </div>
+  );
 
   return (
     <>
@@ -727,19 +735,29 @@ export const AdminShell = () => {
                   <span>{currentFullPublicRoute}</span>
                 </div>
               </div>
-              <EditorPanel key={workspaceHydrationKey} slugCollisionWarning={slugCollisionWarning} />
+              {isWorkspaceReady ? (
+                <EditorPanel key={workspaceHydrationKey} slugCollisionWarning={slugCollisionWarning} />
+              ) : (
+                workspaceLoadingPanel
+              )}
             </div>
           </div>
         </div>
 
         <div className="lg:col-span-3 xl:col-span-4">
           <div className="lg:sticky lg:top-4 rounded-3xl border border-border/60 bg-gradient-to-b from-background/95 to-muted/20 p-2 shadow-sm">
-            <MobilePreview
-              key={workspaceHydrationKey}
-              data={deferredPreviewData}
-              routeSlug={deferredPreviewSlug}
-              mode="admin"
-            />
+            {isWorkspaceReady ? (
+              <MobilePreview
+                key={workspaceHydrationKey}
+                data={deferredPreviewData}
+                routeSlug={deferredPreviewSlug}
+                mode="admin"
+              />
+            ) : (
+              <div className="mx-auto flex min-h-[520px] w-full items-center justify-center rounded-[2rem] border border-dashed border-border/70 bg-muted/20 px-4 text-center text-sm text-muted-foreground">
+                Loading preview.
+              </div>
+            )}
           </div>
         </div>
       </div>
