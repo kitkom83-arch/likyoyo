@@ -10,6 +10,7 @@ export const featureFlags = {
   adminUiV2: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_ADMIN_UI_V2"),
   buttonMenuV2Admin: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_ADMIN"),
   buttonMenuV2Preview: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PREVIEW"),
+  buttonMenuV2Public: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PUBLIC"),
   formEngineV1: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_FORM_ENGINE_V1"),
   uiLabMode: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_UI_LAB_MODE"),
 } as const;
@@ -45,6 +46,12 @@ export const featureFlagMetadata: Array<{
     envName: "NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PREVIEW",
     label: "Button/Menu V2 MobilePreview Rendering",
     description: "Enables Button/Menu System V2 rendering in the authenticated admin MobilePreview only.",
+  },
+  {
+    key: "buttonMenuV2Public",
+    envName: "NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PUBLIC",
+    label: "Button/Menu V2 Public Rendering",
+    description: "Enables Button/Menu System V2 rendering on public profile pages only.",
   },
   {
     key: "formEngineV1",

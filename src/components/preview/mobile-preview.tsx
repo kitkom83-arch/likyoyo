@@ -117,6 +117,9 @@ const IS_BUTTON_MENU_V2_ADMIN_ENABLED = readStaticPublicFlag(
 const IS_BUTTON_MENU_V2_PREVIEW_ENABLED = readStaticPublicFlag(
   process.env.NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PREVIEW,
 );
+const IS_BUTTON_MENU_V2_PUBLIC_ENABLED = readStaticPublicFlag(
+  process.env.NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PUBLIC,
+);
 
 const normalizeImageSrc = (
   value: string | null | undefined,
@@ -495,6 +498,10 @@ const MobilePreviewComponent = ({
     isAdminPreview &&
     IS_BUTTON_MENU_V2_ADMIN_ENABLED &&
     IS_BUTTON_MENU_V2_PREVIEW_ENABLED;
+  const isButtonMenuV2PublicEnabled =
+    mode === "public" && IS_BUTTON_MENU_V2_PUBLIC_ENABLED;
+  const isButtonMenuV2RenderingEnabled =
+    isButtonMenuV2PreviewEnabled || isButtonMenuV2PublicEnabled;
   const [resolvedImageRefs, setResolvedImageRefs] = useState<Record<string, string>>({});
   const data = useMemo(
     () => hydrateBuilderDataWithIndexedDbImages(rawData, resolvedImageRefs),
@@ -1066,7 +1073,7 @@ const MobilePreviewComponent = ({
               const activeStyle = displaySettings.style ?? "icon_left";
               const rawButtonMenuV2Style = link.settings.buttonStyle ?? link.buttonStyle;
               const buttonMenuV2Style =
-                isButtonMenuV2PreviewEnabled && isButtonMenuV2Style(rawButtonMenuV2Style)
+                isButtonMenuV2RenderingEnabled && isButtonMenuV2Style(rawButtonMenuV2Style)
                   ? rawButtonMenuV2Style
                   : null;
               const openInNewTab = displaySettings.openInNewTab ?? true;
@@ -1096,7 +1103,7 @@ const MobilePreviewComponent = ({
               const safeBackgroundImageSrc = brokenThumbnailKeys[backgroundImageKey]
                 ? THUMBNAIL_FALLBACK_SRC
                 : backgroundImageSrc;
-              const buttonMenuV2ImageSrc = normalizeImageSrc(displaySettings.imageUrl);
+              const buttonMenuV2ImageSrc = normalizeImageSrc(displaySettings.imageUrl, thumbnailSrc);
               const buttonMenuV2BackgroundImageSrc =
                 normalizeImageSrc(displaySettings.backgroundImageUrl) ?? buttonMenuV2ImageSrc;
               const buttonMenuV2ImageKey = buttonMenuV2ImageSrc
@@ -1106,14 +1113,16 @@ const MobilePreviewComponent = ({
                 ? `${link.id}::v2-background::${buttonMenuV2BackgroundImageSrc}`
                 : null;
               const safeButtonMenuV2ImageSrc =
-                isClientMounted && buttonMenuV2ImageKey && !brokenThumbnailKeys[buttonMenuV2ImageKey]
-                  ? buttonMenuV2ImageSrc
+                isClientMounted && buttonMenuV2ImageKey
+                  ? brokenThumbnailKeys[buttonMenuV2ImageKey]
+                    ? THUMBNAIL_FALLBACK_SRC
+                    : buttonMenuV2ImageSrc
                   : null;
               const safeButtonMenuV2BackgroundImageSrc =
-                isClientMounted &&
-                buttonMenuV2BackgroundImageKey &&
-                !brokenThumbnailKeys[buttonMenuV2BackgroundImageKey]
-                  ? buttonMenuV2BackgroundImageSrc
+                isClientMounted && buttonMenuV2BackgroundImageKey
+                  ? brokenThumbnailKeys[buttonMenuV2BackgroundImageKey]
+                    ? THUMBNAIL_FALLBACK_SRC
+                    : buttonMenuV2BackgroundImageSrc
                   : null;
               const textAlignClass =
                 displaySettings.textAlign === "center"
