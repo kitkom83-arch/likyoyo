@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { SafeImage } from "@/components/shared/safe-image";
-import { ComponentType, FocusEvent, memo, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ComponentType,
+  FocusEvent,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Globe,
   Link2,
@@ -515,7 +524,7 @@ const MobilePreviewComponent = ({
     () => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search)),
     [],
   );
-  const visibleLinks = getSortedVisibleLinks(data);
+  const visibleLinks = useMemo(() => getSortedVisibleLinks(data), [data]);
   const [brokenAvatarSources, setBrokenAvatarSources] = useState<Record<string, true>>({});
   const [brokenWallpaperSources, setBrokenWallpaperSources] = useState<Record<string, true>>({});
   const [brokenThumbnailKeys, setBrokenThumbnailKeys] = useState<Record<string, true>>({});
@@ -541,6 +550,29 @@ const MobilePreviewComponent = ({
   const [xActivityChecklistByLink, setXActivityChecklistByLink] = useState<
     Record<string, XActivityChecklistState>
   >({});
+  const markBrokenAvatarSource = useCallback((source: string) => {
+    setBrokenAvatarSources((current) =>
+      current[source] ? current : { ...current, [source]: true },
+    );
+  }, []);
+  const markBrokenWallpaperSource = useCallback((source: string) => {
+    setBrokenWallpaperSources((current) =>
+      current[source] ? current : { ...current, [source]: true },
+    );
+  }, []);
+  const markBrokenThumbnailKey = useCallback((key: string | null) => {
+    if (!key) {
+      return;
+    }
+    setBrokenThumbnailKeys((current) =>
+      current[key] ? current : { ...current, [key]: true },
+    );
+  }, []);
+  const markBrokenHeroKey = useCallback((key: string) => {
+    setBrokenHeroKeys((current) =>
+      current[key] ? current : { ...current, [key]: true },
+    );
+  }, []);
 
   useEffect(() => {
     let canceled = false;
@@ -700,10 +732,7 @@ const MobilePreviewComponent = ({
     const image = new window.Image();
     image.onerror = () => {
       if (!canceled) {
-        setBrokenWallpaperSources((current) => ({
-          ...current,
-          [candidateSrc]: true,
-        }));
+        markBrokenWallpaperSource(candidateSrc);
       }
     };
     image.src = candidateSrc;
@@ -711,7 +740,7 @@ const MobilePreviewComponent = ({
     return () => {
       canceled = true;
     };
-  }, [wallpaperRequestSrc]);
+  }, [markBrokenWallpaperSource, wallpaperRequestSrc]);
 
   useEffect(() => {
     if (
@@ -900,10 +929,7 @@ const MobilePreviewComponent = ({
                 if (avatarSrc === AVATAR_HEADER_FALLBACK_SRC || brokenAvatarSources[avatarRequestSrc]) {
                   return;
                 }
-                setBrokenAvatarSources((current) => ({
-                  ...current,
-                  [avatarRequestSrc]: true,
-                }));
+                markBrokenAvatarSource(avatarRequestSrc);
               }}
               onHeroImageError={() => {
                 if (headerLayout !== "hero") {
@@ -912,10 +938,7 @@ const MobilePreviewComponent = ({
                 if (brokenHeroKeys[heroHeaderKey]) {
                   return;
                 }
-                setBrokenHeroKeys((current) => ({
-                  ...current,
-                  [heroHeaderKey]: true,
-                }));
+                markBrokenHeroKey(heroHeaderKey);
               }}
             />
           ) : null}
@@ -1103,30 +1126,33 @@ const MobilePreviewComponent = ({
               const safeBackgroundImageSrc = brokenThumbnailKeys[backgroundImageKey]
                 ? THUMBNAIL_FALLBACK_SRC
                 : backgroundImageSrc;
-              const buttonMenuV2ImageSrc = buttonMenuV2Style
-                ? normalizeImageSrc(displaySettings.imageUrl, thumbnailSrc)
+              const buttonMenuV2ImageState = buttonMenuV2Style
+                ? (() => {
+                    const imageSrc = normalizeImageSrc(displaySettings.imageUrl, thumbnailSrc);
+                    const backgroundImageSrc =
+                      normalizeImageSrc(displaySettings.backgroundImageUrl) ?? imageSrc;
+                    const imageKey = imageSrc ? `${link.id}::v2-image::${imageSrc}` : null;
+                    const backgroundImageKey = backgroundImageSrc
+                      ? `${link.id}::v2-background::${backgroundImageSrc}`
+                      : null;
+                    return {
+                      imageKey,
+                      backgroundImageKey,
+                      safeImageSrc:
+                        isClientMounted && imageKey
+                          ? brokenThumbnailKeys[imageKey]
+                            ? THUMBNAIL_FALLBACK_SRC
+                            : imageSrc
+                          : null,
+                      safeBackgroundImageSrc:
+                        isClientMounted && backgroundImageKey
+                          ? brokenThumbnailKeys[backgroundImageKey]
+                            ? THUMBNAIL_FALLBACK_SRC
+                            : backgroundImageSrc
+                          : null,
+                    };
+                  })()
                 : null;
-              const buttonMenuV2BackgroundImageSrc = buttonMenuV2Style
-                ? normalizeImageSrc(displaySettings.backgroundImageUrl) ?? buttonMenuV2ImageSrc
-                : null;
-              const buttonMenuV2ImageKey = buttonMenuV2ImageSrc
-                ? `${link.id}::v2-image::${buttonMenuV2ImageSrc}`
-                : null;
-              const buttonMenuV2BackgroundImageKey = buttonMenuV2BackgroundImageSrc
-                ? `${link.id}::v2-background::${buttonMenuV2BackgroundImageSrc}`
-                : null;
-              const safeButtonMenuV2ImageSrc =
-                isClientMounted && buttonMenuV2ImageKey
-                  ? brokenThumbnailKeys[buttonMenuV2ImageKey]
-                    ? THUMBNAIL_FALLBACK_SRC
-                    : buttonMenuV2ImageSrc
-                  : null;
-              const safeButtonMenuV2BackgroundImageSrc =
-                isClientMounted && buttonMenuV2BackgroundImageKey
-                  ? brokenThumbnailKeys[buttonMenuV2BackgroundImageKey]
-                    ? THUMBNAIL_FALLBACK_SRC
-                    : buttonMenuV2BackgroundImageSrc
-                  : null;
               const textAlignClass =
                 displaySettings.textAlign === "center"
                   ? "text-center items-center"
@@ -1221,21 +1247,15 @@ const MobilePreviewComponent = ({
                         )}
                       >
                         <div className="absolute inset-0" style={imageFilterStyle}>
-                          {safeButtonMenuV2BackgroundImageSrc ? (
+                          {buttonMenuV2ImageState?.safeBackgroundImageSrc ? (
                             <SafeImage
-                              src={safeButtonMenuV2BackgroundImageSrc}
+                              src={buttonMenuV2ImageState.safeBackgroundImageSrc}
                               alt=""
                               width={720}
                               height={360}
                               className="absolute inset-0 h-full w-full object-cover"
                               onError={() => {
-                                if (!buttonMenuV2BackgroundImageKey) {
-                                  return;
-                                }
-                                setBrokenThumbnailKeys((current) => ({
-                                  ...current,
-                                  [buttonMenuV2BackgroundImageKey]: true,
-                                }));
+                                markBrokenThumbnailKey(buttonMenuV2ImageState.backgroundImageKey);
                               }}
                             />
                           ) : (
@@ -1273,21 +1293,15 @@ const MobilePreviewComponent = ({
                     return (
                       <div className="flex w-full items-center gap-3">
                         <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-black/10 bg-black/10" style={imageFilterStyle}>
-                          {safeButtonMenuV2ImageSrc ? (
+                          {buttonMenuV2ImageState?.safeImageSrc ? (
                             <SafeImage
-                              src={safeButtonMenuV2ImageSrc}
+                              src={buttonMenuV2ImageState.safeImageSrc}
                               alt=""
                               className="h-20 w-20 object-cover"
                               width={80}
                               height={80}
                               onError={() => {
-                                if (!buttonMenuV2ImageKey) {
-                                  return;
-                                }
-                                setBrokenThumbnailKeys((current) => ({
-                                  ...current,
-                                  [buttonMenuV2ImageKey]: true,
-                                }));
+                                markBrokenThumbnailKey(buttonMenuV2ImageState.imageKey);
                               }}
                             />
                           ) : (
@@ -1335,21 +1349,15 @@ const MobilePreviewComponent = ({
                   return (
                     <>
                       <span className="relative size-10 shrink-0 overflow-hidden rounded-full border border-black/10 bg-black/10">
-                        {safeButtonMenuV2ImageSrc ? (
+                        {buttonMenuV2ImageState?.safeImageSrc ? (
                           <SafeImage
-                            src={safeButtonMenuV2ImageSrc}
+                            src={buttonMenuV2ImageState.safeImageSrc}
                             alt=""
                             className="size-10 object-cover"
                             width={40}
                             height={40}
                             onError={() => {
-                              if (!buttonMenuV2ImageKey) {
-                                return;
-                              }
-                              setBrokenThumbnailKeys((current) => ({
-                                ...current,
-                                [buttonMenuV2ImageKey]: true,
-                              }));
+                              markBrokenThumbnailKey(buttonMenuV2ImageState.imageKey);
                             }}
                           />
                         ) : (
@@ -1403,7 +1411,7 @@ const MobilePreviewComponent = ({
                             ) {
                               return;
                             }
-                            setBrokenThumbnailKeys((current) => ({ ...current, [backgroundImageKey]: true }));
+                            markBrokenThumbnailKey(backgroundImageKey);
                           }}
                         />
                       </div>
@@ -1447,7 +1455,7 @@ const MobilePreviewComponent = ({
                             ) {
                               return;
                             }
-                            setBrokenThumbnailKeys((current) => ({ ...current, [styleImageKey]: true }));
+                            markBrokenThumbnailKey(styleImageKey);
                           }}
                         />
                         {imageOverlayExtraOpacity > 0 ? (
@@ -1504,7 +1512,7 @@ const MobilePreviewComponent = ({
                         ) {
                           return;
                         }
-                        setBrokenThumbnailKeys((current) => ({ ...current, [iconImageKey]: true }));
+                        markBrokenThumbnailKey(iconImageKey);
                       }}
                     />
                     <div className={cn("min-w-0 flex-1", textAlignClass)}>
@@ -1641,7 +1649,7 @@ const MobilePreviewComponent = ({
                                 ) {
                                   return;
                                 }
-                                setBrokenHeroKeys((current) => ({ ...current, [heroKey]: true }));
+                                markBrokenHeroKey(heroKey);
                               }}
                             />
                           </div>

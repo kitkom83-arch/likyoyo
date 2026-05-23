@@ -42,6 +42,7 @@ type NewPageCollisionState = {
 };
 
 const PROTECTED_PUBLIC_SLUGS = new Set(["110"]);
+const SAVED_PROFILE_PAGE_SIZE = 40;
 
 const isProtectedPublicSlug = (slug: string): boolean =>
   PROTECTED_PUBLIC_SLUGS.has(toProfileSlug(slug));
@@ -71,6 +72,112 @@ const createPageWorkspaceData = (slug: string, pageName: string): BuilderData =>
   },
 });
 
+type SavedProfileRowProps = {
+  item: PublicPageListItem;
+  copied: boolean;
+  isActive: boolean;
+  isBusy: boolean;
+  isOwner: boolean;
+  isProtected: boolean;
+  isSwitchingWorkspace: boolean;
+  onCopyLink: (slug: string) => void | Promise<void>;
+  onDelete: (slug: string) => void;
+  onDuplicate: (profile: BuilderData, slug: string) => void;
+  onLoad: (slug: string) => void | Promise<void>;
+  onOpen: (slug: string) => void;
+};
+
+const SavedProfileRow = memo(({
+  item,
+  copied,
+  isActive,
+  isBusy,
+  isOwner,
+  isProtected,
+  isSwitchingWorkspace,
+  onCopyLink,
+  onDelete,
+  onDuplicate,
+  onLoad,
+  onOpen,
+}: SavedProfileRowProps) => {
+  const { t } = useI18n();
+
+  return (
+    <div className="rounded-lg border border-border/70 bg-background/70 p-3.5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="truncate text-sm font-medium">/{item.slug}</p>
+        {isActive ? (
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+            {t("saved_manager_current")}
+          </span>
+        ) : null}
+      </div>
+      <p className="truncate text-xs text-muted-foreground">
+        {item.data.header.displayName}
+      </p>
+      {isOwner && item.owner ? (
+        <p className="mt-1 truncate text-[11px] text-muted-foreground">
+          Owner: {item.owner.displayName} ({item.owner.username})
+        </p>
+      ) : null}
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          className="w-full"
+          disabled={isBusy || isSwitchingWorkspace}
+          onClick={() => {
+            void onLoad(item.slug);
+          }}
+        >
+          {isBusy ? <LoaderCircle className="size-3.5 animate-spin" /> : null}
+          {t("saved_manager_load")}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => onOpen(item.slug)}
+        >
+          {t("saved_manager_open")}
+        </Button>
+      </div>
+      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => {
+            void onCopyLink(item.slug);
+          }}
+        >
+          {copied ? t("saved_manager_copied") : t("saved_manager_copy")}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          disabled={isBusy || isSwitchingWorkspace}
+          onClick={() => onDuplicate(item.data, item.slug)}
+        >
+          {t("saved_manager_duplicate")}
+        </Button>
+      </div>
+      <Button
+        variant="destructive"
+        size="sm"
+        className="mt-2 w-full"
+        disabled={isSwitchingWorkspace || isProtected}
+        onClick={() => onDelete(item.slug)}
+      >
+        {isProtected ? t("saved_manager_protected_slug_label") : t("saved_manager_delete")}
+      </Button>
+    </div>
+  );
+});
+SavedProfileRow.displayName = "SavedProfileRow";
+
 const SavedProfilesManagerCardComponent = ({
   currentSlug,
   adminMe,
@@ -97,6 +204,7 @@ const SavedProfilesManagerCardComponent = ({
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newPageCollision, setNewPageCollision] = useState<NewPageCollisionState | null>(null);
   const [pendingActionSlug, setPendingActionSlug] = useState<string | null>(null);
+  const [visibleSavedProfileCount, setVisibleSavedProfileCount] = useState(SAVED_PROFILE_PAGE_SIZE);
   const activeSlug = useMemo(() => toProfileSlug(currentSlug), [currentSlug]);
   const savedProfiles = externalSavedProfiles ?? savedProfilesState;
   const adminScopeKey = adminMe?.user.adminId ?? null;
@@ -115,6 +223,15 @@ const SavedProfilesManagerCardComponent = ({
   const isQuotaReached = Boolean(adminMe && !isOwner && quotaUsed >= quotaLimit);
   const visibleRefreshError = externalSavedPagesError ?? refreshError;
   const statusTimerRef = useRef<number | null>(null);
+  const visibleSavedProfiles = useMemo(() => {
+    const visible = savedProfiles.slice(0, visibleSavedProfileCount);
+    if (visible.some((item) => item.slug === activeSlug)) {
+      return visible;
+    }
+    const activeProfile = savedProfiles.find((item) => item.slug === activeSlug);
+    return activeProfile ? [...visible, activeProfile] : visible;
+  }, [activeSlug, savedProfiles, visibleSavedProfileCount]);
+  const hasMoreSavedProfiles = visibleSavedProfileCount < savedProfiles.length;
 
   const showToast = useCallback((type: "success" | "error", text: string) => {
     if (statusTimerRef.current) {
@@ -194,7 +311,7 @@ const SavedProfilesManagerCardComponent = ({
     };
   }, [externalSavedProfiles, refreshSavedPages]);
 
-  const handleCopyLink = async (slug: string) => {
+  const handleCopyLink = useCallback(async (slug: string) => {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
       return;
     }
@@ -203,9 +320,9 @@ const SavedProfilesManagerCardComponent = ({
     await navigator.clipboard.writeText(publicUrl);
     setCopiedSlug(slug);
     window.setTimeout(() => setCopiedSlug(null), 1800);
-  };
+  }, []);
 
-  const handleLoadIntoEditor = async (slug: string) => {
+  const handleLoadIntoEditor = useCallback(async (slug: string) => {
     if (isSwitchingWorkspace) {
       return;
     }
@@ -223,7 +340,7 @@ const SavedProfilesManagerCardComponent = ({
     } finally {
       setPendingActionSlug(null);
     }
-  };
+  }, [isSwitchingWorkspace, showToast, switchWorkspace, t]);
 
   const handleCreateWorkspace = (slug: string, pageName: string) => {
     if (isSwitchingWorkspace) {
@@ -246,7 +363,7 @@ const SavedProfilesManagerCardComponent = ({
     })();
   };
 
-  const handleDuplicateIntoEditor = (profile: BuilderData, slug: string) => {
+  const handleDuplicateIntoEditor = useCallback((profile: BuilderData, slug: string) => {
     if (isSwitchingWorkspace) {
       return;
     }
@@ -278,7 +395,20 @@ const SavedProfilesManagerCardComponent = ({
         setPendingActionSlug(null);
       }
     })();
-  };
+  }, [activeSlug, isSwitchingWorkspace, savedProfiles, showToast, switchWorkspace, t]);
+
+  const handleOpenPublicPage = useCallback((slug: string) => {
+    window.open(`/${slug}`, "_blank", "noopener,noreferrer");
+  }, []);
+
+  const handleRequestDelete = useCallback((slug: string) => {
+    if (isProtectedPublicSlug(slug)) {
+      showToast("error", t("saved_manager_protected_slug"));
+      return;
+    }
+    setDeleteSlug(slug);
+    setDeleteConfirmInput("");
+  }, [showToast, t]);
 
   const handleCreateNewPage = () => {
     if (isQuotaReached) {
@@ -420,92 +550,40 @@ const SavedProfilesManagerCardComponent = ({
             </div>
           ) : (
             <div className="space-y-2.5">
-              {savedProfiles.map((item) => {
+              {visibleSavedProfiles.map((item) => {
                 const isBusy = pendingActionSlug === item.slug;
                 const isActive = item.slug === activeSlug;
                 const isProtected = isProtectedPublicSlug(item.slug);
                 return (
-                  <div key={item.slug} className="rounded-lg border border-border/70 bg-background/70 p-3.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-sm font-medium">/{item.slug}</p>
-                      {isActive ? (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                          {t("saved_manager_current")}
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {item.data.header.displayName}
-                    </p>
-                    {isOwner && item.owner ? (
-                      <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                        Owner: {item.owner.displayName} ({item.owner.username})
-                      </p>
-                    ) : null}
-                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="w-full"
-                        disabled={isBusy || isSwitchingWorkspace}
-                        onClick={() => {
-                          void handleLoadIntoEditor(item.slug);
-                        }}
-                      >
-                        {isBusy ? <LoaderCircle className="size-3.5 animate-spin" /> : null}
-                        {t("saved_manager_load")}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() =>
-                          window.open(`/${item.slug}`, "_blank", "noopener,noreferrer")
-                        }
-                      >
-                        {t("saved_manager_open")}
-                      </Button>
-                    </div>
-                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => {
-                          void handleCopyLink(item.slug);
-                        }}
-                      >
-                        {copiedSlug === item.slug ? t("saved_manager_copied") : t("saved_manager_copy")}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        disabled={isBusy || isSwitchingWorkspace}
-                        onClick={() => handleDuplicateIntoEditor(item.data, item.slug)}
-                      >
-                        {t("saved_manager_duplicate")}
-                      </Button>
-                    </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="mt-2 w-full"
-                      disabled={isSwitchingWorkspace || isProtected}
-                      onClick={() => {
-                        if (isProtected) {
-                          showToast("error", t("saved_manager_protected_slug"));
-                          return;
-                        }
-                        setDeleteSlug(item.slug);
-                        setDeleteConfirmInput("");
-                      }}
-                    >
-                      {isProtected ? t("saved_manager_protected_slug_label") : t("saved_manager_delete")}
-                    </Button>
-                  </div>
+                  <SavedProfileRow
+                    key={item.slug}
+                    item={item}
+                    copied={copiedSlug === item.slug}
+                    isActive={isActive}
+                    isBusy={isBusy}
+                    isOwner={isOwner}
+                    isProtected={isProtected}
+                    isSwitchingWorkspace={isSwitchingWorkspace}
+                    onCopyLink={handleCopyLink}
+                    onDelete={handleRequestDelete}
+                    onDuplicate={handleDuplicateIntoEditor}
+                    onLoad={handleLoadIntoEditor}
+                    onOpen={handleOpenPublicPage}
+                  />
                 );
               })}
+              {hasMoreSavedProfiles ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() =>
+                    setVisibleSavedProfileCount((count) => count + SAVED_PROFILE_PAGE_SIZE)
+                  }
+                >
+                  Show more ({Math.min(savedProfiles.length - visibleSavedProfileCount, SAVED_PROFILE_PAGE_SIZE)})
+                </Button>
+              ) : null}
             </div>
           )}
         </CardContent>

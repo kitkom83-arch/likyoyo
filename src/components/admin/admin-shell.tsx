@@ -43,6 +43,10 @@ type WorkspaceSwitchOptions = {
 };
 
 type WorkspaceSwitchResult = "remote" | "fallback";
+type ScheduledSnapshotWork = {
+  id: number;
+  type: "idle" | "timeout";
+};
 
 const arePublicPageListsEqual = (
   left: PublicPageListItem[],
@@ -228,6 +232,7 @@ export const AdminShell = () => {
   const [isWorkspaceReady, setIsWorkspaceReady] = useState(false);
   const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false);
   const [workspaceHydrationKey, setWorkspaceHydrationKey] = useState(0);
+  const [baselineSnapshotVersion, setBaselineSnapshotVersion] = useState(0);
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [adminMe, setAdminMe] = useState<AdminMe | null>(null);
 
@@ -241,6 +246,8 @@ export const AdminShell = () => {
   const hasCompletedInitialLoadRef = useRef(false);
   const autosaveTimerRef = useRef<number | null>(null);
   const saveOperationTimerRef = useRef<number | null>(null);
+  const baselineSnapshotWorkRef = useRef<ScheduledSnapshotWork | null>(null);
+  const isBaselineSnapshotPendingRef = useRef(false);
   const savedPagesRequestRef = useRef<Promise<PublicPageListItem[] | null> | null>(null);
   const savedPagesAbortRef = useRef<AbortController | null>(null);
   const workspaceLoadTokenRef = useRef(0);
@@ -258,6 +265,7 @@ export const AdminShell = () => {
   );
   const deferredPreviewData = useDeferredValue(builderData);
   const deferredPreviewSlug = useDeferredValue(currentEditorSlug);
+  const shouldMountPreview = isWorkspaceReady && !isSwitchingWorkspace;
 
   const refreshSavedPages = useCallback(async () => {
     if (savedPagesRequestRef.current) {
@@ -312,6 +320,55 @@ export const AdminShell = () => {
     }
   }, []);
 
+  const cancelBaselineSnapshotWork = useCallback(() => {
+    const pending = baselineSnapshotWorkRef.current;
+    if (!pending) {
+      isBaselineSnapshotPendingRef.current = false;
+      return;
+    }
+    if (pending.type === "idle") {
+      const idleWindow = window as Window & {
+        cancelIdleCallback?: (handle: number) => void;
+      };
+      idleWindow.cancelIdleCallback?.(pending.id);
+    } else {
+      window.clearTimeout(pending.id);
+    }
+    baselineSnapshotWorkRef.current = null;
+    isBaselineSnapshotPendingRef.current = false;
+  }, []);
+
+  const scheduleBaselineSnapshot = useCallback(
+    (baselineData: BuilderData) => {
+      cancelBaselineSnapshotWork();
+      isBaselineSnapshotPendingRef.current = true;
+      const runSnapshot = () => {
+        baselineSnapshotWorkRef.current = null;
+        lastSavedSnapshotRef.current = JSON.stringify(baselineData);
+        isBaselineSnapshotPendingRef.current = false;
+        setBaselineSnapshotVersion((version) => version + 1);
+      };
+      const idleWindow = window as Window & {
+        requestIdleCallback?: (
+          callback: () => void,
+          options?: { timeout: number },
+        ) => number;
+      };
+      if (idleWindow.requestIdleCallback) {
+        baselineSnapshotWorkRef.current = {
+          id: idleWindow.requestIdleCallback(runSnapshot, { timeout: 1200 }),
+          type: "idle",
+        };
+        return;
+      }
+      baselineSnapshotWorkRef.current = {
+        id: window.setTimeout(runSnapshot, 120),
+        type: "timeout",
+      };
+    },
+    [cancelBaselineSnapshotWork],
+  );
+
   const clearPendingSaves = useCallback(() => {
     if (autosaveTimerRef.current) {
       window.clearTimeout(autosaveTimerRef.current);
@@ -321,7 +378,8 @@ export const AdminShell = () => {
       window.clearTimeout(saveOperationTimerRef.current);
       saveOperationTimerRef.current = null;
     }
-  }, []);
+    cancelBaselineSnapshotWork();
+  }, [cancelBaselineSnapshotWork]);
 
   useEffect(() => {
     return () => {
@@ -337,14 +395,13 @@ export const AdminShell = () => {
       workspaceSlugRef.current = normalized;
       setCurrentEditorSlug(normalized);
       setActiveEditorSlug(normalized, adminScopeKeyRef.current);
-      const snapshot = JSON.stringify(baselineData ?? selectBuilderDataSnapshot());
-      lastSavedSnapshotRef.current = snapshot;
+      scheduleBaselineSnapshot(baselineData ?? selectBuilderDataSnapshot());
       pendingAutosaveRef.current = false;
       setSaveStatus("saved");
       setCollisionDialog(null);
       setWorkspaceHydrationKey((value) => value + 1);
     },
-    [clearPendingSaves],
+    [clearPendingSaves, scheduleBaselineSnapshot],
   );
 
   const loadWorkspaceFromSlug = useCallback(
@@ -396,6 +453,7 @@ export const AdminShell = () => {
         applyWorkspaceIdentity(normalized, fallbackHydrated);
         setLastSavedAt(null);
         if (options.markUnsaved) {
+          cancelBaselineSnapshotWork();
           lastSavedSnapshotRef.current = "";
           pendingAutosaveRef.current = true;
           setSaveStatus("unsaved");
@@ -412,7 +470,7 @@ export const AdminShell = () => {
         }
       }
     },
-    [applyWorkspaceIdentity, clearPendingSaves, replaceBuilderData],
+    [applyWorkspaceIdentity, cancelBaselineSnapshotWork, clearPendingSaves, replaceBuilderData],
   );
 
   const handleWorkspaceSwitchRequest = useCallback(
@@ -579,7 +637,7 @@ export const AdminShell = () => {
   }, [storageWarningMessage]);
 
   useEffect(() => {
-    if (!isWorkspaceReady || isSwitchingWorkspace) {
+    if (!isWorkspaceReady || isSwitchingWorkspace || isBaselineSnapshotPendingRef.current) {
       return;
     }
 
@@ -626,7 +684,13 @@ export const AdminShell = () => {
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [builderData, isSwitchingWorkspace, isWorkspaceReady, persistProfile]);
+  }, [
+    baselineSnapshotVersion,
+    builderData,
+    isSwitchingWorkspace,
+    isWorkspaceReady,
+    persistProfile,
+  ]);
 
   const slugCollisionWarning = useMemo(() => {
     void savedProfiles;
@@ -746,7 +810,7 @@ export const AdminShell = () => {
 
         <div className="lg:col-span-3 xl:col-span-4">
           <div className="lg:sticky lg:top-4 rounded-3xl border border-border/60 bg-gradient-to-b from-background/95 to-muted/20 p-2 shadow-sm">
-            {isWorkspaceReady ? (
+            {shouldMountPreview ? (
               <MobilePreview
                 key={workspaceHydrationKey}
                 data={deferredPreviewData}

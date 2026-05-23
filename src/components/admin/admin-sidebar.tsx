@@ -98,7 +98,7 @@ const AdminSidebarContent = ({
       return;
     }
 
-    setActiveSection(section.id);
+    setActiveSection((current) => (current === section.id ? current : section.id));
     target.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [SECTION_ITEMS]);
 
@@ -137,7 +137,8 @@ const AdminSidebarContent = ({
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
         const topEntry = intersecting[0];
         if (topEntry) {
-          setActiveSection(sectionIdByTargetId.get(topEntry.target.id) ?? topEntry.target.id);
+          const nextSection = sectionIdByTargetId.get(topEntry.target.id) ?? topEntry.target.id;
+          setActiveSection((current) => (current === nextSection ? current : nextSection));
         }
       },
       {
