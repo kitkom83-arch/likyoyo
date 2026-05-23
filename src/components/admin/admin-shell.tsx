@@ -1,16 +1,17 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { EditorPanel } from "@/components/admin/editor-panel";
 import { SaveStatus, SaveStatusBar } from "@/components/admin/save-status-bar";
-import { MobilePreview } from "@/components/preview/mobile-preview";
 import { Button } from "@/components/ui/button";
 import { mockBuilderData } from "@/features/builder/mock-data";
 import { BuilderData } from "@/features/builder/types";
 import { useBuilderStore } from "@/features/builder/store/use-builder-store";
 import { useI18n } from "@/i18n/use-i18n";
+import { featureFlags } from "@/lib/feature-flags";
 import {
   clearStaleLocalStorageKeysOnce,
   getActiveEditorSlug,
@@ -47,6 +48,34 @@ type ScheduledSnapshotWork = {
   id: number;
   type: "idle" | "timeout";
 };
+
+const AdminPreviewLoadingPanel = () => (
+  <div className="mx-auto flex min-h-[520px] w-full items-center justify-center rounded-[2rem] border border-dashed border-border/70 bg-muted/20 px-4 text-center text-sm text-muted-foreground">
+    Loading preview.
+  </div>
+);
+
+const AdminPreviewDisabledPanel = ({ routeSlug }: { routeSlug: string }) => (
+  <div className="mx-auto flex min-h-[520px] w-full flex-col items-center justify-center gap-3 rounded-[2rem] border border-dashed border-border/70 bg-muted/20 px-6 text-center">
+    <div>
+      <p className="text-sm font-medium text-foreground">Live preview disabled</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        The editor is using the lightweight admin preview mode for /{routeSlug}.
+      </p>
+    </div>
+    <p className="max-w-xs text-xs leading-5 text-muted-foreground">
+      Save, load, sidebar navigation, and saved pages remain available.
+    </p>
+  </div>
+);
+
+const MobilePreview = dynamic(
+  () => import("@/components/preview/mobile-preview").then((mod) => mod.MobilePreview),
+  {
+    ssr: false,
+    loading: AdminPreviewLoadingPanel,
+  },
+);
 
 const arePublicPageListsEqual = (
   left: PublicPageListItem[],
@@ -265,7 +294,8 @@ export const AdminShell = () => {
   );
   const deferredPreviewData = useDeferredValue(builderData);
   const deferredPreviewSlug = useDeferredValue(currentEditorSlug);
-  const shouldMountPreview = isWorkspaceReady && !isSwitchingWorkspace;
+  const shouldMountPreview =
+    isWorkspaceReady && !isSwitchingWorkspace && !featureFlags.adminLivePreviewDisabled;
 
   const refreshSavedPages = useCallback(async () => {
     if (savedPagesRequestRef.current) {
@@ -810,7 +840,9 @@ export const AdminShell = () => {
 
         <div className="lg:col-span-3 xl:col-span-4">
           <div className="lg:sticky lg:top-4 rounded-3xl border border-border/60 bg-gradient-to-b from-background/95 to-muted/20 p-2 shadow-sm">
-            {shouldMountPreview ? (
+            {featureFlags.adminLivePreviewDisabled ? (
+              <AdminPreviewDisabledPanel routeSlug={currentEditorSlug} />
+            ) : shouldMountPreview ? (
               <MobilePreview
                 key={workspaceHydrationKey}
                 data={deferredPreviewData}
@@ -818,9 +850,7 @@ export const AdminShell = () => {
                 mode="admin"
               />
             ) : (
-              <div className="mx-auto flex min-h-[520px] w-full items-center justify-center rounded-[2rem] border border-dashed border-border/70 bg-muted/20 px-4 text-center text-sm text-muted-foreground">
-                Loading preview.
-              </div>
+              <AdminPreviewLoadingPanel />
             )}
           </div>
         </div>

@@ -1,18 +1,25 @@
 const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
 
-const readPublicBooleanFlag = (name: string): boolean => {
-  const value = process.env[name];
-  return typeof value === "string" && TRUE_VALUES.has(value.trim().toLowerCase());
-};
+export const readPublicBooleanFlagValue = (value: string | undefined): boolean =>
+  typeof value === "string" && TRUE_VALUES.has(value.trim().toLowerCase());
 
 export const featureFlags = {
-  publicResponsiveV2: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_PUBLIC_RESPONSIVE_V2"),
-  adminUiV2: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_ADMIN_UI_V2"),
-  buttonMenuV2Admin: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_ADMIN"),
-  buttonMenuV2Preview: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PREVIEW"),
-  buttonMenuV2Public: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PUBLIC"),
-  formEngineV1: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_FORM_ENGINE_V1"),
-  uiLabMode: readPublicBooleanFlag("NEXT_PUBLIC_ENABLE_UI_LAB_MODE"),
+  publicResponsiveV2: readPublicBooleanFlagValue(process.env.NEXT_PUBLIC_ENABLE_PUBLIC_RESPONSIVE_V2),
+  adminUiV2: readPublicBooleanFlagValue(process.env.NEXT_PUBLIC_ENABLE_ADMIN_UI_V2),
+  adminLivePreviewDisabled: readPublicBooleanFlagValue(
+    process.env.NEXT_PUBLIC_DISABLE_ADMIN_LIVE_PREVIEW,
+  ),
+  buttonMenuV2Admin: readPublicBooleanFlagValue(
+    process.env.NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_ADMIN,
+  ),
+  buttonMenuV2Preview: readPublicBooleanFlagValue(
+    process.env.NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PREVIEW,
+  ),
+  buttonMenuV2Public: readPublicBooleanFlagValue(
+    process.env.NEXT_PUBLIC_ENABLE_BUTTON_MENU_V2_PUBLIC,
+  ),
+  formEngineV1: readPublicBooleanFlagValue(process.env.NEXT_PUBLIC_ENABLE_FORM_ENGINE_V1),
+  uiLabMode: readPublicBooleanFlagValue(process.env.NEXT_PUBLIC_ENABLE_UI_LAB_MODE),
 } as const;
 
 export type FeatureFlagKey = keyof typeof featureFlags;
@@ -34,6 +41,12 @@ export const featureFlagMetadata: Array<{
     envName: "NEXT_PUBLIC_ENABLE_ADMIN_UI_V2",
     label: "Admin UI V2",
     description: "Future admin interface experiments.",
+  },
+  {
+    key: "adminLivePreviewDisabled",
+    envName: "NEXT_PUBLIC_DISABLE_ADMIN_LIVE_PREVIEW",
+    label: "Disable Admin Live Preview",
+    description: "Skips the heavy authenticated admin MobilePreview and shows a lightweight placeholder.",
   },
   {
     key: "buttonMenuV2Admin",

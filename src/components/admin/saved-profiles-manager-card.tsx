@@ -73,7 +73,10 @@ const createPageWorkspaceData = (slug: string, pageName: string): BuilderData =>
 });
 
 type SavedProfileRowProps = {
-  item: PublicPageListItem;
+  slug: string;
+  displayName: string;
+  ownerDisplayName?: string;
+  ownerUsername?: string;
   copied: boolean;
   isActive: boolean;
   isBusy: boolean;
@@ -82,13 +85,16 @@ type SavedProfileRowProps = {
   isSwitchingWorkspace: boolean;
   onCopyLink: (slug: string) => void | Promise<void>;
   onDelete: (slug: string) => void;
-  onDuplicate: (profile: BuilderData, slug: string) => void;
+  onDuplicate: (slug: string) => void;
   onLoad: (slug: string) => void | Promise<void>;
   onOpen: (slug: string) => void;
 };
 
 const SavedProfileRow = memo(({
-  item,
+  slug,
+  displayName,
+  ownerDisplayName,
+  ownerUsername,
   copied,
   isActive,
   isBusy,
@@ -106,7 +112,7 @@ const SavedProfileRow = memo(({
   return (
     <div className="rounded-lg border border-border/70 bg-background/70 p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <p className="truncate text-sm font-medium">/{item.slug}</p>
+        <p className="truncate text-sm font-medium">/{slug}</p>
         {isActive ? (
           <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
             {t("saved_manager_current")}
@@ -114,11 +120,11 @@ const SavedProfileRow = memo(({
         ) : null}
       </div>
       <p className="truncate text-xs text-muted-foreground">
-        {item.data.header.displayName}
+        {displayName}
       </p>
-      {isOwner && item.owner ? (
+      {isOwner && ownerDisplayName && ownerUsername ? (
         <p className="mt-1 truncate text-[11px] text-muted-foreground">
-          Owner: {item.owner.displayName} ({item.owner.username})
+          Owner: {ownerDisplayName} ({ownerUsername})
         </p>
       ) : null}
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -128,7 +134,7 @@ const SavedProfileRow = memo(({
           className="w-full"
           disabled={isBusy || isSwitchingWorkspace}
           onClick={() => {
-            void onLoad(item.slug);
+            void onLoad(slug);
           }}
         >
           {isBusy ? <LoaderCircle className="size-3.5 animate-spin" /> : null}
@@ -138,7 +144,7 @@ const SavedProfileRow = memo(({
           variant="outline"
           size="sm"
           className="w-full"
-          onClick={() => onOpen(item.slug)}
+          onClick={() => onOpen(slug)}
         >
           {t("saved_manager_open")}
         </Button>
@@ -149,7 +155,7 @@ const SavedProfileRow = memo(({
           size="sm"
           className="w-full"
           onClick={() => {
-            void onCopyLink(item.slug);
+            void onCopyLink(slug);
           }}
         >
           {copied ? t("saved_manager_copied") : t("saved_manager_copy")}
@@ -159,7 +165,7 @@ const SavedProfileRow = memo(({
           size="sm"
           className="w-full"
           disabled={isBusy || isSwitchingWorkspace}
-          onClick={() => onDuplicate(item.data, item.slug)}
+          onClick={() => onDuplicate(slug)}
         >
           {t("saved_manager_duplicate")}
         </Button>
@@ -169,7 +175,7 @@ const SavedProfileRow = memo(({
         size="sm"
         className="mt-2 w-full"
         disabled={isSwitchingWorkspace || isProtected}
-        onClick={() => onDelete(item.slug)}
+        onClick={() => onDelete(slug)}
       >
         {isProtected ? t("saved_manager_protected_slug_label") : t("saved_manager_delete")}
       </Button>
@@ -363,8 +369,13 @@ const SavedProfilesManagerCardComponent = ({
     })();
   };
 
-  const handleDuplicateIntoEditor = useCallback((profile: BuilderData, slug: string) => {
+  const handleDuplicateIntoEditor = useCallback((slug: string) => {
     if (isSwitchingWorkspace) {
+      return;
+    }
+    const profile = savedProfiles.find((item) => item.slug === slug)?.data;
+    if (!profile) {
+      showToast("error", t("saved_manager_toast_load_missing", { slug }));
       return;
     }
     const existingSlugs = new Set(savedProfiles.map((item) => item.slug));
@@ -557,7 +568,10 @@ const SavedProfilesManagerCardComponent = ({
                 return (
                   <SavedProfileRow
                     key={item.slug}
-                    item={item}
+                    slug={item.slug}
+                    displayName={item.data.header.displayName}
+                    ownerDisplayName={item.owner?.displayName}
+                    ownerUsername={item.owner?.username}
                     copied={copiedSlug === item.slug}
                     isActive={isActive}
                     isBusy={isBusy}
