@@ -40,7 +40,7 @@ export async function GET(request: Request) {
       {
         pages: pages.map((page) => ({
           slug: page.slug,
-          data: page.data,
+          displayName: page.displayName,
           updatedAt: page.updated_at ?? null,
           ownerAdminId: page.owner_admin_id ?? null,
           owner: page.owner ?? null,

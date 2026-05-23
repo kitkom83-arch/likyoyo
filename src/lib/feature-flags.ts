@@ -6,6 +6,7 @@ export const readPublicBooleanFlagValue = (value: string | undefined): boolean =
 export const featureFlags = {
   publicResponsiveV2: readPublicBooleanFlagValue(process.env.NEXT_PUBLIC_ENABLE_PUBLIC_RESPONSIVE_V2),
   adminUiV2: readPublicBooleanFlagValue(process.env.NEXT_PUBLIC_ENABLE_ADMIN_UI_V2),
+  adminSafeMode: readPublicBooleanFlagValue(process.env.NEXT_PUBLIC_ADMIN_SAFE_MODE),
   adminLivePreviewDisabled: readPublicBooleanFlagValue(
     process.env.NEXT_PUBLIC_DISABLE_ADMIN_LIVE_PREVIEW,
   ),
@@ -41,6 +42,12 @@ export const featureFlagMetadata: Array<{
     envName: "NEXT_PUBLIC_ENABLE_ADMIN_UI_V2",
     label: "Admin UI V2",
     description: "Future admin interface experiments.",
+  },
+  {
+    key: "adminSafeMode",
+    envName: "NEXT_PUBLIC_ADMIN_SAFE_MODE",
+    label: "Admin Safe Mode",
+    description: "Keeps production admin usable by limiting heavy saved-pages rendering.",
   },
   {
     key: "adminLivePreviewDisabled",

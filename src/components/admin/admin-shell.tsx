@@ -88,6 +88,7 @@ const arePublicPageListsEqual = (
     const next = right[index];
     return (
       item.slug === next.slug &&
+      item.displayName === next.displayName &&
       item.updatedAt === next.updatedAt &&
       item.ownerAdminId === next.ownerAdminId &&
       item.owner?.id === next.owner?.id &&
@@ -780,6 +781,7 @@ export const AdminShell = () => {
             <AdminSidebar
               currentSlug={currentEditorSlug}
               adminMe={adminMe}
+              adminSafeMode={featureFlags.adminSafeMode}
               isSwitchingWorkspace={isSwitchingWorkspace}
               onSwitchWorkspace={handleWorkspaceSwitchRequest}
               savedProfiles={savedProfiles}

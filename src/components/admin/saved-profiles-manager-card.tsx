@@ -20,6 +20,7 @@ import {
 } from "@/lib/public-pages/paths";
 import {
   deletePublicPageBySlug,
+  getPublicPageBySlug,
   listPublicPages,
   type AdminMe,
   type PublicPageListItem,
@@ -28,6 +29,7 @@ import {
 type SavedProfilesManagerCardProps = {
   currentSlug: string;
   adminMe?: AdminMe | null;
+  adminSafeMode?: boolean;
   isSwitchingWorkspace?: boolean;
   onSwitchWorkspace?: (slug: string, options?: { fallbackData?: BuilderData; markUnsaved?: boolean }) => Promise<"remote" | "fallback">;
   savedProfiles?: PublicPageListItem[];
@@ -38,11 +40,11 @@ type SavedProfilesManagerCardProps = {
 type NewPageCollisionState = {
   targetSlug: string;
   pageName: string;
-  existingProfile: BuilderData;
 };
 
 const PROTECTED_PUBLIC_SLUGS = new Set(["110"]);
-const SAVED_PROFILE_PAGE_SIZE = 40;
+const SAVED_PROFILE_PAGE_SIZE = 20;
+const SAFE_MODE_SAVED_PROFILE_PAGE_SIZE = 10;
 
 const isProtectedPublicSlug = (slug: string): boolean =>
   PROTECTED_PUBLIC_SLUGS.has(toProfileSlug(slug));
@@ -187,6 +189,7 @@ SavedProfileRow.displayName = "SavedProfileRow";
 const SavedProfilesManagerCardComponent = ({
   currentSlug,
   adminMe,
+  adminSafeMode = false,
   isSwitchingWorkspace = false,
   onSwitchWorkspace,
   savedProfiles: externalSavedProfiles,
@@ -210,7 +213,8 @@ const SavedProfilesManagerCardComponent = ({
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newPageCollision, setNewPageCollision] = useState<NewPageCollisionState | null>(null);
   const [pendingActionSlug, setPendingActionSlug] = useState<string | null>(null);
-  const [visibleSavedProfileCount, setVisibleSavedProfileCount] = useState(SAVED_PROFILE_PAGE_SIZE);
+  const pageSize = adminSafeMode ? SAFE_MODE_SAVED_PROFILE_PAGE_SIZE : SAVED_PROFILE_PAGE_SIZE;
+  const [visibleSavedProfileCount, setVisibleSavedProfileCount] = useState(pageSize);
   const activeSlug = useMemo(() => toProfileSlug(currentSlug), [currentSlug]);
   const savedProfiles = externalSavedProfiles ?? savedProfilesState;
   const adminScopeKey = adminMe?.user.adminId ?? null;
@@ -230,13 +234,31 @@ const SavedProfilesManagerCardComponent = ({
   const visibleRefreshError = externalSavedPagesError ?? refreshError;
   const statusTimerRef = useRef<number | null>(null);
   const visibleSavedProfiles = useMemo(() => {
-    const visible = savedProfiles.slice(0, visibleSavedProfileCount);
+    const visible = savedProfiles.slice(0, visibleSavedProfileCount).map((item) => ({
+      slug: item.slug,
+      displayName: item.displayName,
+      ownerDisplayName: item.owner?.displayName,
+      ownerUsername: item.owner?.username,
+    }));
+    if (adminSafeMode) {
+      return visible;
+    }
     if (visible.some((item) => item.slug === activeSlug)) {
       return visible;
     }
     const activeProfile = savedProfiles.find((item) => item.slug === activeSlug);
-    return activeProfile ? [...visible, activeProfile] : visible;
-  }, [activeSlug, savedProfiles, visibleSavedProfileCount]);
+    return activeProfile
+      ? [
+          ...visible,
+          {
+            slug: activeProfile.slug,
+            displayName: activeProfile.displayName,
+            ownerDisplayName: activeProfile.owner?.displayName,
+            ownerUsername: activeProfile.owner?.username,
+          },
+        ]
+      : visible;
+  }, [activeSlug, adminSafeMode, savedProfiles, visibleSavedProfileCount]);
   const hasMoreSavedProfiles = visibleSavedProfileCount < savedProfiles.length;
 
   const showToast = useCallback((type: "success" | "error", text: string) => {
@@ -305,7 +327,6 @@ const SavedProfilesManagerCardComponent = ({
       void refreshSavedPages();
     };
     window.addEventListener("storage", onStorage);
-    const intervalId = window.setInterval(onStorage, 3000);
 
     return () => {
       if (statusTimerRef.current) {
@@ -313,7 +334,6 @@ const SavedProfilesManagerCardComponent = ({
       }
       window.cancelAnimationFrame(mountFrameId);
       window.removeEventListener("storage", onStorage);
-      window.clearInterval(intervalId);
     };
   }, [externalSavedProfiles, refreshSavedPages]);
 
@@ -373,35 +393,37 @@ const SavedProfilesManagerCardComponent = ({
     if (isSwitchingWorkspace) {
       return;
     }
-    const profile = savedProfiles.find((item) => item.slug === slug)?.data;
-    if (!profile) {
-      showToast("error", t("saved_manager_toast_load_missing", { slug }));
-      return;
-    }
     const existingSlugs = new Set(savedProfiles.map((item) => item.slug));
     existingSlugs.add(activeSlug);
     const duplicateSlug = createUniqueSlug(`${slug}-copy`, existingSlugs);
-    const duplicateProfile: BuilderData = {
-      ...profile,
-      header: {
-        ...profile.header,
-        username: duplicateSlug,
-        publicHandle:
-          profile.header.publicHandle?.trim() ||
-          profile.header.publicUsername?.trim() ||
-          profile.header.username,
-        displayName: `${profile.header.displayName} Copy`,
-      },
-    };
 
     setPendingActionSlug(slug);
     void (async () => {
       try {
+        const profile = savedProfiles.find((item) => item.slug === slug)?.data ?? await getPublicPageBySlug(slug);
+        if (!profile) {
+          showToast("error", t("saved_manager_toast_load_missing", { slug }));
+          return;
+        }
+        const duplicateProfile: BuilderData = {
+          ...profile,
+          header: {
+            ...profile.header,
+            username: duplicateSlug,
+            publicHandle:
+              profile.header.publicHandle?.trim() ||
+              profile.header.publicUsername?.trim() ||
+              profile.header.username,
+            displayName: `${profile.header.displayName} Copy`,
+          },
+        };
         await switchWorkspace(duplicateSlug, {
           fallbackData: duplicateProfile,
           markUnsaved: true,
         });
         showToast("success", t("saved_manager_toast_duplicated", { slug: duplicateSlug }));
+      } catch {
+        showToast("error", t("saved_manager_toast_load_error"));
       } finally {
         setPendingActionSlug(null);
       }
@@ -442,7 +464,6 @@ const SavedProfilesManagerCardComponent = ({
       setNewPageCollision({
         targetSlug: targetPublicPath,
         pageName,
-        existingProfile: existingProfile.data,
       });
       return;
     }
@@ -569,9 +590,9 @@ const SavedProfilesManagerCardComponent = ({
                   <SavedProfileRow
                     key={item.slug}
                     slug={item.slug}
-                    displayName={item.data.header.displayName}
-                    ownerDisplayName={item.owner?.displayName}
-                    ownerUsername={item.owner?.username}
+                    displayName={item.displayName}
+                    ownerDisplayName={item.ownerDisplayName}
+                    ownerUsername={item.ownerUsername}
                     copied={copiedSlug === item.slug}
                     isActive={isActive}
                     isBusy={isBusy}
@@ -592,10 +613,10 @@ const SavedProfilesManagerCardComponent = ({
                   size="sm"
                   className="w-full"
                   onClick={() =>
-                    setVisibleSavedProfileCount((count) => count + SAVED_PROFILE_PAGE_SIZE)
+                    setVisibleSavedProfileCount((count) => count + pageSize)
                   }
                 >
-                  Show more ({Math.min(savedProfiles.length - visibleSavedProfileCount, SAVED_PROFILE_PAGE_SIZE)})
+                  Show more ({Math.min(savedProfiles.length - visibleSavedProfileCount, pageSize)})
                 </Button>
               ) : null}
             </div>

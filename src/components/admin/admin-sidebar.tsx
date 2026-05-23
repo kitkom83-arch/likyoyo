@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ExternalLink, Image as ImageIcon, Link2 } from "lucide-react";
-import { memo, type MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AnalyticsSummaryCard } from "@/components/admin/analytics-summary-card";
 import { DataToolsCard } from "@/components/admin/data-tools-card";
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 type AdminSidebarProps = {
   currentSlug: string;
   adminMe?: AdminMe | null;
+  adminSafeMode?: boolean;
   isSwitchingWorkspace?: boolean;
   onSwitchWorkspace?: (slug: string, options?: { fallbackData?: BuilderData; markUnsaved?: boolean }) => Promise<"remote" | "fallback">;
   savedProfiles?: PublicPageListItem[];
@@ -28,6 +29,7 @@ type AdminSidebarProps = {
 const AdminSidebarComponent = ({
   currentSlug,
   adminMe,
+  adminSafeMode = false,
   isSwitchingWorkspace = false,
   onSwitchWorkspace,
   savedProfiles,
@@ -37,6 +39,7 @@ const AdminSidebarComponent = ({
     <AdminSidebarContent
       currentSlug={currentSlug}
       adminMe={adminMe}
+      adminSafeMode={adminSafeMode}
       isSwitchingWorkspace={isSwitchingWorkspace}
     onSwitchWorkspace={onSwitchWorkspace}
     savedProfiles={savedProfiles}
@@ -51,6 +54,7 @@ AdminSidebar.displayName = "AdminSidebar";
 const AdminSidebarContent = ({
   currentSlug,
   adminMe,
+  adminSafeMode = false,
   isSwitchingWorkspace = false,
   onSwitchWorkspace,
   savedProfiles,
@@ -71,6 +75,8 @@ const AdminSidebarContent = ({
   );
   const [copied, setCopied] = useState(false);
   const [activeSection, setActiveSection] = useState<string>(SECTION_ITEMS[0].id);
+  const activeSectionRef = useRef(activeSection);
+  const lastHashScrollRef = useRef<string | null>(null);
   const publicPath = `/${currentSlug}`;
   const publicUrl = useMemo(() => {
     if (typeof window === "undefined") {
@@ -98,7 +104,10 @@ const AdminSidebarContent = ({
       return;
     }
 
-    setActiveSection((current) => (current === section.id ? current : section.id));
+    if (activeSectionRef.current !== section.id) {
+      activeSectionRef.current = section.id;
+      setActiveSection(section.id);
+    }
     target.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [SECTION_ITEMS]);
 
@@ -108,16 +117,19 @@ const AdminSidebarContent = ({
   ) => {
     event.preventDefault();
     scrollToSection(sectionId);
-    window.history.pushState(null, "", `#${sectionId}`);
+    if (window.location.hash !== `#${sectionId}`) {
+      window.history.pushState(null, "", `#${sectionId}`);
+    }
   };
 
   useEffect(() => {
     const setActiveFromHash = () => {
       const hash = window.location.hash.replace("#", "");
-      if (!hash) {
+      if (!hash || lastHashScrollRef.current === hash) {
         return;
       }
 
+      lastHashScrollRef.current = hash;
       scrollToSection(hash);
     };
 
@@ -138,7 +150,10 @@ const AdminSidebarContent = ({
         const topEntry = intersecting[0];
         if (topEntry) {
           const nextSection = sectionIdByTargetId.get(topEntry.target.id) ?? topEntry.target.id;
-          setActiveSection((current) => (current === nextSection ? current : nextSection));
+          if (activeSectionRef.current !== nextSection) {
+            activeSectionRef.current = nextSection;
+            setActiveSection(nextSection);
+          }
         }
       },
       {
@@ -235,6 +250,7 @@ const AdminSidebarContent = ({
         <SavedProfilesManagerCard
           currentSlug={currentSlug}
           adminMe={adminMe}
+          adminSafeMode={adminSafeMode}
           isSwitchingWorkspace={isSwitchingWorkspace}
           onSwitchWorkspace={onSwitchWorkspace}
           savedProfiles={savedProfiles}

@@ -29,6 +29,10 @@ export type PublicPageRow = {
   owner?: PublicPageOwner | null;
 };
 
+export type PublicPageListRow = Omit<PublicPageRow, "data"> & {
+  displayName: string;
+};
+
 export type DeletedPublicPageRow = {
   id: string;
   slug: string;
@@ -143,22 +147,16 @@ const mapAdminUserToOwner = (user: AdminUser | AdminUserLookupRow): PublicPageOw
   role: user.role,
 });
 
-const mapPublicPageRow = (
+const mapPublicPageListRow = (
   row: PublicPageDbRow,
   owner: PublicPageOwner | null = null,
-): PublicPageRow | null => {
-  const parsedData = parseStoredPublicPageData(row.data, row.slug);
-  if (!parsedData) {
-    return null;
-  }
-  return {
-    slug: row.slug,
-    data: parsedData,
-    updated_at: row.updated_at ?? null,
-    owner_admin_id: row.owner_admin_id ?? null,
-    owner,
-  };
-};
+): PublicPageListRow => ({
+  slug: row.slug,
+  displayName: getDisplayNameFromStoredData(row.data) || row.slug,
+  updated_at: row.updated_at ?? null,
+  owner_admin_id: row.owner_admin_id ?? null,
+  owner,
+});
 
 const normalizePublicSlug = normalizePublicPageSlug;
 
@@ -361,7 +359,7 @@ const getActivePublicPageArchiveSourceBySlug = async (
 
 export const listPublicPages = async (
   session?: AdminSession,
-): Promise<PublicPageRow[]> => {
+): Promise<PublicPageListRow[]> => {
   const client = getSupabaseAdminClient();
   let query = client
     .from(PUBLIC_PAGES_TABLE)
@@ -389,8 +387,7 @@ export const listPublicPages = async (
         throw fallback.error;
       }
       return (fallback.data ?? [])
-        .map((row) => mapPublicPageRow({ ...row, owner_admin_id: null }))
-        .filter((row): row is PublicPageRow => Boolean(row));
+        .map((row) => mapPublicPageListRow({ ...row, owner_admin_id: null }));
     }
     throw error;
   }
@@ -402,14 +399,13 @@ export const listPublicPages = async (
 
   return (data ?? [])
     .map((row) =>
-      mapPublicPageRow(
+      mapPublicPageListRow(
         row,
         row.owner_admin_id && ownerById.has(row.owner_admin_id)
           ? mapAdminUserToOwner(ownerById.get(row.owner_admin_id)!)
           : null,
       ),
-    )
-    .filter((row): row is PublicPageRow => Boolean(row));
+    );
 };
 
 export const countPublicPagesForAdmin = async (adminId: string): Promise<number> => {

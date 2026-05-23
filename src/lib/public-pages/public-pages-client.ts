@@ -4,7 +4,8 @@ import { getPublicPageApiPath } from "@/lib/public-pages/paths";
 
 export type PublicPageListItem = {
   slug: string;
-  data: BuilderData;
+  displayName: string;
+  data?: BuilderData;
   updatedAt: string | null;
   ownerAdminId?: string | null;
   owner?: {
@@ -112,6 +113,7 @@ export const listPublicPages = async (signal?: AbortSignal): Promise<PublicPageL
 
   return payload.pages.map((page) => ({
     slug: page.slug,
+    displayName: page.displayName || page.data?.header?.displayName || page.slug,
     data: page.data,
     updatedAt: page.updatedAt ?? page.updated_at ?? null,
     ownerAdminId: page.ownerAdminId ?? null,
