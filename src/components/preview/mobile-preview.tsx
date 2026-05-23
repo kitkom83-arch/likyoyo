@@ -498,10 +498,10 @@ const MobilePreviewComponent = ({
     isAdminPreview &&
     IS_BUTTON_MENU_V2_ADMIN_ENABLED &&
     IS_BUTTON_MENU_V2_PREVIEW_ENABLED;
-  const isButtonMenuV2PublicEnabled =
-    mode === "public" && IS_BUTTON_MENU_V2_PUBLIC_ENABLED;
   const isButtonMenuV2RenderingEnabled =
-    isButtonMenuV2PreviewEnabled || isButtonMenuV2PublicEnabled;
+    isAdminPreview
+      ? isButtonMenuV2PreviewEnabled
+      : IS_BUTTON_MENU_V2_PUBLIC_ENABLED;
   const [resolvedImageRefs, setResolvedImageRefs] = useState<Record<string, string>>({});
   const data = useMemo(
     () => hydrateBuilderDataWithIndexedDbImages(rawData, resolvedImageRefs),
@@ -1103,9 +1103,12 @@ const MobilePreviewComponent = ({
               const safeBackgroundImageSrc = brokenThumbnailKeys[backgroundImageKey]
                 ? THUMBNAIL_FALLBACK_SRC
                 : backgroundImageSrc;
-              const buttonMenuV2ImageSrc = normalizeImageSrc(displaySettings.imageUrl, thumbnailSrc);
-              const buttonMenuV2BackgroundImageSrc =
-                normalizeImageSrc(displaySettings.backgroundImageUrl) ?? buttonMenuV2ImageSrc;
+              const buttonMenuV2ImageSrc = buttonMenuV2Style
+                ? normalizeImageSrc(displaySettings.imageUrl, thumbnailSrc)
+                : null;
+              const buttonMenuV2BackgroundImageSrc = buttonMenuV2Style
+                ? normalizeImageSrc(displaySettings.backgroundImageUrl) ?? buttonMenuV2ImageSrc
+                : null;
               const buttonMenuV2ImageKey = buttonMenuV2ImageSrc
                 ? `${link.id}::v2-image::${buttonMenuV2ImageSrc}`
                 : null;
