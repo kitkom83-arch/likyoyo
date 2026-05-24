@@ -3,8 +3,7 @@ import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-import { isAdminRequestAuthenticated } from "@/lib/server/admin-auth";
-import { validateImageUploadServerEnv } from "@/lib/server/env-validation";
+import { getAdminSessionFromRequest } from "@/lib/server/admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,13 +12,33 @@ const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const UPLOAD_PREFIX = "builder-images";
 
 const MIME_EXTENSIONS: Record<string, string> = {
-  "image/avif": ".avif",
-  "image/gif": ".gif",
   "image/jpeg": ".jpg",
   "image/png": ".png",
-  "image/svg+xml": ".svg",
   "image/webp": ".webp",
 };
+
+const protectedHeaders = {
+  "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
+};
+
+type ImageUploadEnv = {
+  nextPublicSupabaseUrl: string;
+  supabaseServiceRoleKey: string;
+  linkbioImagesBucket: string;
+};
+
+class AdminImageUploadError extends Error {
+  public readonly status: number;
+
+  public readonly publicMessage: string;
+
+  constructor(message: string, publicMessage: string, status = 500) {
+    super(message);
+    this.name = "AdminImageUploadError";
+    this.publicMessage = publicMessage;
+    this.status = status;
+  }
+}
 
 const toErrorLog = (error: unknown) => {
   if (error instanceof Error) {
@@ -32,6 +51,35 @@ const toErrorLog = (error: unknown) => {
     };
   }
   return { raw: error };
+};
+
+const isSupportedImageType = (type: string): boolean =>
+  Object.hasOwn(MIME_EXTENSIONS, type);
+
+const getImageUploadEnv = (): ImageUploadEnv => {
+  const nextPublicSupabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
+  const supabaseServiceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
+  const linkbioImagesBucket = (process.env.LINKBIO_IMAGES_BUCKET ?? "").trim();
+
+  if (!linkbioImagesBucket) {
+    throw new AdminImageUploadError(
+      "LINKBIO_IMAGES_BUCKET is missing.",
+      "Missing bucket config: LINKBIO_IMAGES_BUCKET is not configured.",
+    );
+  }
+
+  if (!nextPublicSupabaseUrl || !supabaseServiceRoleKey) {
+    throw new AdminImageUploadError(
+      "Supabase storage env is incomplete for admin image uploads.",
+      "Missing storage config: Supabase URL or service role key is not configured.",
+    );
+  }
+
+  return {
+    nextPublicSupabaseUrl,
+    supabaseServiceRoleKey,
+    linkbioImagesBucket,
+  };
 };
 
 const sanitizePathSegment = (value: string, fallback: string): string => {
@@ -65,18 +113,26 @@ const createUploadPath = (file: File, context: string): string => {
 };
 
 export async function POST(request: Request) {
-  if (!(await isAdminRequestAuthenticated(request))) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const session = await getAdminSessionFromRequest(request);
+  if (!session) {
+    return NextResponse.json(
+      { error: "Unauthenticated: please sign in to admin again." },
+      { status: 401, headers: protectedHeaders },
+    );
   }
 
-  let env: ReturnType<typeof validateImageUploadServerEnv>;
+  let env: ImageUploadEnv;
   try {
-    env = validateImageUploadServerEnv();
+    env = getImageUploadEnv();
   } catch (error) {
-    console.error("[admin-images] invalid env", error);
+    console.error("[admin-images] invalid env", toErrorLog(error));
+    const message =
+      error instanceof AdminImageUploadError
+        ? error.publicMessage
+        : "Missing storage config: admin image uploads are not configured.";
     return NextResponse.json(
-      { error: "Server image upload configuration is incomplete." },
-      { status: 500 },
+      { error: message },
+      { status: 500, headers: protectedHeaders },
     );
   }
 
@@ -84,22 +140,31 @@ export async function POST(request: Request) {
   try {
     formData = await request.formData();
   } catch {
-    return NextResponse.json({ error: "Invalid upload request." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid upload request." },
+      { status: 400, headers: protectedHeaders },
+    );
   }
 
   const file = formData.get("file");
   const rawContext = formData.get("context");
   const context = typeof rawContext === "string" ? rawContext : "";
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Image file is required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Image file is required." },
+      { status: 400, headers: protectedHeaders },
+    );
   }
-  if (!file.type.startsWith("image/")) {
-    return NextResponse.json({ error: "Only image uploads are allowed." }, { status: 400 });
+  if (!isSupportedImageType(file.type)) {
+    return NextResponse.json(
+      { error: "Unsupported file type: choose a PNG, JPG, JPEG, or WebP image." },
+      { status: 415, headers: protectedHeaders },
+    );
   }
   if (file.size <= 0 || file.size > MAX_IMAGE_SIZE_BYTES) {
     return NextResponse.json(
-      { error: "Image is too large. Please upload an image under 5 MB." },
-      { status: 400 },
+      { error: "File too large: upload an image under 5 MB." },
+      { status: 413, headers: protectedHeaders },
     );
   }
 
@@ -118,9 +183,9 @@ export async function POST(request: Request) {
       throw bucketError;
     }
     if (bucketData && bucketData.public === false) {
-      return NextResponse.json(
-        { error: "LINKBIO_IMAGES_BUCKET must be public for profile images." },
-        { status: 500 },
+      throw new AdminImageUploadError(
+        "LINKBIO_IMAGES_BUCKET is not public.",
+        "Storage upload failed: image bucket must be public.",
       );
     }
 
@@ -147,12 +212,17 @@ export async function POST(request: Request) {
     return NextResponse.json({
       url: publicUrlData.publicUrl,
       path: uploadedPath,
-    });
+    }, { headers: protectedHeaders });
   } catch (error) {
     console.error("[admin-images] upload failed", toErrorLog(error));
+    const message =
+      error instanceof AdminImageUploadError
+        ? error.publicMessage
+        : "Storage upload failed: Supabase could not store the image.";
+    const status = error instanceof AdminImageUploadError ? error.status : 500;
     return NextResponse.json(
-      { error: "Image upload failed. Please try again." },
-      { status: 500 },
+      { error: message },
+      { status, headers: protectedHeaders },
     );
   }
 }
