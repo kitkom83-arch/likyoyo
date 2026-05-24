@@ -6,9 +6,10 @@ import { memo, type MouseEvent, useCallback, useEffect, useMemo, useRef, useStat
 
 import { AnalyticsSummaryCard } from "@/components/admin/analytics-summary-card";
 import { DataToolsCard } from "@/components/admin/data-tools-card";
+import { ImageUrlTool } from "@/components/admin/image-url-tool";
 import { SavedProfilesManagerCard } from "@/components/admin/saved-profiles-manager-card";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BuilderData } from "@/features/builder/types";
 import { useI18n } from "@/i18n/use-i18n";
@@ -74,6 +75,7 @@ const AdminSidebarContent = ({
     [t],
   );
   const [copied, setCopied] = useState(false);
+  const [imageUrlToolOpen, setImageUrlToolOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<string>(SECTION_ITEMS[0].id);
   const activeSectionRef = useRef(activeSection);
   const lastHashScrollRef = useRef<string | null>(null);
@@ -173,7 +175,8 @@ const AdminSidebarContent = ({
   }, [SECTION_ITEMS, scrollToSection]);
 
   return (
-    <aside className="rounded-2xl border border-border/60 bg-gradient-to-b from-background/95 to-muted/35 p-4 shadow-sm sm:p-5">
+    <>
+      <aside className="rounded-2xl border border-border/60 bg-gradient-to-b from-background/95 to-muted/35 p-4 shadow-sm sm:p-5">
       <div className="space-y-2">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t("sidebar_brand_builder")}</p>
         <h1 className="text-2xl font-semibold">{t("sidebar_page_editor")}</h1>
@@ -235,15 +238,15 @@ const AdminSidebarContent = ({
           <ExternalLink className="size-4" />
           {t("sidebar_open_public_page")}
         </Button>
-        <a
-          className={cn(buttonVariants({ variant: "outline" }), "w-full justify-start")}
-          href="https://img.bn9.one/"
-          target="_blank"
-          rel="noopener noreferrer"
+        <Button
+          type="button"
+          className="w-full justify-start"
+          variant="outline"
+          onClick={() => setImageUrlToolOpen(true)}
         >
           <ImageIcon className="size-4" />
           {t("sidebar_image_url_tool")}
-        </a>
+        </Button>
       </div>
 
       <div className="mt-5 space-y-3 border-t border-border/60 pt-4">
@@ -260,6 +263,8 @@ const AdminSidebarContent = ({
         <AnalyticsSummaryCard currentSlug={currentSlug} />
         <DataToolsCard currentSlug={currentSlug} adminScopeKey={adminMe?.user.adminId ?? null} />
       </div>
-    </aside>
+      </aside>
+      <ImageUrlTool open={imageUrlToolOpen} onOpenChange={setImageUrlToolOpen} />
+    </>
   );
 };
