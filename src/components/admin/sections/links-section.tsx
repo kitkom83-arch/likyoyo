@@ -27,6 +27,7 @@ import { ReactNode, useEffect, useMemo, useState } from "react";
 import { FieldErrors, useForm, useWatch } from "react-hook-form";
 
 import { SectionCard } from "@/components/admin/section-card";
+import { ColorField } from "@/components/admin/shared/color-field";
 import { CustomImageUpload } from "@/components/admin/shared/custom-image-upload";
 import { Button } from "@/components/ui/button";
 import {
@@ -513,6 +514,9 @@ export const LinksSection = () => {
   const editStyle = useWatch({ control: editForm.control, name: "style" });
   const editButtonStyle = useWatch({ control: editForm.control, name: "buttonStyle" });
   const editImageBrightness = useWatch({ control: editForm.control, name: "imageBrightness" });
+  const editTextColor = useWatch({ control: editForm.control, name: "textColor" });
+  const editBackgroundColor = useWatch({ control: editForm.control, name: "backgroundColor" });
+  const editBorderColor = useWatch({ control: editForm.control, name: "borderColor" });
   const editImageContrast = useWatch({ control: editForm.control, name: "imageContrast" });
   const editImageSaturation = useWatch({ control: editForm.control, name: "imageSaturation" });
   const editOverlayOpacity = useWatch({ control: editForm.control, name: "overlayOpacity" });
@@ -2716,6 +2720,51 @@ export const LinksSection = () => {
                     />
                     {t("links_style_open_in_new_tab")}
                   </label>
+                  <details className="group rounded-lg border border-border/70 bg-muted/10 p-3">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium">
+                      <span>{t("links_custom_colors_title")}</span>
+                      <span className="text-xs text-muted-foreground group-open:hidden">＋</span>
+                      <span className="hidden text-xs text-muted-foreground group-open:inline">－</span>
+                    </summary>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label>{t("links_color_text")}</Label>
+                        <ColorField
+                          ariaLabel={t("links_color_text")}
+                          value={editTextColor ?? ""}
+                          placeholder="#000000"
+                          onChange={(v) =>
+                            editForm.setValue("textColor", v, { shouldDirty: true, shouldValidate: true })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>{t("links_color_background")}</Label>
+                        <ColorField
+                          ariaLabel={t("links_color_background")}
+                          value={editBackgroundColor ?? ""}
+                          placeholder="#ffffff"
+                          onChange={(v) =>
+                            editForm.setValue("backgroundColor", v, { shouldDirty: true, shouldValidate: true })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>{t("links_color_border")}</Label>
+                        <ColorField
+                          ariaLabel={t("links_color_border")}
+                          value={editBorderColor ?? ""}
+                          placeholder="#e5e7eb"
+                          onChange={(v) =>
+                            editForm.setValue("borderColor", v, { shouldDirty: true, shouldValidate: true })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {t("links_custom_colors_help")}
+                    </p>
+                  </details>
                   {editContentType !== "link" && editContentType !== "promo_gallery" && editContentType !== "external_form" ? (
                     <div className="space-y-2">
                       <Label>

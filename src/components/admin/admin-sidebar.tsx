@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BuilderData } from "@/features/builder/types";
 import { useI18n } from "@/i18n/use-i18n";
+import { buildPublicPageUrl } from "@/lib/public-pages/paths";
 import { AdminMe, PublicPageListItem } from "@/lib/public-pages/public-pages-client";
 import { cn } from "@/lib/utils";
 
@@ -86,8 +87,8 @@ const AdminSidebarContent = ({
     if (typeof window === "undefined") {
       return publicPath;
     }
-    return `${window.location.origin}${publicPath}`;
-  }, [publicPath]);
+    return buildPublicPageUrl(currentSlug, window.location.origin);
+  }, [currentSlug, publicPath]);
 
   const handleCopy = async () => {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
@@ -122,7 +123,9 @@ const AdminSidebarContent = ({
     event.preventDefault();
     scrollToSection(sectionId);
     if (window.location.hash !== `#${sectionId}`) {
-      window.history.pushState(null, "", `#${sectionId}`);
+      // Use replaceState (not pushState): manual pushState here corrupts the
+      // Next.js App Router history stack and traps the browser Back button.
+      window.history.replaceState(null, "", `#${sectionId}`);
     }
   };
 
