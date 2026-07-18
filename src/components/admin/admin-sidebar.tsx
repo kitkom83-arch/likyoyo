@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ExternalLink, Image as ImageIcon, Link2 } from "lucide-react";
 import { memo, type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -63,6 +64,7 @@ const AdminSidebarContent = ({
   onRefreshSavedPages,
 }: AdminSidebarProps) => {
   const { t } = useI18n();
+  const router = useRouter();
   const SECTION_ITEMS = useMemo(
     () => [
       { id: "profile", targetId: "header", label: t("sidebar_section_header") },
@@ -220,7 +222,7 @@ const AdminSidebarContent = ({
             className="w-full justify-start"
             variant="outline"
             onClick={() => {
-              window.location.href = "/admin/owner";
+              router.push("/admin/owner");
             }}
           >
             Owner Control

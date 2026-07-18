@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,7 @@ const formatDateTime = (value: string | null | undefined): string => {
 };
 
 export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
+  const router = useRouter();
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [deletedPages, setDeletedPages] = useState<DeletedPublicPageSummary[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -387,7 +389,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
             <h1 className="text-2xl font-semibold">Admin accounts and slug ownership</h1>
             <p className="mt-1 text-sm text-muted-foreground">Signed in as {viewerName}</p>
           </div>
-          <Button variant="outline" onClick={() => (window.location.href = "/admin")}>
+          <Button variant="outline" onClick={() => router.push("/admin")}>
             Open builder
           </Button>
         </div>
