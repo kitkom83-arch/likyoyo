@@ -14,6 +14,7 @@ export const mockBuilderData: BuilderData = {
     publicHandle: defaultBrandPreset.username,
     displayName: defaultBrandPreset.brandName,
     tagline: defaultBrandPreset.tagline,
+    showPublicHandle: true,
     shareTitle: "",
     shareDescription: "",
     shareImageUrl: "",

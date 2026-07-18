@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useI18n } from "@/i18n/use-i18n";
 
 type AdminRole = "owner" | "admin";
 
@@ -86,6 +87,9 @@ const formatDateTime = (value: string | null | undefined): string => {
 
 export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
   const router = useRouter();
+  const { t } = useI18n();
+  const roleLabel = (role: string) =>
+    role === "owner" ? t("owner_role_owner") : t("owner_role_admin");
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [deletedPages, setDeletedPages] = useState<DeletedPublicPageSummary[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -112,7 +116,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
     try {
       const response = await fetch("/api/admin/deleted-public-pages", { cache: "no-store" });
       if (!response.ok) {
-        throw new Error(await requestError(response, "Failed to load deleted pages."));
+        throw new Error(await requestError(response, t("owner_err_load_deleted")));
       }
       const payload = await parseJson<{ pages?: DeletedPublicPageSummary[] }>(response);
       const nextPages = payload?.pages ?? [];
@@ -126,7 +130,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
     } catch (error) {
       setStatus({
         type: "error",
-        text: error instanceof Error ? error.message : "Failed to load deleted pages.",
+        text: error instanceof Error ? error.message : t("owner_err_load_deleted"),
       });
     } finally {
       setIsDeletedLoading(false);
@@ -138,7 +142,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
     try {
       const response = await fetch("/api/admin/users", { cache: "no-store" });
       if (!response.ok) {
-        throw new Error(await requestError(response, "Failed to load admin users."));
+        throw new Error(await requestError(response, t("owner_err_load_users")));
       }
       const payload = await parseJson<{ users?: AdminUserSummary[] }>(response);
       const nextUsers = payload?.users ?? [];
@@ -158,7 +162,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
     } catch (error) {
       setStatus({
         type: "error",
-        text: error instanceof Error ? error.message : "Failed to load admin users.",
+        text: error instanceof Error ? error.message : t("owner_err_load_users"),
       });
     } finally {
       setIsLoading(false);
@@ -203,7 +207,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
         }),
       });
       if (!response.ok) {
-        throw new Error(await requestError(response, "Failed to create admin user."));
+        throw new Error(await requestError(response, t("owner_err_create_user")));
       }
       setNewUser({
         username: "",
@@ -212,12 +216,12 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
         role: "admin",
         slugLimit: "10",
       });
-      setStatus({ type: "success", text: "Admin account created." });
+      setStatus({ type: "success", text: t("owner_msg_user_created") });
       await refreshUsers();
     } catch (error) {
       setStatus({
         type: "error",
-        text: error instanceof Error ? error.message : "Failed to create admin user.",
+        text: error instanceof Error ? error.message : t("owner_err_create_user"),
       });
     } finally {
       setIsSaving(false);
@@ -233,14 +237,14 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
         body: JSON.stringify(patch),
       });
       if (!response.ok) {
-        throw new Error(await requestError(response, "Failed to update admin user."));
+        throw new Error(await requestError(response, t("owner_err_update_user")));
       }
-      setStatus({ type: "success", text: "Admin account updated." });
+      setStatus({ type: "success", text: t("owner_msg_user_updated") });
       await refreshUsers();
     } catch (error) {
       setStatus({
         type: "error",
-        text: error instanceof Error ? error.message : "Failed to update admin user.",
+        text: error instanceof Error ? error.message : t("owner_err_update_user"),
       });
     } finally {
       setIsSaving(false);
@@ -250,10 +254,10 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
   const resetPassword = async (id: string) => {
     const password = resetPasswords[id]?.trim() ?? "";
     if (password.length < 8) {
-      setStatus({ type: "error", text: "New password must be at least 8 characters." });
+      setStatus({ type: "error", text: t("owner_err_password_length") });
       return;
     }
-    if (!window.confirm("Reset password for this admin?")) {
+    if (!window.confirm(t("owner_confirm_reset"))) {
       return;
     }
     setIsSaving(true);
@@ -264,14 +268,14 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
         body: JSON.stringify({ password }),
       });
       if (!response.ok) {
-        throw new Error(await requestError(response, "Failed to reset password."));
+        throw new Error(await requestError(response, t("owner_err_reset")));
       }
       setResetPasswords((current) => ({ ...current, [id]: "" }));
-      setStatus({ type: "success", text: "Password reset." });
+      setStatus({ type: "success", text: t("owner_msg_password_reset") });
     } catch (error) {
       setStatus({
         type: "error",
-        text: error instanceof Error ? error.message : "Failed to reset password.",
+        text: error instanceof Error ? error.message : t("owner_err_reset"),
       });
     } finally {
       setIsSaving(false);
@@ -297,16 +301,19 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
         },
       );
       if (!response.ok) {
-        throw new Error(await requestError(response, "Failed to restore deleted page."));
+        throw new Error(await requestError(response, t("owner_err_restore")));
       }
-      setStatus({ type: "success", text: `Restored /${input.slug ?? page.slug}.` });
+      setStatus({
+        type: "success",
+        text: t("owner_msg_restored", { slug: input.slug ?? page.slug }),
+      });
       setRestoreAsNewPage(null);
       setRestoreAsNewSlug("");
       await refreshOwnerData();
     } catch (error) {
       setStatus({
         type: "error",
-        text: error instanceof Error ? error.message : "Failed to restore deleted page.",
+        text: error instanceof Error ? error.message : t("owner_err_restore"),
       });
     } finally {
       setIsSaving(false);
@@ -314,7 +321,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
   };
 
   const handleRestore = async (page: DeletedPublicPageSummary) => {
-    if (!window.confirm(`Restore /${page.slug}?`)) {
+    if (!window.confirm(t("owner_confirm_restore", { slug: page.slug }))) {
       return;
     }
     await restoreDeletedPage(page);
@@ -323,10 +330,10 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
   const handleAssignRestore = async (page: DeletedPublicPageSummary) => {
     const ownerAdminId = restoreOwnerDrafts[page.id] ?? "";
     if (!ownerAdminId) {
-      setStatus({ type: "error", text: "Choose an admin to assign this page." });
+      setStatus({ type: "error", text: t("owner_err_choose_admin") });
       return;
     }
-    if (!window.confirm(`Restore /${page.slug}?`)) {
+    if (!window.confirm(t("owner_confirm_restore", { slug: page.slug }))) {
       return;
     }
     await restoreDeletedPage(page, { ownerAdminId });
@@ -338,7 +345,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
     }
     const slug = normalizeSlug(restoreAsNewSlug);
     if (!slug) {
-      setStatus({ type: "error", text: "Enter a new slug." });
+      setStatus({ type: "error", text: t("owner_err_enter_slug") });
       return;
     }
     await restoreDeletedPage(restoreAsNewPage, {
@@ -353,7 +360,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
     }
     const expected = `DELETE ${deleteForeverPage.slug}`;
     if (deleteForeverConfirm !== expected) {
-      setStatus({ type: "error", text: `Type ${expected} to confirm.` });
+      setStatus({ type: "error", text: t("owner_err_type_confirm", { text: expected }) });
       return;
     }
 
@@ -364,16 +371,19 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
         { method: "DELETE" },
       );
       if (!response.ok) {
-        throw new Error(await requestError(response, "Failed to delete forever."));
+        throw new Error(await requestError(response, t("owner_err_delete_forever")));
       }
-      setStatus({ type: "success", text: `Deleted /${deleteForeverPage.slug} forever.` });
+      setStatus({
+        type: "success",
+        text: t("owner_msg_deleted_forever", { slug: deleteForeverPage.slug }),
+      });
       setDeleteForeverPage(null);
       setDeleteForeverConfirm("");
       await refreshDeletedPages();
     } catch (error) {
       setStatus({
         type: "error",
-        text: error instanceof Error ? error.message : "Failed to delete forever.",
+        text: error instanceof Error ? error.message : t("owner_err_delete_forever"),
       });
     } finally {
       setIsSaving(false);
@@ -385,22 +395,24 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
       <div className="mx-auto max-w-7xl space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Owner Control</p>
-            <h1 className="text-2xl font-semibold">Admin accounts and slug ownership</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Signed in as {viewerName}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t("owner_eyebrow")}</p>
+            <h1 className="text-2xl font-semibold">{t("owner_title")}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("owner_signed_in_as", { name: viewerName })}
+            </p>
           </div>
           <Button variant="outline" onClick={() => router.push("/admin")}>
-            Open builder
+            {t("owner_open_builder")}
           </Button>
         </div>
 
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {[
-            ["Total admins", summary.totalAdmins],
-            ["Active admins", summary.activeAdmins],
-            ["Active slugs", summary.activeSlugs],
-            ["Deleted slugs", summary.deletedSlugs],
-            ["Remaining quota", summary.totalRemaining],
+            [t("owner_stat_total_admins"), summary.totalAdmins],
+            [t("owner_stat_active_admins"), summary.activeAdmins],
+            [t("owner_stat_active_slugs"), summary.activeSlugs],
+            [t("owner_stat_deleted_slugs"), summary.deletedSlugs],
+            [t("owner_stat_remaining"), summary.totalRemaining],
           ].map(([label, value]) => (
             <div key={label} className="rounded-lg border border-border/70 bg-background p-4 shadow-sm">
               <p className="text-xs text-muted-foreground">{label}</p>
@@ -422,20 +434,20 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
         ) : null}
 
         <section className="rounded-lg border border-border/70 bg-background p-4 shadow-sm">
-          <h2 className="text-base font-semibold">Create admin account</h2>
+          <h2 className="text-base font-semibold">{t("owner_create_heading")}</h2>
           <form className="mt-4 grid gap-3 md:grid-cols-6" onSubmit={handleCreateUser}>
             <Input
               className="md:col-span-1"
               value={newUser.username}
               onChange={(event) => setNewUser((current) => ({ ...current, username: event.target.value }))}
-              placeholder="username"
+              placeholder={t("owner_ph_username")}
               required
             />
             <Input
               className="md:col-span-1"
               value={newUser.displayName}
               onChange={(event) => setNewUser((current) => ({ ...current, displayName: event.target.value }))}
-              placeholder="Display name"
+              placeholder={t("owner_ph_display_name")}
               required
             />
             <Input
@@ -443,7 +455,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
               type="password"
               value={newUser.password}
               onChange={(event) => setNewUser((current) => ({ ...current, password: event.target.value }))}
-              placeholder="Password"
+              placeholder={t("owner_ph_password")}
               required
               minLength={8}
             />
@@ -453,7 +465,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
               min={0}
               value={newUser.slugLimit}
               onChange={(event) => setNewUser((current) => ({ ...current, slugLimit: event.target.value }))}
-              placeholder="Slug limit"
+              placeholder={t("owner_ph_slug_limit")}
               required
             />
             <select
@@ -461,46 +473,46 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
               value={newUser.role}
               onChange={(event) => setNewUser((current) => ({ ...current, role: event.target.value as AdminRole }))}
             >
-              <option value="admin">admin</option>
-              <option value="owner">owner</option>
+              <option value="admin">{t("owner_role_admin")}</option>
+              <option value="owner">{t("owner_role_owner")}</option>
             </select>
             <Button type="submit" disabled={isSaving}>
-              Create
+              {t("owner_create_button")}
             </Button>
           </form>
         </section>
 
         <section className="overflow-hidden rounded-lg border border-border/70 bg-background shadow-sm">
           <div className="border-b border-border/70 p-4">
-            <h2 className="text-base font-semibold">Admins</h2>
+            <h2 className="text-base font-semibold">{t("owner_admins_heading")}</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left text-sm">
               <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2">Display name</th>
-                  <th className="px-3 py-2">Username</th>
-                  <th className="px-3 py-2">Role</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Limit</th>
-                  <th className="px-3 py-2">Used</th>
-                  <th className="px-3 py-2">Remaining</th>
-                  <th className="px-3 py-2">Owned public paths</th>
-                  <th className="px-3 py-2">Actions</th>
+                  <th className="px-3 py-2">{t("owner_th_display_name")}</th>
+                  <th className="px-3 py-2">{t("owner_th_username")}</th>
+                  <th className="px-3 py-2">{t("owner_th_role")}</th>
+                  <th className="px-3 py-2">{t("owner_th_status")}</th>
+                  <th className="px-3 py-2">{t("owner_th_limit")}</th>
+                  <th className="px-3 py-2">{t("owner_th_used")}</th>
+                  <th className="px-3 py-2">{t("owner_th_remaining")}</th>
+                  <th className="px-3 py-2">{t("owner_th_owned_paths")}</th>
+                  <th className="px-3 py-2">{t("owner_th_actions")}</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
                     <td className="px-3 py-8 text-center text-muted-foreground" colSpan={9}>
-                      Loading...
+                      {t("owner_loading")}
                     </td>
                   </tr>
                 ) : null}
                 {!isLoading && users.length === 0 ? (
                   <tr>
                     <td className="px-3 py-8 text-center text-muted-foreground" colSpan={9}>
-                      No admin users yet.
+                      {t("owner_no_users")}
                     </td>
                   </tr>
                 ) : null}
@@ -523,11 +535,11 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                         />
                       </td>
                       <td className="px-3 py-3 font-medium">{user.username}</td>
-                      <td className="px-3 py-3">{user.role}</td>
+                      <td className="px-3 py-3">{roleLabel(user.role)}</td>
                       <td className="px-3 py-3">
-                        <div>{user.active ? "active" : "inactive"}</div>
+                        <div>{user.active ? t("owner_active") : t("owner_inactive")}</div>
                         <div className="text-[11px] text-muted-foreground">
-                          {user.active ? "public links enabled" : "public links disabled"}
+                          {user.active ? t("owner_links_enabled") : t("owner_links_disabled")}
                         </div>
                       </td>
                       <td className="px-3 py-3">
@@ -554,7 +566,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                               </span>
                             ))
                           ) : (
-                            <span className="text-muted-foreground">No slugs</span>
+                            <span className="text-muted-foreground">{t("owner_no_slugs")}</span>
                           )}
                         </div>
                       </td>
@@ -570,7 +582,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                               })
                             }
                           >
-                            Save
+                            {t("owner_save")}
                           </Button>
                           <Button
                             size="sm"
@@ -580,7 +592,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                               if (
                                 user.active &&
                                 !window.confirm(
-                                  `Disable ${user.username}? This prevents login, publishing, and public access for owned links without deleting data.`,
+                                  t("owner_confirm_disable", { username: user.username }),
                                 )
                               ) {
                                 return;
@@ -588,7 +600,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                               void updateUser(user.id, { active: !user.active });
                             }}
                           >
-                            {user.active ? "Disable links/login" : "Enable links/login"}
+                            {user.active ? t("owner_disable_links") : t("owner_enable_links")}
                           </Button>
                         </div>
                         <div className="flex gap-2">
@@ -601,7 +613,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                                 [user.id]: event.target.value,
                               }))
                             }
-                            placeholder="New password"
+                            placeholder={t("owner_ph_new_password")}
                           />
                           <Button
                             size="sm"
@@ -611,7 +623,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                               void resetPassword(user.id);
                             }}
                           >
-                            Reset
+                            {t("owner_reset")}
                           </Button>
                         </div>
                       </td>
@@ -626,9 +638,9 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
         <section className="overflow-hidden rounded-lg border border-border/70 bg-background shadow-sm">
           <div className="flex flex-col gap-2 border-b border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-base font-semibold">Deleted Pages</h2>
+              <h2 className="text-base font-semibold">{t("owner_deleted_heading")}</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Deleted slugs are archived here until restored or deleted forever.
+                {t("owner_deleted_desc")}
               </p>
             </div>
             <Button
@@ -639,33 +651,33 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                 void refreshDeletedPages();
               }}
             >
-              Refresh
+              {t("owner_refresh")}
             </Button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1180px] text-left text-sm">
               <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2">Slug</th>
-                  <th className="px-3 py-2">Display name</th>
-                  <th className="px-3 py-2">Previous owner</th>
-                  <th className="px-3 py-2">Deleted at</th>
-                  <th className="px-3 py-2">Deleted by</th>
-                  <th className="px-3 py-2">Actions</th>
+                  <th className="px-3 py-2">{t("owner_th_slug")}</th>
+                  <th className="px-3 py-2">{t("owner_th_display_name")}</th>
+                  <th className="px-3 py-2">{t("owner_th_prev_owner")}</th>
+                  <th className="px-3 py-2">{t("owner_th_deleted_at")}</th>
+                  <th className="px-3 py-2">{t("owner_th_deleted_by")}</th>
+                  <th className="px-3 py-2">{t("owner_th_actions")}</th>
                 </tr>
               </thead>
               <tbody>
                 {isDeletedLoading ? (
                   <tr>
                     <td className="px-3 py-8 text-center text-muted-foreground" colSpan={6}>
-                      Loading...
+                      {t("owner_loading")}
                     </td>
                   </tr>
                 ) : null}
                 {!isDeletedLoading && deletedPages.length === 0 ? (
                   <tr>
                     <td className="px-3 py-8 text-center text-muted-foreground" colSpan={6}>
-                      No deleted pages.
+                      {t("owner_no_deleted")}
                     </td>
                   </tr>
                 ) : null}
@@ -691,7 +703,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                             void handleRestore(page);
                           }}
                         >
-                          Restore
+                          {t("owner_restore")}
                         </Button>
                         <Button
                           size="sm"
@@ -702,7 +714,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                             setRestoreAsNewSlug(`${page.slug}-restored`);
                           }}
                         >
-                          Restore as new slug
+                          {t("owner_restore_as_new")}
                         </Button>
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row">
@@ -716,7 +728,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                             }))
                           }
                         >
-                          <option value="">Choose admin</option>
+                          <option value="">{t("owner_choose_admin")}</option>
                           {users
                             .filter((user) => user.active)
                             .map((user) => (
@@ -733,7 +745,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                             void handleAssignRestore(page);
                           }}
                         >
-                          Assign to admin
+                          {t("owner_assign")}
                         </Button>
                       </div>
                       <Button
@@ -745,7 +757,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                           setDeleteForeverConfirm("");
                         }}
                       >
-                        Delete forever
+                        {t("owner_delete_forever")}
                       </Button>
                     </td>
                   </tr>
@@ -762,19 +774,19 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
             aria-modal="true"
             className="w-full max-w-md rounded-lg border border-border bg-background p-5 shadow-2xl"
           >
-            <h3 className="text-base font-semibold">Restore as new slug</h3>
+            <h3 className="text-base font-semibold">{t("owner_restore_as_new")}</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Enter a new slug for /{restoreAsNewPage.slug}.
+              {t("owner_restore_modal_desc", { slug: restoreAsNewPage.slug })}
             </p>
             <div className="mt-4 space-y-1">
               <label htmlFor="restore-new-slug" className="text-xs text-muted-foreground">
-                New slug
+                {t("owner_new_slug_label")}
               </label>
               <Input
                 id="restore-new-slug"
                 value={restoreAsNewSlug}
                 onChange={(event) => setRestoreAsNewSlug(normalizeSlug(event.target.value))}
-                placeholder="new-slug"
+                placeholder={t("owner_ph_new_slug")}
               />
             </div>
             <div className="mt-5 flex justify-end gap-2">
@@ -786,7 +798,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                   setRestoreAsNewSlug("");
                 }}
               >
-                Cancel
+                {t("owner_cancel")}
               </Button>
               <Button
                 disabled={isSaving || !restoreAsNewSlug}
@@ -794,7 +806,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                   void handleRestoreAsNewSlug();
                 }}
               >
-                Restore
+                {t("owner_restore")}
               </Button>
             </div>
           </div>
@@ -807,11 +819,11 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
             aria-modal="true"
             className="w-full max-w-md rounded-lg border border-border bg-background p-5 shadow-2xl"
           >
-            <h3 className="text-base font-semibold">ยืนยันการลบถาวร</h3>
-            <p className="mt-2 text-sm text-muted-foreground">การลบนี้กู้คืนไม่ได้</p>
+            <h3 className="text-base font-semibold">{t("owner_delete_modal_title")}</h3>
+            <p className="mt-2 text-sm text-muted-foreground">{t("owner_delete_modal_desc")}</p>
             <div className="mt-4 space-y-1">
               <label htmlFor="delete-forever-confirm" className="text-xs text-muted-foreground">
-                พิมพ์ DELETE {deleteForeverPage.slug} เพื่อยืนยัน
+                {t("owner_delete_modal_label", { slug: deleteForeverPage.slug })}
               </label>
               <Input
                 id="delete-forever-confirm"
@@ -829,7 +841,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                   setDeleteForeverConfirm("");
                 }}
               >
-                ยกเลิก
+                {t("owner_cancel")}
               </Button>
               <Button
                 variant="destructive"
@@ -838,7 +850,7 @@ export const OwnerControlClient = ({ viewerName }: OwnerControlClientProps) => {
                   void handleDeleteForever();
                 }}
               >
-                ลบถาวร
+                {t("owner_delete_forever")}
               </Button>
             </div>
           </div>

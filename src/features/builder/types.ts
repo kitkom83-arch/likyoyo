@@ -329,6 +329,8 @@ export type ProfileHeader = {
   publicUsername?: string;
   displayName: string;
   tagline: string;
+  // Show/hide the public handle (@slug) text on the public page. Defaults to shown.
+  showPublicHandle?: boolean;
   shareTitle?: string;
   shareDescription?: string;
   shareImageUrl?: string;

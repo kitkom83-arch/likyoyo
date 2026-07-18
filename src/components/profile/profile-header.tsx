@@ -41,6 +41,8 @@ export const ProfileHeader = ({
 }: ProfileHeaderProps) => {
   const publicHandle = getVisiblePublicHandle(data.header);
   const hasPublicHandle = Boolean(publicHandle);
+  // The dedicated "@handle" line can be hidden by the owner without changing the slug/route.
+  const showHandleLine = hasPublicHandle && data.header.showPublicHandle !== false;
 
   const titleColor = data.theme.titleColor ?? data.theme.textColor;
   const titleSize = data.theme.titleSize ?? 28;
@@ -118,7 +120,7 @@ export const ProfileHeader = ({
               </h2>
             ) : null}
 
-            {hasPublicHandle ? (
+            {showHandleLine ? (
               <p className="mt-1 text-sm text-white/85 drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)] sm:text-base">
                 @{publicHandle}
               </p>
@@ -180,7 +182,7 @@ export const ProfileHeader = ({
         </h2>
       ) : null}
 
-      {hasPublicHandle ? (
+      {showHandleLine ? (
         <p className="mt-1 text-center text-sm" style={{ color: data.theme.mutedTextColor }}>
           @{publicHandle}
         </p>
