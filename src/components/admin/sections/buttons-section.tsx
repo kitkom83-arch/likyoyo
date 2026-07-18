@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
+import { ColorField } from "@/components/admin/shared/color-field";
 import { Label } from "@/components/ui/label";
 import { SectionCard } from "@/components/admin/section-card";
 import { ButtonFormValues, buttonSchema } from "@/features/builder/schema";
@@ -67,11 +68,21 @@ export const ButtonsSection = () => {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="buttonBackground">{t("buttons_bg")}</Label>
-          <Input id="buttonBackground" {...form.register("buttonBackground")} />
+          <ColorField
+            id="buttonBackground"
+            ariaLabel={t("buttons_bg")}
+            value={values.buttonBackground ?? theme.buttonBackground}
+            onChange={(v) => form.setValue("buttonBackground", v, { shouldDirty: true, shouldValidate: true })}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="buttonTextColor">{t("buttons_text_color")}</Label>
-          <Input id="buttonTextColor" {...form.register("buttonTextColor")} />
+          <ColorField
+            id="buttonTextColor"
+            ariaLabel={t("buttons_text_color")}
+            value={values.buttonTextColor ?? theme.buttonTextColor}
+            onChange={(v) => form.setValue("buttonTextColor", v, { shouldDirty: true, shouldValidate: true })}
+          />
         </div>
       </div>
       <div className="space-y-2">

@@ -456,6 +456,17 @@ export const th: Record<keyof typeof en, string> = {
   form_submit_label: "ข้อความปุ่มส่ง",
   form_cancel_label: "ข้อความปุ่มยกเลิก",
   form_terms_placeholder: "ข้อความเงื่อนไข (ไม่บังคับ)",
+  form_sheet_webhook_title: "เชื่อมต่อ Google Sheet",
+  form_sheet_webhook_desc:
+    "วางลิงก์ Apps Script Web App เพียงลิงก์เดียว ข้อมูลที่ลูกค้ากรอกจะถูกบันทึกลง Google Sheet ให้อัตโนมัติทุกครั้ง",
+  form_sheet_webhook_help_show: "วิธีเอาลิงก์มาใส่",
+  form_sheet_webhook_help_hide: "ซ่อนขั้นตอน",
+  form_sheet_webhook_step1: "เปิด Google Sheet ของคุณ → ส่วนขยาย (Extensions) → Apps Script",
+  form_sheet_webhook_step2:
+    "วางสคริปต์ doPost(e) ที่นำ JSON.parse(e.postData.contents) ไปต่อท้ายแถวในชีต",
+  form_sheet_webhook_step3:
+    "กด Deploy → New deployment → Web app → ตั้ง Execute as: Me, Who has access: Anyone",
+  form_sheet_webhook_step4: "คัดลอกลิงก์ Web app (ลงท้ายด้วย /exec) มาวางในช่องด้านบน",
   form_fields_title: "ฟิลด์ในฟอร์ม",
   form_add_field: "เพิ่มฟิลด์",
   form_fields_empty: "ยังไม่มีฟิลด์ในฟอร์ม",

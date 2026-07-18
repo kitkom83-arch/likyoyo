@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { forwardSubmissionToSheetWebhook } from "@/lib/server/form-sheet-webhook";
 import { submitGenericFormSubmission } from "@/lib/server/generic-form-submission-adapter";
 
 export const runtime = "nodejs";
@@ -104,9 +105,22 @@ export async function POST(request: Request) {
       responses,
     });
     console.info("[generic-form-submission] submit result", result);
+
+    const sheet = await forwardSubmissionToSheetWebhook({
+      slug,
+      formId,
+      formTitle,
+      submittedAt,
+      responses,
+    });
+    if (sheet.forwarded) {
+      console.info("[generic-form-submission] sheet webhook result", sheet);
+    }
+
     return NextResponse.json({
       id: crypto.randomUUID(),
       ...result,
+      sheet,
     });
   } catch (error) {
     console.error("[generic-form-submission] submit failed", error);

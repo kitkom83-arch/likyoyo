@@ -325,6 +325,7 @@ export const linkSchema = z
     formSubmitLabel: z.string().trim().optional(),
     formCancelLabel: z.string().trim().optional(),
     formTermsPlaceholder: z.string().trim().optional(),
+    formSheetWebhookUrl: z.string().trim().optional(),
     promoTitle: z.string().trim().optional(),
     promoDescription: z.string().trim().optional(),
     promoItems: z
@@ -868,6 +869,7 @@ export const builderDataSchema = z.object({
           submitLabel: z.string().optional(),
           cancelLabel: z.string().optional(),
           termsPlaceholder: z.string().optional(),
+          sheetWebhookUrl: z.string().optional(),
           fields: z
             .array(
               z.object({

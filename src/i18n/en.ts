@@ -457,6 +457,17 @@ export const en = {
   form_submit_label: "Submit button label",
   form_cancel_label: "Cancel button label",
   form_terms_placeholder: "T&Cs placeholder (optional)",
+  form_sheet_webhook_title: "Connect Google Sheet",
+  form_sheet_webhook_desc:
+    "Paste one Apps Script Web App link and every submission is saved to your Google Sheet automatically.",
+  form_sheet_webhook_help_show: "How to get the link",
+  form_sheet_webhook_help_hide: "Hide steps",
+  form_sheet_webhook_step1: "Open your Google Sheet → Extensions → Apps Script.",
+  form_sheet_webhook_step2:
+    "Paste a doPost(e) script that appends JSON.parse(e.postData.contents) to the sheet.",
+  form_sheet_webhook_step3:
+    "Deploy → New deployment → Web app → Execute as: Me, Who has access: Anyone.",
+  form_sheet_webhook_step4: "Copy the Web app URL (ends with /exec) and paste it above.",
   form_fields_title: "Form fields",
   form_add_field: "Add field",
   form_fields_empty: "No form fields yet.",

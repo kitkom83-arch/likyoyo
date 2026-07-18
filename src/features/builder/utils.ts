@@ -541,6 +541,7 @@ export const createEmptyFormBlock = (template: FormTemplate = "email_signup"): B
         : "Submit",
     cancelLabel: template === "deposit_issue" || template === "withdraw_issue" ? "ยกเลิก" : "Cancel",
     termsPlaceholder: "",
+    sheetWebhookUrl: "",
     fields: getFormTemplateFields(template),
   },
   settings: {
@@ -708,6 +709,7 @@ export const getFormData = (link: BioLink): FormBlock => ({
   submitLabel: link.form?.submitLabel ?? "Submit",
   cancelLabel: link.form?.cancelLabel ?? "Cancel",
   termsPlaceholder: link.form?.termsPlaceholder ?? "",
+  sheetWebhookUrl: link.form?.sheetWebhookUrl ?? "",
   fields: (() => {
     const template = link.form?.template ?? "custom";
     const currentFields =
