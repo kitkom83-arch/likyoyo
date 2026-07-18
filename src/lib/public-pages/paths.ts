@@ -71,6 +71,45 @@ export const buildNestedPublicPagePath = (
   pageSlug: string,
 ): string => `${normalizeAdminUsername(ownerUsername)}/${normalizePublicPageSlug(pageSlug)}`;
 
+const stripHostPort = (host: string): string =>
+  host.split(":")[0]?.trim().toLowerCase() ?? "";
+
+// Builds the shareable public URL for a single-segment slug. When
+// NEXT_PUBLIC_ROOT_DOMAIN is configured, returns the subdomain form
+// (https://slug.rootdomain). Otherwise falls back to the path form on `origin`.
+export const buildPublicPageUrl = (
+  slug: string,
+  origin: string,
+): string => {
+  const normalizedSlug = normalizePublicPageSlug(slug);
+  const rootDomain = stripHostPort(process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "");
+  const pathForm = `${origin.replace(/\/+$/, "")}/${normalizedSlug}`;
+
+  if (!rootDomain || !normalizedSlug || normalizedSlug.includes("/")) {
+    return pathForm;
+  }
+
+  // Keep the path form on localhost hosts that lack subdomain support in the browser.
+  let protocol = "https:";
+  let originHost = "";
+  try {
+    const parsed = new URL(origin);
+    protocol = parsed.protocol;
+    originHost = stripHostPort(parsed.host);
+  } catch {
+    return pathForm;
+  }
+
+  if (originHost !== rootDomain && originHost !== `www.${rootDomain}`) {
+    return pathForm;
+  }
+
+  const port = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.includes(":")
+    ? `:${process.env.NEXT_PUBLIC_ROOT_DOMAIN.split(":")[1]}`
+    : "";
+  return `${protocol}//${normalizedSlug}.${rootDomain}${port}`;
+};
+
 export const getPublicPageApiPath = (publicPath: string): string => {
   const { ownerUsername, pageSlug } = splitPublicPagePath(publicPath);
   if (ownerUsername) {

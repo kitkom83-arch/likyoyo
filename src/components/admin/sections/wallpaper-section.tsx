@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
+import { ColorField } from "@/components/admin/shared/color-field";
 import { CustomImageUpload } from "@/components/admin/shared/custom-image-upload";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -172,19 +173,39 @@ export const WallpaperSection = () => {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="pageBackground">{t("wallpaper_page_bg")}</Label>
-          <Input id="pageBackground" {...form.register("pageBackground")} />
+          <ColorField
+            id="pageBackground"
+            ariaLabel={t("wallpaper_page_bg")}
+            value={values.pageBackground ?? theme.pageBackground}
+            onChange={(v) => form.setValue("pageBackground", v, { shouldDirty: true, shouldValidate: true })}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="cardBackground">{t("wallpaper_card_bg")}</Label>
-          <Input id="cardBackground" {...form.register("cardBackground")} />
+          <ColorField
+            id="cardBackground"
+            ariaLabel={t("wallpaper_card_bg")}
+            value={values.cardBackground ?? theme.cardBackground}
+            onChange={(v) => form.setValue("cardBackground", v, { shouldDirty: true, shouldValidate: true })}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="textColor">{t("wallpaper_text_color")}</Label>
-          <Input id="textColor" {...form.register("textColor")} />
+          <ColorField
+            id="textColor"
+            ariaLabel={t("wallpaper_text_color")}
+            value={textColor ?? theme.textColor}
+            onChange={(v) => form.setValue("textColor", v, { shouldDirty: true, shouldValidate: true })}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="mutedTextColor">{t("wallpaper_muted_text_color")}</Label>
-          <Input id="mutedTextColor" {...form.register("mutedTextColor")} />
+          <ColorField
+            id="mutedTextColor"
+            ariaLabel={t("wallpaper_muted_text_color")}
+            value={values.mutedTextColor ?? theme.mutedTextColor}
+            onChange={(v) => form.setValue("mutedTextColor", v, { shouldDirty: true, shouldValidate: true })}
+          />
         </div>
       </div>
       <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
@@ -192,35 +213,38 @@ export const WallpaperSection = () => {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="titleColor">{t("colors_title_color")}</Label>
-            <Input id="titleColor" {...form.register("titleColor")} />
+            <ColorField
+              id="titleColor"
+              ariaLabel={t("colors_title_color")}
+              value={values.titleColor ?? theme.titleColor ?? theme.textColor}
+              onChange={(v) => form.setValue("titleColor", v, { shouldDirty: true, shouldValidate: true })}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="buttonColor">{t("colors_button")}</Label>
-            <Input
+            <ColorField
               id="buttonColor"
+              ariaLabel={t("colors_button")}
               value={theme.buttonBackground}
-              onChange={(event) => updateTheme({ buttonBackground: event.target.value })}
+              onChange={(v) => updateTheme({ buttonBackground: v })}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="buttonTextColor">{t("buttons_text_color")}</Label>
-            <Input
+            <ColorField
               id="buttonTextColor"
+              ariaLabel={t("buttons_text_color")}
               value={theme.buttonTextColor}
-              onChange={(event) => updateTheme({ buttonTextColor: event.target.value })}
+              onChange={(v) => updateTheme({ buttonTextColor: v })}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="textColor">{t("colors_text")}</Label>
-            <Input
-              id="textColor"
-              value={textColor}
-              onChange={(event) =>
-                form.setValue("textColor", event.target.value, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
+            <ColorField
+              id="textColorAlt"
+              ariaLabel={t("colors_text")}
+              value={textColor ?? theme.textColor}
+              onChange={(v) => form.setValue("textColor", v, { shouldDirty: true, shouldValidate: true })}
             />
           </div>
         </div>

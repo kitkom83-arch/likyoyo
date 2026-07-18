@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ExternalLink, Image as ImageIcon, Link2 } from "lucide-react";
 import { memo, type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BuilderData } from "@/features/builder/types";
 import { useI18n } from "@/i18n/use-i18n";
+import { buildPublicPageUrl } from "@/lib/public-pages/paths";
 import { AdminMe, PublicPageListItem } from "@/lib/public-pages/public-pages-client";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +65,7 @@ const AdminSidebarContent = ({
   onRefreshSavedPages,
 }: AdminSidebarProps) => {
   const { t } = useI18n();
+  const router = useRouter();
   const SECTION_ITEMS = useMemo(
     () => [
       { id: "profile", targetId: "header", label: t("sidebar_section_header") },
@@ -84,8 +87,8 @@ const AdminSidebarContent = ({
     if (typeof window === "undefined") {
       return publicPath;
     }
-    return `${window.location.origin}${publicPath}`;
-  }, [publicPath]);
+    return buildPublicPageUrl(currentSlug, window.location.origin);
+  }, [currentSlug, publicPath]);
 
   const handleCopy = async () => {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
@@ -120,7 +123,9 @@ const AdminSidebarContent = ({
     event.preventDefault();
     scrollToSection(sectionId);
     if (window.location.hash !== `#${sectionId}`) {
-      window.history.pushState(null, "", `#${sectionId}`);
+      // Use replaceState (not pushState): manual pushState here corrupts the
+      // Next.js App Router history stack and traps the browser Back button.
+      window.history.replaceState(null, "", `#${sectionId}`);
     }
   };
 
@@ -220,7 +225,7 @@ const AdminSidebarContent = ({
             className="w-full justify-start"
             variant="outline"
             onClick={() => {
-              window.location.href = "/admin/owner";
+              router.push("/admin/owner");
             }}
           >
             Owner Control

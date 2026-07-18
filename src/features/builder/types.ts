@@ -262,6 +262,9 @@ export type FormBlock = {
   submitLabel: string;
   cancelLabel?: string;
   termsPlaceholder?: string;
+  // Google Apps Script Web App URL. When set, submissions are forwarded here
+  // (server-side) so they land in the owner's own Google Sheet.
+  sheetWebhookUrl?: string;
   fields: FormField[];
 };
 
@@ -329,6 +332,8 @@ export type ProfileHeader = {
   publicUsername?: string;
   displayName: string;
   tagline: string;
+  // Show/hide the public handle (@slug) text on the public page. Defaults to shown.
+  showPublicHandle?: boolean;
   shareTitle?: string;
   shareDescription?: string;
   shareImageUrl?: string;

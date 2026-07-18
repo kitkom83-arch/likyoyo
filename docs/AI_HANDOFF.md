@@ -3,6 +3,31 @@
 ## Current goal
 Build multi-admin public page namespaces without changing support forms, Google Sheets flow, or Supabase schema.
 
+## Update 2026-07-18 (project audit: cleanup, docs, tooling)
+
+### Changed files
+- Removed `src/components/profile/profile-header.tsx.bak`, `src/features/builder/schema.ts.bak` (committed backup cruft).
+- Removed `src/lib/server/dev-public-pages-store.ts` (orphaned dead code — zero imports; public pages resolve only via Supabase).
+- Rewrote `README.md` to document the real app, scripts, full env var list, structure, and dev/deploy notes.
+- Added `.env.example` and allowed it through `.gitignore` (`!.env.example`).
+- Added `docs/ARCHITECTURE.md` (rendering/routing, data-layer precedence, i18n parity, known tech debt).
+- `package.json`: added `dev:turbo` (opt-in Turbopack dev) and `typecheck` (`tsc --noEmit`) scripts.
+
+### Findings (no change needed — already healthy)
+- No `TODO`/`FIXME`/`any`/`@ts-ignore` in `src`; no stray client `console.log` (only legitimate `console.error` in error paths).
+- Next 16 conventions correct: async `params` awaited across pages and API routes; zod validation + admin-auth guards consistent under `src/app/api/**`.
+- i18n th/en parity is enforced at compile time (`th: Record<keyof typeof en, string>`).
+- Bundle already well-split: `MobilePreview` is `next/dynamic`; `/admin/lab` and `/admin/owner` are separate route segments.
+
+### Deferred (tracked tech debt)
+- Deep decomposition of the monolithic `mobile-preview.tsx` (~185KB) and `links-section.tsx` (~143KB) single-component bodies was intentionally NOT done in bulk: no test suite exists to verify behavior. See `docs/ARCHITECTURE.md` for the recommended incremental approach.
+
+### Lint result
+- `npm run lint`: PASS
+
+### Build result
+- `npm run build`: PASS (with valid Supabase env)
+
 ## Update 2026-05-16 (multi-admin public namespaces)
 
 ### Changed files

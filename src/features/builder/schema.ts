@@ -183,6 +183,7 @@ export const headerSchema = z.object({
     .optional(),
   displayName: z.string().trim().min(2, "Display name is required."),
   tagline: z.string().trim().min(2, "Tagline is required."),
+  showPublicHandle: z.boolean().default(true),
   shareTitle: z.string().trim().optional(),
   shareDescription: z.string().trim().optional(),
   shareImageUrl: optionalImageSourceSchema(
@@ -324,6 +325,7 @@ export const linkSchema = z
     formSubmitLabel: z.string().trim().optional(),
     formCancelLabel: z.string().trim().optional(),
     formTermsPlaceholder: z.string().trim().optional(),
+    formSheetWebhookUrl: z.string().trim().optional(),
     promoTitle: z.string().trim().optional(),
     promoDescription: z.string().trim().optional(),
     promoItems: z
@@ -712,6 +714,7 @@ export const builderDataSchema = z.object({
     publicUsername: persistedStringSchema.optional(),
     displayName: persistedStringSchema.default("Brand"),
     tagline: persistedStringSchema.default("Tagline"),
+    showPublicHandle: z.boolean().default(true),
     shareTitle: persistedStringSchema.default(""),
     shareDescription: persistedStringSchema.default(""),
     shareImageUrl: persistedImageSourceSchema.default(""),
@@ -866,6 +869,7 @@ export const builderDataSchema = z.object({
           submitLabel: z.string().optional(),
           cancelLabel: z.string().optional(),
           termsPlaceholder: z.string().optional(),
+          sheetWebhookUrl: z.string().optional(),
           fields: z
             .array(
               z.object({

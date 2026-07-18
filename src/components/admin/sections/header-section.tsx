@@ -23,6 +23,7 @@ const CONTROLLED_HEADER_FIELDS = [
   "publicHandle",
   "displayName",
   "tagline",
+  "showPublicHandle",
   "layout",
   "titleMode",
   "heroTextAlign",
@@ -71,6 +72,7 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
       ),
       displayName: header.displayName,
       tagline: header.tagline,
+      showPublicHandle: header.showPublicHandle ?? true,
       shareTitle: header.shareTitle ?? "",
       shareDescription: header.shareDescription ?? "",
       shareImageUrl: header.shareImageUrl ?? "",
@@ -88,6 +90,7 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
   const publicHandle = useWatch({ control: form.control, name: "publicHandle" });
   const displayName = useWatch({ control: form.control, name: "displayName" });
   const tagline = useWatch({ control: form.control, name: "tagline" });
+  const showPublicHandle = useWatch({ control: form.control, name: "showPublicHandle" });
   const layout = useWatch({ control: form.control, name: "layout" });
   const titleMode = useWatch({ control: form.control, name: "titleMode" });
   const avatarUrl = useWatch({ control: form.control, name: "avatarUrl" });
@@ -272,6 +275,22 @@ export const HeaderSection = ({ slugCollisionWarning }: HeaderSectionProps) => {
           value={publicHandle ?? ""}
           onChange={(event) => setProfileTextField("publicHandle", event.target.value)}
         />
+        <input type="hidden" {...form.register("showPublicHandle")} />
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={showPublicHandle ?? true}
+            onChange={(event) => {
+              form.setValue("showPublicHandle", event.target.checked, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+              updateHeader({ showPublicHandle: event.target.checked });
+            }}
+          />
+          {t("header_show_handle")}
+        </label>
+        <p className="text-xs text-muted-foreground">{t("header_show_handle_help")}</p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="profileDisplayName">{t("header_display_name")}</Label>

@@ -49,25 +49,31 @@ type ScheduledSnapshotWork = {
   type: "idle" | "timeout";
 };
 
-const AdminPreviewLoadingPanel = () => (
-  <div className="mx-auto flex min-h-[520px] w-full items-center justify-center rounded-[2rem] border border-dashed border-border/70 bg-muted/20 px-4 text-center text-sm text-muted-foreground">
-    Loading preview.
-  </div>
-);
+const AdminPreviewLoadingPanel = () => {
+  const { t } = useI18n();
+  return (
+    <div className="mx-auto flex min-h-[520px] w-full items-center justify-center rounded-[2rem] border border-dashed border-border/70 bg-muted/20 px-4 text-center text-sm text-muted-foreground">
+      {t("admin_preview_loading")}
+    </div>
+  );
+};
 
-const AdminPreviewDisabledPanel = ({ routeSlug }: { routeSlug: string }) => (
-  <div className="mx-auto flex min-h-[520px] w-full flex-col items-center justify-center gap-3 rounded-[2rem] border border-dashed border-border/70 bg-muted/20 px-6 text-center">
-    <div>
-      <p className="text-sm font-medium text-foreground">Live preview disabled</p>
-      <p className="mt-1 text-xs text-muted-foreground">
-        The editor is using the lightweight admin preview mode for /{routeSlug}.
+const AdminPreviewDisabledPanel = ({ routeSlug }: { routeSlug: string }) => {
+  const { t } = useI18n();
+  return (
+    <div className="mx-auto flex min-h-[520px] w-full flex-col items-center justify-center gap-3 rounded-[2rem] border border-dashed border-border/70 bg-muted/20 px-6 text-center">
+      <div>
+        <p className="text-sm font-medium text-foreground">{t("admin_preview_disabled_title")}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t("admin_preview_disabled_desc", { slug: routeSlug })}
+        </p>
+      </div>
+      <p className="max-w-xs text-xs leading-5 text-muted-foreground">
+        {t("admin_preview_disabled_note")}
       </p>
     </div>
-    <p className="max-w-xs text-xs leading-5 text-muted-foreground">
-      Save, load, sidebar navigation, and saved pages remain available.
-    </p>
-  </div>
-);
+  );
+};
 
 const MobilePreview = dynamic(
   () => import("@/components/preview/mobile-preview").then((mod) => mod.MobilePreview),
@@ -446,7 +452,7 @@ export const AdminShell = () => {
         adminRoleRef.current === "admin" &&
         !accessibleSlugsRef.current.has(normalized)
       ) {
-        setAdminNotice({ type: "error", text: "This page belongs to another admin." });
+        setAdminNotice({ type: "error", text: tRef.current("save_status_foreign_page") });
         return "fallback";
       }
       const loadToken = workspaceLoadTokenRef.current + 1;
@@ -813,21 +819,21 @@ export const AdminShell = () => {
             ) : null}
             {!isWorkspaceReady ? (
               <div className="mb-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
-                Loading saved workspace data in the background.
+                {t("admin_ws_loading_bg")}
               </div>
             ) : null}
             <div className={isSwitchingWorkspace ? "pointer-events-none opacity-65" : ""}>
               <div className="mb-3 grid gap-2 rounded-xl border border-border/60 bg-background/70 p-3 text-xs text-muted-foreground sm:grid-cols-3">
                 <div>
-                  <span className="block font-medium text-foreground">Workspace/owner</span>
+                  <span className="block font-medium text-foreground">{t("admin_ws_owner")}</span>
                   <span>{currentOwnerUsername}</span>
                 </div>
                 <div>
-                  <span className="block font-medium text-foreground">Page slug</span>
+                  <span className="block font-medium text-foreground">{t("admin_ws_page_slug")}</span>
                   <span>{currentPageSlug}</span>
                 </div>
                 <div>
-                  <span className="block font-medium text-foreground">Full public route</span>
+                  <span className="block font-medium text-foreground">{t("admin_ws_full_route")}</span>
                   <span>{currentFullPublicRoute}</span>
                 </div>
               </div>

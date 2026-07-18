@@ -20,12 +20,14 @@ import {
   Plus,
   Settings2,
   SquarePen,
+  Table2,
   Trash2,
 } from "lucide-react";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { FieldErrors, useForm, useWatch } from "react-hook-form";
 
 import { SectionCard } from "@/components/admin/section-card";
+import { ColorField } from "@/components/admin/shared/color-field";
 import { CustomImageUpload } from "@/components/admin/shared/custom-image-upload";
 import { Button } from "@/components/ui/button";
 import {
@@ -395,6 +397,7 @@ export const LinksSection = () => {
       formSubmitLabel: "Submit",
       formCancelLabel: "Cancel",
       formTermsPlaceholder: "",
+      formSheetWebhookUrl: "",
       promoTitle: "",
       promoDescription: "",
       promoItems: [],
@@ -511,6 +514,9 @@ export const LinksSection = () => {
   const editStyle = useWatch({ control: editForm.control, name: "style" });
   const editButtonStyle = useWatch({ control: editForm.control, name: "buttonStyle" });
   const editImageBrightness = useWatch({ control: editForm.control, name: "imageBrightness" });
+  const editTextColor = useWatch({ control: editForm.control, name: "textColor" });
+  const editBackgroundColor = useWatch({ control: editForm.control, name: "backgroundColor" });
+  const editBorderColor = useWatch({ control: editForm.control, name: "borderColor" });
   const editImageContrast = useWatch({ control: editForm.control, name: "imageContrast" });
   const editImageSaturation = useWatch({ control: editForm.control, name: "imageSaturation" });
   const editOverlayOpacity = useWatch({ control: editForm.control, name: "overlayOpacity" });
@@ -728,6 +734,7 @@ export const LinksSection = () => {
       formSubmitLabel: form.submitLabel,
       formCancelLabel: form.cancelLabel ?? t("form_submit_cancel"),
       formTermsPlaceholder: form.termsPlaceholder ?? "",
+      formSheetWebhookUrl: form.sheetWebhookUrl ?? "",
       promoTitle: promoGallery.title ?? "",
       promoDescription: promoGallery.description ?? "",
       promoItems: promoGallery.items.map((item) => ({
@@ -964,6 +971,7 @@ export const LinksSection = () => {
               submitLabel: values.formSubmitLabel ?? "Submit",
               cancelLabel: values.formCancelLabel ?? "Cancel",
               termsPlaceholder: values.formTermsPlaceholder ?? "",
+              sheetWebhookUrl: (values.formSheetWebhookUrl ?? "").trim(),
               fields: (values.formFields ?? []).map((field) => ({
                 id: field.id,
                 label: field.label,
@@ -1789,6 +1797,31 @@ export const LinksSection = () => {
                       <div className="space-y-2">
                         <Label>{t("form_terms_placeholder")}</Label>
                         <Input {...editForm.register("formTermsPlaceholder")} />
+                      </div>
+                      <div className="space-y-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+                        <div className="flex items-center gap-2">
+                          <Table2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+                          <p className="text-sm font-medium">{t("form_sheet_webhook_title")}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{t("form_sheet_webhook_desc")}</p>
+                        <Input
+                          placeholder="https://script.google.com/macros/s/…/exec"
+                          spellCheck={false}
+                          className="font-mono text-xs"
+                          {...editForm.register("formSheetWebhookUrl")}
+                        />
+                        <details className="group mt-1">
+                          <summary className="cursor-pointer list-none text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                            <span className="group-open:hidden">▸ {t("form_sheet_webhook_help_show")}</span>
+                            <span className="hidden group-open:inline">▾ {t("form_sheet_webhook_help_hide")}</span>
+                          </summary>
+                          <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
+                            <li>{t("form_sheet_webhook_step1")}</li>
+                            <li>{t("form_sheet_webhook_step2")}</li>
+                            <li>{t("form_sheet_webhook_step3")}</li>
+                            <li>{t("form_sheet_webhook_step4")}</li>
+                          </ol>
+                        </details>
                       </div>
                       <div className="space-y-3 rounded-xl border p-3">
                         <div className="flex items-center justify-between">
@@ -2687,6 +2720,51 @@ export const LinksSection = () => {
                     />
                     {t("links_style_open_in_new_tab")}
                   </label>
+                  <details className="group rounded-lg border border-border/70 bg-muted/10 p-3">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium">
+                      <span>{t("links_custom_colors_title")}</span>
+                      <span className="text-xs text-muted-foreground group-open:hidden">＋</span>
+                      <span className="hidden text-xs text-muted-foreground group-open:inline">－</span>
+                    </summary>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label>{t("links_color_text")}</Label>
+                        <ColorField
+                          ariaLabel={t("links_color_text")}
+                          value={editTextColor ?? ""}
+                          placeholder="#000000"
+                          onChange={(v) =>
+                            editForm.setValue("textColor", v, { shouldDirty: true, shouldValidate: true })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>{t("links_color_background")}</Label>
+                        <ColorField
+                          ariaLabel={t("links_color_background")}
+                          value={editBackgroundColor ?? ""}
+                          placeholder="#ffffff"
+                          onChange={(v) =>
+                            editForm.setValue("backgroundColor", v, { shouldDirty: true, shouldValidate: true })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>{t("links_color_border")}</Label>
+                        <ColorField
+                          ariaLabel={t("links_color_border")}
+                          value={editBorderColor ?? ""}
+                          placeholder="#e5e7eb"
+                          onChange={(v) =>
+                            editForm.setValue("borderColor", v, { shouldDirty: true, shouldValidate: true })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {t("links_custom_colors_help")}
+                    </p>
+                  </details>
                   {editContentType !== "link" && editContentType !== "promo_gallery" && editContentType !== "external_form" ? (
                     <div className="space-y-2">
                       <Label>

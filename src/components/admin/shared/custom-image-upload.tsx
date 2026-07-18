@@ -1,9 +1,12 @@
 "use client";
 
 import { SafeImage } from "@/components/shared/safe-image";
+import { Link2 } from "lucide-react";
 import { ChangeEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useI18n } from "@/i18n/use-i18n";
 import {
   ImagePersistencePreset,
   processImageForLocalPersistence,
@@ -70,10 +73,13 @@ export const CustomImageUpload = ({
   emptyHint = "PNG, JPG, or WebP",
   className,
 }: CustomImageUploadProps) => {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [selectedFileName, setSelectedFileName] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [resolvedImageValue, setResolvedImageValue] = useState<string | null>(null);
+  const [isUrlMode, setIsUrlMode] = useState(false);
+  const [urlDraft, setUrlDraft] = useState("");
   const inputId = useId();
 
   const normalizedValue = useMemo(() => normalizeImageSrc(value), [value]);
@@ -156,6 +162,32 @@ export const CustomImageUpload = ({
     event.target.value = "";
   };
 
+  const isValidImageUrl = (candidate: string): boolean => {
+    const trimmed = candidate.trim();
+    if (trimmed.startsWith("data:image/")) {
+      return true;
+    }
+    try {
+      const parsed = new URL(trimmed);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+
+  const applyUrl = () => {
+    const trimmed = urlDraft.trim();
+    if (!isValidImageUrl(trimmed)) {
+      onError?.(t("image_upload_url_invalid"));
+      return;
+    }
+    onValueChange(trimmed);
+    setSelectedFileName("");
+    onError?.(null);
+    setUrlDraft("");
+    setIsUrlMode(false);
+  };
+
   return (
     <div className={cn("w-full min-w-0", className)}>
       <input
@@ -208,6 +240,21 @@ export const CustomImageUpload = ({
             variant="ghost"
             className="min-h-10"
             onClick={() => {
+              setIsUrlMode((prev) => !prev);
+              setUrlDraft("");
+              onError?.(null);
+            }}
+            disabled={isProcessing}
+          >
+            <Link2 className="size-4" />
+            {t("image_upload_use_url")}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="min-h-10"
+            onClick={() => {
               onValueChange("");
               setSelectedFileName("");
               onError?.(null);
@@ -217,6 +264,50 @@ export const CustomImageUpload = ({
             {removeLabel}
           </Button>
         </div>
+        {isUrlMode ? (
+          <div className="mt-3 space-y-2 rounded-md border border-border/60 bg-background/70 p-2.5">
+            <p className="text-xs font-medium text-muted-foreground">
+              {t("image_upload_url_title")}
+            </p>
+            <Input
+              value={urlDraft}
+              onChange={(event) => setUrlDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  applyUrl();
+                }
+              }}
+              placeholder={t("image_upload_url_placeholder")}
+              inputMode="url"
+              autoFocus
+              className="h-9"
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className="min-h-9"
+                onClick={applyUrl}
+                disabled={!urlDraft.trim()}
+              >
+                {t("image_upload_url_apply")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="min-h-9"
+                onClick={() => {
+                  setIsUrlMode(false);
+                  setUrlDraft("");
+                }}
+              >
+                {t("image_upload_url_cancel")}
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
