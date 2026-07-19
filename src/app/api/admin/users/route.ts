@@ -7,6 +7,7 @@ import {
 } from "@/lib/server/admin-auth";
 import {
   createAdminUser,
+  getGovernedAdminIds,
   listAdminUserSummaries,
   type AdminRole,
 } from "@/lib/server/admin-users-store";
@@ -56,9 +57,17 @@ export async function GET(request: Request) {
 
   try {
     const users = await listAdminUserSummaries();
+    // Owners only govern the accounts they created (their subtree), never
+    // themselves or siblings. `null` means the hierarchy column is not migrated
+    // yet, so fall back to the legacy "see everyone" behaviour.
+    const governedIds = await getGovernedAdminIds(session.adminId, {
+      includeSelf: false,
+    });
+    const scopedUsers =
+      governedIds === null ? users : users.filter((user) => governedIds.has(user.id));
     return NextResponse.json(
       {
-        users: users.map(toPublicUser),
+        users: scopedUsers.map(toPublicUser),
       },
       { headers: protectedHeaders },
     );
@@ -93,6 +102,7 @@ export async function POST(request: Request) {
       role: parsed.data.role as AdminRole,
       slugLimit: parsed.data.slugLimit,
       passwordHash,
+      createdByAdminId: session.adminId,
     });
     return NextResponse.json({ user: toPublicUser(user) }, { headers: protectedHeaders });
   } catch (error) {

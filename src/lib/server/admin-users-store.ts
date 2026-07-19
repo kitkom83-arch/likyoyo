@@ -12,6 +12,7 @@ export type AdminUser = {
   role: AdminRole;
   slugLimit: number;
   active: boolean;
+  createdByAdminId: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 };
@@ -29,6 +30,7 @@ type AdminUserRow = {
   role: AdminRole;
   slug_limit: number;
   active: boolean;
+  created_by_admin_id?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -48,6 +50,10 @@ const isMissingOwnerAdminIdError = (
   error: { code?: string; message?: string } | null,
 ): boolean => error?.code === "42703" && /owner_admin_id/i.test(error.message ?? "");
 
+const isMissingCreatedByError = (
+  error: { code?: string; message?: string } | null,
+): boolean => error?.code === "42703" && /created_by_admin_id/i.test(error.message ?? "");
+
 const getSupabaseAdminClient = () => {
   const env = validateCriticalServerEnv();
   return createClient(env.nextPublicSupabaseUrl, env.supabaseServiceRoleKey, {
@@ -66,6 +72,7 @@ const mapAdminUser = (row: AdminUserRow): AdminUser => ({
   role: row.role,
   slugLimit: row.slug_limit,
   active: row.active,
+  createdByAdminId: row.created_by_admin_id ?? null,
   createdAt: row.created_at ?? null,
   updatedAt: row.updated_at ?? null,
 });
@@ -119,11 +126,65 @@ const mapAdminUserSummary = (row: AdminUserRow, slugs: string[] = []): AdminUser
     role: user.role,
     slugLimit: user.slugLimit,
     active: user.active,
+    createdByAdminId: user.createdByAdminId,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     slugCount: slugs.length,
     slugs,
   };
+};
+
+/**
+ * Returns the set of admin ids the given owner governs — the accounts they
+ * created, recursively (their subtree). The original root owner (created_by
+ * null) governs everyone because every account descends from it.
+ *
+ * Returns null when the hierarchy is unavailable (column not migrated yet), so
+ * callers can fall back to the legacy "owners see everything" behaviour.
+ */
+export const getGovernedAdminIds = async (
+  rootAdminId: string,
+  options: { includeSelf: boolean },
+): Promise<Set<string> | null> => {
+  const client = getSupabaseAdminClient();
+  const { data, error } = await client
+    .from(ADMIN_USERS_TABLE)
+    .select("id,created_by_admin_id")
+    .returns<Array<{ id: string; created_by_admin_id: string | null }>>();
+
+  if (error) {
+    if (isMissingAdminUsersTableError(error) || isMissingCreatedByError(error)) {
+      return null;
+    }
+    throw error;
+  }
+
+  const childrenByParent = new Map<string, string[]>();
+  for (const row of data ?? []) {
+    if (!row.created_by_admin_id) {
+      continue;
+    }
+    const children = childrenByParent.get(row.created_by_admin_id) ?? [];
+    children.push(row.id);
+    childrenByParent.set(row.created_by_admin_id, children);
+  }
+
+  const governed = new Set<string>();
+  const queue = [rootAdminId];
+  while (queue.length > 0) {
+    const current = queue.shift() as string;
+    for (const child of childrenByParent.get(current) ?? []) {
+      if (!governed.has(child)) {
+        governed.add(child);
+        queue.push(child);
+      }
+    }
+  }
+
+  if (options.includeSelf) {
+    governed.add(rootAdminId);
+  }
+  return governed;
 };
 
 export const getAdminUserByUsername = async (
@@ -189,24 +250,43 @@ export const createAdminUser = async (input: {
   displayName: string;
   role: AdminRole;
   slugLimit: number;
+  createdByAdminId?: string | null;
 }): Promise<AdminUserSummary> => {
   const client = getSupabaseAdminClient();
-  const { data, error } = await client
-    .from(ADMIN_USERS_TABLE)
-    .insert({
-      username: input.username.trim().toLowerCase(),
-      password_hash: input.passwordHash,
-      display_name: input.displayName.trim(),
-      role: input.role,
-      slug_limit: input.slugLimit,
-      active: true,
-      updated_at: new Date().toISOString(),
-    })
-    .select("id,username,password_hash,display_name,role,slug_limit,active,created_at,updated_at")
-    .single<AdminUserRow>();
+  const baseRow = {
+    username: input.username.trim().toLowerCase(),
+    password_hash: input.passwordHash,
+    display_name: input.displayName.trim(),
+    role: input.role,
+    slug_limit: input.slugLimit,
+    active: true,
+    updated_at: new Date().toISOString(),
+  };
+
+  const insertRow = async (withCreatedBy: boolean) =>
+    client
+      .from(ADMIN_USERS_TABLE)
+      .insert(
+        withCreatedBy
+          ? { ...baseRow, created_by_admin_id: input.createdByAdminId ?? null }
+          : baseRow,
+      )
+      .select("id,username,password_hash,display_name,role,slug_limit,active,created_at,updated_at")
+      .single<AdminUserRow>();
+
+  const wantsCreatedBy = input.createdByAdminId !== undefined;
+  let { data, error } = await insertRow(wantsCreatedBy);
+
+  // Gracefully retry without the column if the migration has not run yet.
+  if (error && wantsCreatedBy && isMissingCreatedByError(error)) {
+    ({ data, error } = await insertRow(false));
+  }
 
   if (error) {
     throw error;
+  }
+  if (!data) {
+    throw new Error("Failed to create admin user: no row returned.");
   }
   return { ...mapAdminUser(data), slugCount: 0, slugs: [] };
 };
