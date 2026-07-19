@@ -5,6 +5,11 @@ import { BuilderData } from "@/features/builder/types";
 import { normalizeBuilderData } from "@/features/builder/utils";
 import { type AdminSession } from "@/lib/server/admin-auth";
 import { getAdminUserById, type AdminUser } from "@/lib/server/admin-users-store";
+import {
+  getPageManagerRecord,
+  isPageManagerForSlug,
+  listSlugsManagedByAdmin,
+} from "@/lib/server/page-managers-store";
 import { validateCriticalServerEnv } from "@/lib/server/env-validation";
 import {
   buildNestedPublicPagePath,
@@ -330,6 +335,60 @@ export const getPublicPageOwnershipBySlug = async (
   return data;
 };
 
+export type PageAccess = {
+  slug: string;
+  ownerAdminId: string | null;
+  isOwnerRole: boolean;
+  isPageOwner: boolean;
+  isManager: boolean;
+  canManageManagers: boolean;
+  canView: boolean;
+  canEdit: boolean;
+  canManageTeam: boolean;
+};
+
+/**
+ * Resolves what the given session may do with a specific page (view/edit/manage
+ * team). Returns null when the page does not exist. Combines the global
+ * owner/admin role with per-page manager delegation.
+ */
+export const resolvePageAccessForSession = async (
+  rawSlug: string,
+  session: AdminSession,
+): Promise<PageAccess | null> => {
+  const slug = rawSlug.trim().toLowerCase().replace(/^\/+|\/+$/g, "");
+  if (!slug) {
+    return null;
+  }
+  const existing = await getPublicPageOwnershipBySlug(slug);
+  if (!existing) {
+    return null;
+  }
+
+  const ownerAdminId = existing.owner_admin_id ?? null;
+  const isOwnerRole = session.role === "owner";
+  const isPageOwner = Boolean(ownerAdminId && ownerAdminId === session.adminId);
+  const record =
+    isOwnerRole || isPageOwner
+      ? null
+      : await getPageManagerRecord(existing.slug, session.adminId);
+  const isManager = Boolean(record);
+  const canManageManagers = Boolean(record?.can_manage_managers);
+  const canView = isOwnerRole || isPageOwner || isManager;
+
+  return {
+    slug: existing.slug,
+    ownerAdminId,
+    isOwnerRole,
+    isPageOwner,
+    isManager,
+    canManageManagers,
+    canView,
+    canEdit: canView,
+    canManageTeam: isOwnerRole || isPageOwner || canManageManagers,
+  };
+};
+
 const getActivePublicPageArchiveSourceBySlug = async (
   slug: string,
 ): Promise<ActivePublicPageArchiveSourceRow | null> => {
@@ -361,17 +420,55 @@ export const listPublicPages = async (
   session?: AdminSession,
 ): Promise<PublicPageListRow[]> => {
   const client = getSupabaseAdminClient();
-  let query = client
-    .from(PUBLIC_PAGES_TABLE)
-    .select("slug,data,updated_at,owner_admin_id");
+
+  let data: PublicPageDbRow[] | null = null;
+  let error: { code?: string; message?: string } | null = null;
 
   if (session?.role === "admin") {
-    query = query.eq("owner_admin_id", session.adminId);
-  }
+    // Admins see pages they own plus any page they have been added to manage.
+    const managedSlugs = await listSlugsManagedByAdmin(session.adminId);
+    const rowsBySlug = new Map<string, PublicPageDbRow>();
 
-  const { data, error } = await query
-    .order("updated_at", { ascending: false })
-    .returns<PublicPageDbRow[]>();
+    const owned = await client
+      .from(PUBLIC_PAGES_TABLE)
+      .select("slug,data,updated_at,owner_admin_id")
+      .eq("owner_admin_id", session.adminId)
+      .returns<PublicPageDbRow[]>();
+    if (owned.error) {
+      error = owned.error;
+    } else {
+      for (const row of owned.data ?? []) {
+        rowsBySlug.set(row.slug, row);
+      }
+      if (managedSlugs.length > 0) {
+        const managed = await client
+          .from(PUBLIC_PAGES_TABLE)
+          .select("slug,data,updated_at,owner_admin_id")
+          .in("slug", managedSlugs)
+          .returns<PublicPageDbRow[]>();
+        if (managed.error) {
+          error = managed.error;
+        } else {
+          for (const row of managed.data ?? []) {
+            rowsBySlug.set(row.slug, row);
+          }
+        }
+      }
+      if (!error) {
+        data = Array.from(rowsBySlug.values()).sort((left, right) =>
+          (right.updated_at ?? "").localeCompare(left.updated_at ?? ""),
+        );
+      }
+    }
+  } else {
+    const result = await client
+      .from(PUBLIC_PAGES_TABLE)
+      .select("slug,data,updated_at,owner_admin_id")
+      .order("updated_at", { ascending: false })
+      .returns<PublicPageDbRow[]>();
+    data = result.data;
+    error = result.error;
+  }
 
   if (error) {
     if (isMissingOwnerAdminIdError(error)) {
@@ -495,6 +592,27 @@ export const upsertPublicPageForSession = async (
 ): Promise<PublicPageMutationResult> => {
   const client = getSupabaseAdminClient();
   const normalizedData = normalizeBuilderData(data);
+
+  // Page co-managers may edit the exact page they were added to, even if it lives
+  // in another admin's namespace. They cannot create new pages this way.
+  if (session.role !== "owner") {
+    const managedPath = slug.trim().toLowerCase().replace(/^\/+|\/+$/g, "");
+    if (managedPath && (await isPageManagerForSlug(session.adminId, managedPath))) {
+      const existing = await getPublicPageOwnershipBySlug(managedPath);
+      if (!existing) {
+        return { ok: false, status: 404, error: "Page not found." };
+      }
+      const { error } = await client
+        .from(PUBLIC_PAGES_TABLE)
+        .update({ data: normalizedData, updated_at: new Date().toISOString() })
+        .eq("slug", managedPath);
+      if (error) {
+        throw error;
+      }
+      return { ok: true, created: false };
+    }
+  }
+
   const resolved = resolveMutationPublicPath(slug, session);
   if (!resolved.ok) {
     return resolved;
