@@ -164,6 +164,102 @@ export const upsertPublicPageBySlug = async (slug: string, data: BuilderData): P
   }
 };
 
+export type PageManagerItem = {
+  id: string;
+  slug: string;
+  adminUserId: string;
+  username: string;
+  displayName: string;
+  active: boolean;
+  canManageManagers: boolean;
+  createdByAdminId: string | null;
+  createdAt: string | null;
+};
+
+export type PageManagersResponse = {
+  managers: PageManagerItem[];
+  canManageTeam: boolean;
+  slug: string;
+};
+
+const PAGE_MANAGERS_ENDPOINT = "/api/admin/pages/managers";
+
+export const listPageManagers = async (
+  slug: string,
+  signal?: AbortSignal,
+): Promise<PageManagersResponse | null> => {
+  const response = await fetchWithTimeout(
+    `${PAGE_MANAGERS_ENDPOINT}?slug=${encodeURIComponent(slug)}`,
+    { method: "GET", cache: "no-store", signal },
+  );
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, "Failed to list page managers."));
+  }
+  const payload = await parseJsonResponse<PageManagersResponse>(response);
+  if (!payload || !Array.isArray(payload.managers)) {
+    throw new Error("Unexpected page managers response shape.");
+  }
+  return payload;
+};
+
+export const createPageManager = async (input: {
+  slug: string;
+  username: string;
+  displayName: string;
+  password: string;
+  canManageManagers: boolean;
+}): Promise<PageManagerItem> => {
+  const response = await fetchWithTimeout(PAGE_MANAGERS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, "Failed to create page manager."));
+  }
+  const payload = await parseJsonResponse<{ manager?: PageManagerItem }>(response);
+  if (!payload?.manager) {
+    throw new Error("Failed to create page manager.");
+  }
+  return payload.manager;
+};
+
+export const updatePageManager = async (input: {
+  slug: string;
+  adminUserId: string;
+  canManageManagers: boolean;
+}): Promise<PageManagerItem> => {
+  const response = await fetchWithTimeout(PAGE_MANAGERS_ENDPOINT, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, "Failed to update page manager."));
+  }
+  const payload = await parseJsonResponse<{ manager?: PageManagerItem }>(response);
+  if (!payload?.manager) {
+    throw new Error("Failed to update page manager.");
+  }
+  return payload.manager;
+};
+
+export const removePageManager = async (
+  slug: string,
+  adminUserId: string,
+): Promise<void> => {
+  const response = await fetchWithTimeout(
+    `${PAGE_MANAGERS_ENDPOINT}?slug=${encodeURIComponent(slug)}&adminUserId=${encodeURIComponent(adminUserId)}`,
+    { method: "DELETE" },
+  );
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, "Failed to remove page manager."));
+  }
+};
+
 export const deletePublicPageBySlug = async (slug: string): Promise<void> => {
   const response = await fetchWithTimeout(getPublicPageApiPath(slug), {
     method: "DELETE",

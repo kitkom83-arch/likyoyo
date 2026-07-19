@@ -8,6 +8,7 @@ import { memo, type MouseEvent, useCallback, useEffect, useMemo, useRef, useStat
 import { AnalyticsSummaryCard } from "@/components/admin/analytics-summary-card";
 import { DataToolsCard } from "@/components/admin/data-tools-card";
 import { ImageUrlTool } from "@/components/admin/image-url-tool";
+import { PageTeamCard } from "@/components/admin/page-team-card";
 import { SavedProfilesManagerCard } from "@/components/admin/saved-profiles-manager-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -265,6 +266,7 @@ const AdminSidebarContent = ({
           savedPagesError={savedPagesError}
           onRefreshSavedPages={onRefreshSavedPages}
         />
+        <PageTeamCard currentSlug={currentSlug} adminMe={adminMe} />
         <AnalyticsSummaryCard currentSlug={currentSlug} />
         <DataToolsCard currentSlug={currentSlug} adminScopeKey={adminMe?.user.adminId ?? null} />
       </div>
