@@ -7,6 +7,7 @@ import {
 } from "@/lib/server/admin-auth";
 import {
   getAdminUserById,
+  getGovernedAdminIds,
   resetAdminUserPassword,
 } from "@/lib/server/admin-users-store";
 
@@ -53,6 +54,14 @@ export async function POST(
     }
     const existing = await getAdminUserById(id);
     if (!existing) {
+      return NextResponse.json({ error: "Not found." }, { status: 404, headers: protectedHeaders });
+    }
+
+    // Owners may only reset passwords for accounts inside their subtree.
+    const governedIds = await getGovernedAdminIds(session.adminId, {
+      includeSelf: false,
+    });
+    if (governedIds !== null && !governedIds.has(id)) {
       return NextResponse.json({ error: "Not found." }, { status: 404, headers: protectedHeaders });
     }
 

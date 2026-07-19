@@ -4,7 +4,11 @@ import { builderDataSchema } from "@/features/builder/schema";
 import { BuilderData } from "@/features/builder/types";
 import { normalizeBuilderData } from "@/features/builder/utils";
 import { type AdminSession } from "@/lib/server/admin-auth";
-import { getAdminUserById, type AdminUser } from "@/lib/server/admin-users-store";
+import {
+  getAdminUserById,
+  getGovernedAdminIds,
+  type AdminUser,
+} from "@/lib/server/admin-users-store";
 import {
   getPageManagerRecord,
   isPageManagerForSlug,
@@ -348,6 +352,46 @@ export type PageAccess = {
 };
 
 /**
+ * The subtree of admin ids (self + descendants) a given owner governs, plus
+ * whether that owner is the platform root. Owners may only touch pages owned by
+ * an account inside their subtree. Root owners additionally govern the legacy
+ * pages that have no owner recorded.
+ *
+ * `governedIds === null` means the hierarchy column has not been migrated yet,
+ * so we keep the legacy behaviour where every owner sees everything.
+ */
+type OwnerPageScope = {
+  governedIds: Set<string> | null;
+  isRoot: boolean;
+};
+
+const resolveOwnerPageScope = async (
+  session: AdminSession,
+): Promise<OwnerPageScope> => {
+  const governedIds = await getGovernedAdminIds(session.adminId, {
+    includeSelf: true,
+  });
+  if (!governedIds) {
+    return { governedIds: null, isRoot: true };
+  }
+  const self = await getAdminUserById(session.adminId);
+  return { governedIds, isRoot: !self || self.createdByAdminId === null };
+};
+
+const ownerScopeAllows = (
+  scope: OwnerPageScope,
+  pageOwnerAdminId: string | null,
+): boolean => {
+  if (scope.governedIds === null) {
+    return true;
+  }
+  if (!pageOwnerAdminId) {
+    return scope.isRoot;
+  }
+  return scope.governedIds.has(pageOwnerAdminId);
+};
+
+/**
  * Resolves what the given session may do with a specific page (view/edit/manage
  * team). Returns null when the page does not exist. Combines the global
  * owner/admin role with per-page manager delegation.
@@ -366,7 +410,9 @@ export const resolvePageAccessForSession = async (
   }
 
   const ownerAdminId = existing.owner_admin_id ?? null;
-  const isOwnerRole = session.role === "owner";
+  const isOwnerRole =
+    session.role === "owner" &&
+    ownerScopeAllows(await resolveOwnerPageScope(session), ownerAdminId);
   const isPageOwner = Boolean(ownerAdminId && ownerAdminId === session.adminId);
   const record =
     isOwnerRole || isPageOwner
@@ -489,12 +535,20 @@ export const listPublicPages = async (
     throw error;
   }
 
+  let scopedRows = data ?? [];
+  if (session?.role === "owner") {
+    const scope = await resolveOwnerPageScope(session);
+    scopedRows = scopedRows.filter((row) =>
+      ownerScopeAllows(scope, row.owner_admin_id ?? null),
+    );
+  }
+
   const ownerById = await getAdminUserLookupsByIds(
     client,
-    (data ?? []).map((row) => row.owner_admin_id),
+    scopedRows.map((row) => row.owner_admin_id),
   );
 
-  return (data ?? [])
+  return scopedRows
     .map((row) =>
       mapPublicPageListRow(
         row,
@@ -621,7 +675,16 @@ export const upsertPublicPageForSession = async (
   const existing = await getPublicPageOwnershipBySlug(slugPath);
 
   if (existing) {
-    if (session.role !== "owner" && existing.owner_admin_id && existing.owner_admin_id !== session.adminId) {
+    if (session.role === "owner") {
+      const scope = await resolveOwnerPageScope(session);
+      if (!ownerScopeAllows(scope, existing.owner_admin_id ?? null)) {
+        return {
+          ok: false,
+          status: 403,
+          error: "This slug belongs to another admin.",
+        };
+      }
+    } else if (existing.owner_admin_id && existing.owner_admin_id !== session.adminId) {
       return {
         ok: false,
         status: 403,
@@ -725,7 +788,16 @@ export const removePublicPageBySlugForSession = async (
   if (!existing) {
     return { ok: false, status: 404, error: "Not found." };
   }
-  if (session.role !== "owner" && existing.owner_admin_id && existing.owner_admin_id !== session.adminId) {
+  if (session.role === "owner") {
+    const scope = await resolveOwnerPageScope(session);
+    if (!ownerScopeAllows(scope, existing.owner_admin_id ?? null)) {
+      return {
+        ok: false,
+        status: 403,
+        error: "This slug belongs to another admin.",
+      };
+    }
+  } else if (existing.owner_admin_id && existing.owner_admin_id !== session.adminId) {
     return {
       ok: false,
       status: 403,
@@ -785,12 +857,17 @@ export const listDeletedPublicPagesForOwner = async (
     throw error;
   }
 
-  const userById = await getAdminUserLookupsByIds(
-    client,
-    (data ?? []).flatMap((row) => [row.owner_admin_id, row.deleted_by_admin_id]),
+  const scope = await resolveOwnerPageScope(session);
+  const scopedRows = (data ?? []).filter((row) =>
+    ownerScopeAllows(scope, row.owner_admin_id ?? null),
   );
 
-  return (data ?? []).map((row) => {
+  const userById = await getAdminUserLookupsByIds(
+    client,
+    scopedRows.flatMap((row) => [row.owner_admin_id, row.deleted_by_admin_id]),
+  );
+
+  return scopedRows.map((row) => {
     const mapped = mapDeletedPublicPageRow(row);
     const owner = row.owner_admin_id ? userById.get(row.owner_admin_id) : null;
     const deletedBy = row.deleted_by_admin_id ? userById.get(row.deleted_by_admin_id) : null;
@@ -834,6 +911,11 @@ export const restoreDeletedPublicPageForOwner = async (
     return { ok: false, status: 404, error: "Deleted page not found." };
   }
 
+  const scope = await resolveOwnerPageScope(session);
+  if (!ownerScopeAllows(scope, deletedPage.owner_admin_id ?? null)) {
+    return { ok: false, status: 404, error: "Deleted page not found." };
+  }
+
   const requestedSlug = input.slug ?? deletedPage.slug;
   const requestedPath = requestedSlug.trim().toLowerCase().replace(/^\/+|\/+$/g, "");
   const requestedPageSlug = normalizePublicSlug(getPageSlugFromPublicPath(requestedPath));
@@ -845,6 +927,9 @@ export const restoreDeletedPublicPageForOwner = async (
   const targetOwner = await getAdminUserById(targetOwnerAdminId);
   if (!targetOwner || !targetOwner.active) {
     return { ok: false, status: 400, error: "Target admin is inactive or missing." };
+  }
+  if (!ownerScopeAllows(scope, targetOwnerAdminId)) {
+    return { ok: false, status: 403, error: "Target admin is outside your scope." };
   }
   const targetSlug =
     targetOwner.role === "admin"

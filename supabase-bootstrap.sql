@@ -32,8 +32,15 @@ create table if not exists public.admin_users (
   updated_at timestamptz not null default now()
 );
 
+-- Owner tenancy: which account created this one (root owner stays null).
+alter table public.admin_users
+  add column if not exists created_by_admin_id uuid null
+    references public.admin_users(id) on delete set null;
+
 create index if not exists admin_users_role_idx on public.admin_users(role);
 create index if not exists admin_users_active_idx on public.admin_users(active);
+create index if not exists admin_users_created_by_admin_id_idx
+  on public.admin_users(created_by_admin_id);
 
 -- 3) link public_pages -> admin_users
 alter table public.public_pages

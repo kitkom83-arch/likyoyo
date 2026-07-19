@@ -5,6 +5,7 @@ import { getAdminSessionFromRequest } from "@/lib/server/admin-auth";
 import {
   countActiveOwners,
   getAdminUserById,
+  getGovernedAdminIds,
   updateAdminUser,
 } from "@/lib/server/admin-users-store";
 
@@ -54,6 +55,15 @@ export async function PATCH(
 
     const existing = await getAdminUserById(id);
     if (!existing) {
+      return NextResponse.json({ error: "Not found." }, { status: 404, headers: protectedHeaders });
+    }
+
+    // Owners may only edit accounts inside their subtree (strict descendants),
+    // never themselves or siblings. `null` = column not migrated yet (legacy).
+    const governedIds = await getGovernedAdminIds(session.adminId, {
+      includeSelf: false,
+    });
+    if (governedIds !== null && !governedIds.has(id)) {
       return NextResponse.json({ error: "Not found." }, { status: 404, headers: protectedHeaders });
     }
 
